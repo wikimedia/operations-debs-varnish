@@ -294,6 +294,23 @@ VRT_l_beresp_storage(struct sess *sp, const char *str, ...)
 	sp->wrk->storage_hint = b;
 }
 
+void __match_proto__()
+VRT_l_beresp_stream_tokens(const struct sess *sp, int n)
+{
+	if (n < (int)STREAM_TOKENS_MIN)
+		sp->wrk->stream_tokens = STREAM_TOKENS_MIN;
+	else if (n > (int)STREAM_TOKENS_MAX)
+		sp->wrk->stream_tokens = STREAM_TOKENS_MAX;
+	else
+		sp->wrk->stream_tokens = n;
+}
+
+int __match_proto__()
+VRT_r_beresp_stream_tokens(const struct sess *sp)
+{
+	return (sp->wrk->stream_tokens);
+}
+
 /*--------------------------------------------------------------------*/
 
 void

@@ -1,0 +1,33 @@
+varnishtest "Test failed streamed delivery not entering cache"
+
+server s1 {
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	chunked "<2>------------------------<2>\n"
+	accept
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	chunked "<2>------------------------<2>\n"
+	chunked "<3>------------------------<3>\n"
+	chunkedlen 0
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+	}
+} -start
+
+client c1 {
+	txreq
+	rxresp
+	delay 1
+} -run
+
+client c2 {
+	txreq
+	rxresp
+	expect resp.bodylen == 93
+} -run

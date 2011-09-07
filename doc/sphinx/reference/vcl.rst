@@ -799,11 +799,11 @@ The following variables are available after the requested object has
 been retrieved from the backend, before it is entered into the cache. In
 other words, they are available in vcl_fetch:
 
-beresp.do_stream 
+beresp.do_stream
   Deliver the object to the client directly without fetching the whole
   object into varnish. If this request is pass'ed it will not be
-  stored in memory. As of Varnish Cache 3.0 the object will marked as busy
-  as it is delivered so only client can access the object.
+  stored in memory. For non-passes subsequent requests will be able to
+  deliver the object while it is streamed as well.
 
 beresp.do_esi
   Boolean. ESI-process the object after fetching it. Defaults to

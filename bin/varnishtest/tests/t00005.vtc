@@ -1,0 +1,75 @@
+varnishtest "Test multiple streaming recepients in hit-for-pass mode"
+
+server s1 {
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	sema r1 sync 2
+	chunked "<2>------------------------<2>\n"
+	sema r2 sync 2
+	chunkedlen 0
+} -start
+
+server s2 {
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	sema r3 sync 2
+	chunked "<2>------------------------<2>\n"
+	sema r4 sync 2
+	chunkedlen 0
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_recv {
+		if (req.http.client == "c1") {
+			set req.backend = s1;
+		} else {
+			set req.backend = s2;
+		}
+		return (pass);
+	}
+
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+		return (hit_for_pass);
+	}
+} -start
+
+client c1 {
+	txreq -hdr "client: c1" -hdr "foo: /foo"
+	rxresp -no_obj
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r1 sync 2
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r2 sync 2
+
+	rxchunk
+	expect resp.chunklen == 0
+	expect resp.bodylen == 62
+} -start
+
+client c2 {
+	txreq -hdr "client: c2" -hdr "foo: /foo"
+	rxresp -no_obj
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r3 sync 2
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r4 sync 2
+
+	rxchunk
+	expect resp.chunklen == 0
+	expect resp.bodylen == 62
+} -start
+
+client c1 -wait
+client c2 -wait
+

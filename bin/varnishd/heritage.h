@@ -31,6 +31,9 @@
 
 #include "vre.h"
 
+#define STREAM_TOKENS_MIN	1U
+#define STREAM_TOKENS_MAX	1000U
+
 struct listen_sock {
 	VTAILQ_ENTRY(listen_sock)	list;
 	int				sock;
@@ -214,6 +217,9 @@ struct params {
 	double			shortlived;
 
 	struct vre_limits	vre_limits;
+
+	unsigned		stream_tokens;
+	unsigned		stream_maxchunksize;
 };
 
 /*

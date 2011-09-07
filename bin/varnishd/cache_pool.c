@@ -290,6 +290,53 @@ WRK_Queue(struct sess *sp)
 	return (0);
 }
 
+/*--------------------------------------------------------------------
+ * Queue a workrequest to be scheduled first. Will always queue the 
+ * request, bypassing the max queue length. This is for work loads we 
+ * have already committed to serving
+ *
+ * Return zero
+ */
+
+static int
+WRK_QueueFirst(struct sess *sp)
+{
+	struct worker *w;
+	struct wq *qp;
+	static unsigned nq = 0;
+	unsigned onq;
+
+	/*
+	 * Select which pool we issue to
+	 * XXX: better alg ?
+	 * XXX: per CPU ?
+	 */
+	onq = nq + 1;
+	if (onq >= nwq)
+		onq = 0;
+	qp = wq[onq];
+	nq = onq;
+
+	Lck_Lock(&qp->mtx);
+
+	/* If there are idle threads, we tickle the first one into action */
+	w = VTAILQ_FIRST(&qp->idle);
+	if (w != NULL) {
+		VTAILQ_REMOVE(&qp->idle, w, list);
+		Lck_Unlock(&qp->mtx);
+		w->sp = sp;
+		AZ(pthread_cond_signal(&w->cond));
+		return (0);
+	}
+
+	VTAILQ_INSERT_HEAD(&qp->queue, sp, poollist);
+	qp->nqueue++;
+	qp->lqueue++;
+	Lck_Unlock(&qp->mtx);
+	AZ(pthread_cond_signal(&herder_cond));
+	return (0);
+}
+
 /*--------------------------------------------------------------------*/
 
 int
@@ -316,6 +363,22 @@ WRK_QueueSession(struct sess *sp)
 		VCL_Rel(&sp->vcl);
 	}
 	SES_Delete(sp);
+	return (1);
+}
+
+/*--------------------------------------------------------------------
+ * Queue high priority session (one that we have already commited to 
+ * serving). Will not fail to Queue.
+ *
+ * Always returns 1
+ */
+
+int
+WRK_QueueSessionFirst(struct sess *sp)
+{
+	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+	AZ(sp->wrk);
+	AZ(WRK_QueueFirst(sp));
 	return (1);
 }
 

@@ -373,6 +373,12 @@ sp_variables = (
 		( 'fetch',),
 		'struct sess *'
 	),
+	('beresp.stream_tokens',
+		'INT',
+		( 'fetch',),
+		( 'fetch',),
+		'const struct sess *'
+	),
 	('obj.proto',
 		'STRING',
 		( 'hit', 'error',),

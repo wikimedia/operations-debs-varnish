@@ -974,6 +974,22 @@ static const struct parspec input_parspec[] = {
 		0,
 		"10000", ""},
 
+	{ "stream_tokens", tweak_uint, &master.stream_tokens,
+		STREAM_TOKENS_MIN, STREAM_TOKENS_MAX,
+		"Number of tokens available for fast writers doing streamed "
+		"delivery. This limits the thundering horde effect when new "
+		"data arrives from a slow backend.\n",
+		0,
+		"10", "" },
+	{ "stream_maxchunksize",
+		tweak_uint, &master.stream_maxchunksize, 4, 
+		UINT_MAX / 1024.,
+		"The maximum chunksize we attempt to allocate from storage "
+		"when streaming. This also defines the intervals at which "
+		"the streaming clients receive notifications about new "
+		"content.\n",
+		EXPERIMENTAL,
+		"256", "kilobytes" },
 	{ NULL, NULL, NULL }
 };
 

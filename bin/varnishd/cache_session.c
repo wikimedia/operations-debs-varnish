@@ -223,6 +223,42 @@ SES_New(void)
 }
 
 /*--------------------------------------------------------------------
+ * Get a new session, preferably by recycling an already ready one
+ * This is for use by non-VCA-threads
+ */
+
+struct sess *
+SES_NewNonVCA(struct worker *w)
+{
+	struct sessmem *sm;
+	struct sess *sp;
+	int qp;
+
+	Lck_Lock(&ses_mem_mtx);
+	/* We only look at the other queue that is not used by the
+	 * VCA. We do this while holding the lock so the queue can not
+	 * change under us */
+	qp = 1 - ses_qp;
+	assert(qp <= 1);
+	sm = VTAILQ_FIRST(&ses_free_mem[qp]);
+	if (sm != NULL)
+		VTAILQ_REMOVE(&ses_free_mem[qp], sm, list);
+	Lck_Unlock(&ses_mem_mtx);
+	if (sm == NULL) {
+		sm = ses_sm_alloc();
+		if (sm == NULL)
+			return (NULL);
+		ses_setup(sm);
+	}
+	sp = &sm->sess;
+	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+
+	VSC_C_main->n_sess++;
+
+	return (sp);
+}
+
+/*--------------------------------------------------------------------
  * Allocate a session for use by background threads.
  */
 
