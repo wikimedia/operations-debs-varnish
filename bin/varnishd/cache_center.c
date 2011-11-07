@@ -963,7 +963,7 @@ cnt_streambody(struct sess *sp)
 	AssertObjCorePassOrBusy(sp->obj->objcore);
 
 	/* Create a background step to do the fetching */
-	sp_fetch = SES_NewNonVCA(sp->wrk);
+	sp_fetch = SES_NewNonVCA();
 	assert(sp_fetch != sp);
 	if (sp_fetch == NULL) {
 		/* Can't allocate a new session, but we've already

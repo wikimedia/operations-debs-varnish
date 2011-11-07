@@ -868,7 +868,7 @@ void WRK_BgThread(pthread_t *thr, const char *name, bgthread_t *func,
 /* cache_session.c [SES] */
 void SES_Init(void);
 struct sess *SES_New(void);
-struct sess *SES_NewNonVCA(struct worker *w);
+struct sess *SES_NewNonVCA(void);
 struct sess *SES_Alloc(void);
 void SES_Delete(struct sess *sp);
 void SES_Charge(struct sess *sp);

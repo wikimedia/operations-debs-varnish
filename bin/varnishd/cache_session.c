@@ -228,7 +228,7 @@ SES_New(void)
  */
 
 struct sess *
-SES_NewNonVCA(struct worker *w)
+SES_NewNonVCA(void)
 {
 	struct sessmem *sm;
 	struct sess *sp;
