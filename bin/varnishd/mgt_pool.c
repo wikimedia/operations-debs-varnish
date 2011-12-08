@@ -164,7 +164,7 @@ const struct parspec WRK_parspec[] = {
 		"\n"
 		"Setting it too high results in insuffient worker threads.\n",
 		EXPERIMENTAL,
-		"2", "requests" },
+		"0", "requests" },
 	{ "thread_pool_add_delay",
 		tweak_timeout, &master.wthread_add_delay, 0, UINT_MAX,
 		"Wait at least this long between creating threads.\n"
