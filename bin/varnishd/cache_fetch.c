@@ -646,9 +646,13 @@ FetchBody(struct sess *sp)
 	}
 
 	if (mklen > 0) {
+		if (sp->stream_busyobj != NULL)
+			Lck_Lock(&sp->stream_busyobj->mtx);
 		http_Unset(sp->obj->http, H_Content_Length);
 		http_PrintfHeader(w, sp->fd, sp->obj->http,
 		    "Content-Length: %jd", (intmax_t)sp->obj->len);
+		if (sp->stream_busyobj != NULL)
+			Lck_Unlock(&sp->stream_busyobj->mtx);
 	}
 
 	if (cls)

@@ -221,7 +221,14 @@ cnt_prepresp(struct sess *sp)
 		sp->obj->last_use = sp->t_resp;	/* XXX: locking ? */
 	}
 	http_Setup(sp->wrk->resp, sp->wrk->ws);
-	RES_BuildHttp(sp);
+	if (sp->stream_busyobj != NULL) {
+		/* Lock during reading of obj headers, as fetching thread
+		   might update Content-Length */
+		Lck_Lock(&sp->stream_busyobj->mtx);
+		RES_BuildHttp(sp);
+		Lck_Unlock(&sp->stream_busyobj->mtx);
+	} else
+		RES_BuildHttp(sp);
 	VCL_deliver_method(sp);
 	switch (sp->handling) {
 	case VCL_RET_DELIVER:
