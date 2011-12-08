@@ -464,6 +464,7 @@ RES_StreamWrite(const struct sess *sp)
 			    sctx->obuf, sctx->obuf_len, &sctx->obuf_ptr);
 		} else {
 			(void)WRW_Write(sp->wrk, ptr, l2);
+			sp->wrk->acct_tmp.bodybytes += l2;
 		}
 		sctx->stream_next += l2;
 		if (sctx->stream_next == sctx->stream_max)
