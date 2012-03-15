@@ -1,3 +1,9 @@
+varnish (3.0.2-1wm2) lucid-wikimedia; urgency=low
+
+  * Bump version number to deal with varnish3 package conflict
+
+ -- Mark Bergsma <mark@wikimedia.org>  Thu, 15 Mar 2012 17:56:19 +0000
+
 varnish (3.0.2-1wm1) lucid; urgency=low
 
   * Integrate Asher's varnishncsa udplog patch
