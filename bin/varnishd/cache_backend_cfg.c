@@ -260,6 +260,8 @@ VRT_init_dir(struct cli *cli, struct director **dir, const char *name,
 		VRT_init_dir_fallback(cli, dir, idx, priv);
 	else if (!strcmp(name, "client"))
 		VRT_init_dir_client(cli, dir, idx, priv);
+	else if (!strcmp(name, "chash"))
+		VRT_init_dir_chash(cli, dir, idx, priv);
 	else
 		INCOMPL();
 }

@@ -69,6 +69,7 @@ am_varnishd_OBJECTS = varnishd-cache_acceptor.$(OBJEXT) \
 	varnishd-cache_dir_random.$(OBJEXT) \
 	varnishd-cache_dir_dns.$(OBJEXT) \
 	varnishd-cache_dir_round_robin.$(OBJEXT) \
+	varnishd-cache_dir_chash.$(OBJEXT) \
 	varnishd-cache_esi_fetch.$(OBJEXT) \
 	varnishd-cache_esi_parse.$(OBJEXT) \
 	varnishd-cache_esi_deliver.$(OBJEXT) \
@@ -326,6 +327,7 @@ varnishd_SOURCES = \
 	cache_dir_random.c \
 	cache_dir_dns.c \
 	cache_dir_round_robin.c \
+	cache_dir_chash.c \
 	cache_esi_fetch.c \
 	cache_esi_parse.c \
 	cache_esi_deliver.c \
@@ -509,6 +511,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_center.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_cli.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_dir.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_dir_chash.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_dir_dns.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_dir_random.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-cache_dir_round_robin.Po@am__quote@
@@ -796,6 +799,20 @@ varnishd-cache_dir_round_robin.obj: cache_dir_round_robin.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cache_dir_round_robin.c' object='varnishd-cache_dir_round_robin.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-cache_dir_round_robin.obj `if test -f 'cache_dir_round_robin.c'; then $(CYGPATH_W) 'cache_dir_round_robin.c'; else $(CYGPATH_W) '$(srcdir)/cache_dir_round_robin.c'; fi`
+
+varnishd-cache_dir_chash.o: cache_dir_chash.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-cache_dir_chash.o -MD -MP -MF $(DEPDIR)/varnishd-cache_dir_chash.Tpo -c -o varnishd-cache_dir_chash.o `test -f 'cache_dir_chash.c' || echo '$(srcdir)/'`cache_dir_chash.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/varnishd-cache_dir_chash.Tpo $(DEPDIR)/varnishd-cache_dir_chash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cache_dir_chash.c' object='varnishd-cache_dir_chash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-cache_dir_chash.o `test -f 'cache_dir_chash.c' || echo '$(srcdir)/'`cache_dir_chash.c
+
+varnishd-cache_dir_chash.obj: cache_dir_chash.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-cache_dir_chash.obj -MD -MP -MF $(DEPDIR)/varnishd-cache_dir_chash.Tpo -c -o varnishd-cache_dir_chash.obj `if test -f 'cache_dir_chash.c'; then $(CYGPATH_W) 'cache_dir_chash.c'; else $(CYGPATH_W) '$(srcdir)/cache_dir_chash.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/varnishd-cache_dir_chash.Tpo $(DEPDIR)/varnishd-cache_dir_chash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cache_dir_chash.c' object='varnishd-cache_dir_chash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-cache_dir_chash.obj `if test -f 'cache_dir_chash.c'; then $(CYGPATH_W) 'cache_dir_chash.c'; else $(CYGPATH_W) '$(srcdir)/cache_dir_chash.c'; fi`
 
 varnishd-cache_esi_fetch.o: cache_esi_fetch.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-cache_esi_fetch.o -MD -MP -MF $(DEPDIR)/varnishd-cache_esi_fetch.Tpo -c -o varnishd-cache_esi_fetch.o `test -f 'cache_esi_fetch.c' || echo '$(srcdir)/'`cache_esi_fetch.c
