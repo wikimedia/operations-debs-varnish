@@ -1,3 +1,9 @@
+varnish (3.0.2-2wm2) lucid-wikimedia; urgency=low
+
+  * Add patch "Initial implementation of a consistent hashing director"
+
+ -- Mark Bergsma <mark@wikimedia.org>  Thu, 05 Apr 2012 16:23:06 +0000
+
 varnish (3.0.2-2wm1) lucid-wikimedia; urgency=low
 
   * Bump version number again to deal with varnish3 package conflict
