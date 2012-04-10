@@ -83,16 +83,16 @@ index 0582f72..0b5d0c4 100644
  }
 diff --git a/bin/varnishd/cache_dir_chash.c b/bin/varnishd/cache_dir_chash.c
 new file mode 100644
-index 0000000..2316789
+index 0000000..10ae2c2
 --- /dev/null
 +++ b/bin/varnishd/cache_dir_chash.c
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,286 @@
 +/*-
 + * Copyright (c) 2006 Verdens Gang AS
 + * Copyright (c) 2006-2011 Varnish Software AS
 + * All rights reserved.
 + *
-+ * Author: Poul-Henning Kamp <phk@phk.freebsd.dk>
++ * Author: Mark Bergsma <mark@wikimedia.org>
 + *
 + * Redistribution and use in source and binary forms, with or without
 + * modification, are permitted provided that the following conditions
@@ -118,6 +118,19 @@ index 0000000..2316789
 + * The consistent hash director uses a consistent hash function on the
 + * requested URL to pick a backend.
 + *
++ * A consistent hashing scheme is used that is similar to the
++ * one used in e.g. libketama and some DHTs: each backend name is
++ * hashed one or more times and placed on a circle (the continuum) which
++ * represents a 64 bit double precision number space. A new request's URL
++ * is hashed, and the smallest backend hash value greater than or equal
++ * to the source address hash is selected. If the selected server is
++ * unavailable (down, overloaded) then the next is tried, and so on.
++ *
++ * Destination load weighting is implemented by placing a number of points
++ * on the continuum that is a multiple of the backend weight value: the
++ * higher the weight, the more points on the continuum, and the higher the
++ * probability that this backend is selected if the URL and backend name
++ * hashes are uniformly distributed over the circle.
 + */
 +
 +#include "config.h"
@@ -168,7 +181,8 @@ index 0000000..2316789
 + */
 +
 +static void
-+vdi_chash_sha_digest(uint8_t digest[SHA256_LEN], const char *input, ssize_t len)
++vdi_chash_sha_digest(uint8_t digest[SHA256_LEN], const char *input,
++		ssize_t len)
 +{
 +	struct SHA256Context ctx;
 +
@@ -180,9 +194,11 @@ index 0000000..2316789
 +}
 +
 +static int
-+vdi_chash_cont_compare(const void *a, const void *b) {
-+    const struct vdi_chash_continuum *da = (const struct vdi_chash_continuum *) a;
-+    const struct vdi_chash_continuum *db = (const struct vdi_chash_continuum *) b;
++vdi_chash_cont_cmp(const void *a, const void *b) {
++    const struct vdi_chash_continuum *da =
++    		(const struct vdi_chash_continuum *) a;
++    const struct vdi_chash_continuum *db =
++    		(const struct vdi_chash_continuum *) b;
 +
 +    return (da->hash > db->hash) - (da->hash < db->hash);
 +}
@@ -353,7 +369,7 @@ index 0000000..2316789
 +			AN(vc->host);
 +		}
 +	}
-+	qsort(vs->continuum, vs->tot_weight, sizeof *vc, vdi_chash_cont_compare);
++	qsort(vs->continuum, vs->tot_weight, sizeof *vc, vdi_chash_cont_cmp);
 +
 +	bp[idx] = &vs->dir;
 +}

@@ -1,3 +1,9 @@
+varnish (3.0.2-2wm3) lucid-wikimedia; urgency=low
+
+  * Correct chash director author, styling and additional comments
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 10 Apr 2012 09:48:28 +0000
+
 varnish (3.0.2-2wm2) lucid-wikimedia; urgency=low
 
   * Add patch "Initial implementation of a consistent hashing director"
