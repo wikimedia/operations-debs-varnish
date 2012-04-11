@@ -62,6 +62,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdio_ext.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -780,8 +781,13 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 
 	/* flush the stream */
 	VSB_finish(os);
+	if (fo != stdout && __fpending(fo) + VSB_len(os) > __fbufsize(fo)) {
+		if (fflush(fo) != 0) {
+			perror("fflush");
+			exit(1);
+		}
+	}
 	fprintf(fo, "%s", VSB_data(os));
-	fflush(fo);
 
 	/* clean up */
 	clean_logline(lp);
@@ -800,7 +806,7 @@ sighup(int sig)
 }
 
 static FILE *
-open_log(const char *ofn, int append)
+open_log(const char *ofn, int append, int packet_len)
 {
 	FILE *of;
 	int sockfd, portno, n;
@@ -852,7 +858,16 @@ open_log(const char *ofn, int append)
 	FILE *sf = fdopen(sockfd, "w");
 
 	if (sf == NULL) {
+		perror("fdopen");
 		exit(1);
+	}
+
+	if (packet_len > 0) {
+		/* Setup full buffering, so we can flush after multiple lines */
+		if (setvbuf(sf, (char *) NULL, _IOFBF, packet_len) != 0) {
+			perror("setvbuf");
+			exit(1);
+		}
 	}
 
         return (sf);
@@ -874,9 +889,10 @@ int
 main(int argc, char *argv[])
 {
 	int c;
-	int a_flag = 0, D_flag = 0, format_flag = 0;
+	int a_flag = 0, D_flag = 0, format_flag = 0, packet_len = 1450;
 	const char *P_arg = NULL;
 	const char *w_arg = NULL;
+	const char *l_arg = NULL;
 	struct vpf_fh *pfh = NULL;
 	char hostname[1024];
 	struct hostent *lh;
@@ -886,7 +902,7 @@ main(int argc, char *argv[])
 	vd = VSM_New();
 	VSL_Setup(vd);
 
-	while ((c = getopt(argc, argv, VSL_ARGS "aDP:Vw:fF:")) != -1) {
+	while ((c = getopt(argc, argv, VSL_ARGS "aDP:Vw:fF:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			a_flag = 1;
@@ -918,6 +934,9 @@ main(int argc, char *argv[])
 			exit(0);
 		case 'w':
 			w_arg = optarg;
+			break;
+		case 'l':
+			l_arg = optarg;
 			break;
 		case 'b':
 			fprintf(stderr, "-b is not valid for varnishncsa\n");
@@ -968,8 +987,17 @@ main(int argc, char *argv[])
 	if (pfh != NULL)
 		VPF_Write(pfh);
 
+	if (l_arg) {
+		if (sscanf("%i", &packet_len) != 1) {
+			perror("sscanf()");
+			exit(1);
+		}
+	}
+
 	if (w_arg) {
-		of = open_log(w_arg, a_flag);
+		if (packet_len == 0)
+			packet_len = 1450;
+		of = open_log(w_arg, a_flag, packet_len);
 		signal(SIGHUP, sighup);
 	} else {
 		w_arg = "stdout";
@@ -977,11 +1005,11 @@ main(int argc, char *argv[])
 	}
 
 	while (VSL_Dispatch(vd, h_ncsa, of) >= 0) {
-		if (fflush(of) != 0) {
+		if (packet_len == 0 && fflush(of) != 0) {
 			perror(w_arg);
 			exit(1);
 		}
-		if (reopen && of != stdout) {
+		if (reopen && of != stdout && packet_len == 0) {
 			fclose(of);
 			of = open_log(w_arg, a_flag);
 			reopen = 0;
