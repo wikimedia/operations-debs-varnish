@@ -79,6 +79,13 @@
 #include "varnishapi.h"
 #include "base64.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+
+static long int sequence_number = 0;
+char seqbuf[21];
 static volatile sig_atomic_t reopen;
 
 struct hdr {
@@ -114,6 +121,8 @@ static size_t nll;
 static int m_flag = 0;
 
 static const char *format;
+
+static char localhost[255];
 
 static int
 isprefix(const char *str, const char *prefix, const char *end,
@@ -526,6 +535,31 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 	return (1);
 }
 
+char *str_replace(const char *s, const char *old, const char *new)
+{
+	char *ret;
+	int i = 0;
+	size_t newlen = strlen(new);
+	size_t oldlen = strlen(old);
+
+	ret = malloc(4096);
+	if (ret == NULL)
+		exit(1);
+
+	i = 0;
+	while (*s) {
+		if (strstr(s, old) == s) {
+			strcpy(&ret[i], new);
+			i += newlen;
+			s += oldlen;
+		} else
+			ret[i++] = *s++;
+	}
+	ret[i] = '\0';
+
+	return ret;
+}
+
 static int
 h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
     unsigned len, unsigned spec, const char *ptr, uint64_t bitmap)
@@ -534,6 +568,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 	FILE *fo = priv;
 	char *q, tbuf[64];
 	const char *p;
+	char *nh;
 	struct vsb *os;
 
 	if (fd >= nll) {
@@ -583,6 +618,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 	/* We have a complete data set - log a line */
 
 	fo = priv;
+	sequence_number++;
 	os = VSB_new_auto();
 
 	for (p = format; *p != '\0'; p++) {
@@ -610,11 +646,16 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 				VSB_cat(os, lp->df_h ? lp->df_h : "-");
 			break;
 		case 'l':
-			VSB_putc(os, '-');
+			VSB_cat(os, localhost);
 			break;
 
 		case 'm':
 			VSB_cat(os, lp->df_m ? lp->df_m : "-");
+			break;
+			
+		case 'n':
+			snprintf(seqbuf, sizeof(seqbuf), "%ld", sequence_number);
+			VSB_cat(os, seqbuf);
 			break;
 
 		case 'q':
@@ -648,7 +689,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 
 		case 't':
 			/* %t */
-			strftime(tbuf, sizeof tbuf, "[%d/%b/%Y:%T %z]", &lp->df_t);
+			strftime(tbuf, sizeof tbuf, "%Y-%m-%dT%T", &lp->df_t);  /* 2011-08-11T21:17:01 - no ms from strftim */
 			VSB_cat(os, tbuf);
 			break;
 
@@ -694,7 +735,13 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 			switch (type) {
 			case 'i':
 				h = req_header(lp, fname);
-				VSB_cat(os, h ? h : "-");
+				if (h) { 
+					nh = str_replace(h, " ", "%20");
+					VSB_cat(os, nh);
+					free(nh);
+				} else {
+					VSB_cat(os, "-");
+				}
 				p = tmp;
 				break;
 			case 'o':
@@ -756,12 +803,59 @@ static FILE *
 open_log(const char *ofn, int append)
 {
 	FILE *of;
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct in_addr iaddr;
+	struct hostent *server;
+	u_char ttl = 10;
+	char host[500];
+	char port[10];
+	char loopch=0;
 
-	if ((of = fopen(ofn, append ? "a" : "w")) == NULL) {
-		perror(ofn);
+	sscanf(ofn, "%[^:]:%s", host, port);
+
+	portno = atoi(port);
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	if (sockfd < 0) {
+        	fprintf(stderr, "ERROR opening socket\n");
+	}
+
+   	server = gethostbyname(host);
+
+        if (server == NULL) {
+		fprintf(stderr,"ERROR, no such host\n");
+		exit(1);
+        }
+
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(portno);
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, 
+		server->h_length);	
+	if ((ntohl(serv_addr.sin_addr.s_addr) >> 28) == 0xe) {
+		iaddr.s_addr = INADDR_ANY; /* use DEFAULT interface */
+		setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &iaddr,
+			sizeof(struct in_addr));
+		setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl,
+			sizeof(unsigned char));
+		setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, /* don't send to own interface */
+			(char *)&loopch, sizeof(loopch));
+	}
+
+	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+		perror("socket");
 		exit(1);
 	}
-	return (of);
+
+	FILE *sf = fdopen(sockfd, "w");
+
+	if (sf == NULL) {
+		exit(1);
+	}
+
+        return (sf);
 }
 
 /*--------------------------------------------------------------------*/
@@ -772,7 +866,7 @@ usage(void)
 
 	fprintf(stderr,
 	    "usage: varnishncsa %s [-aDV] [-n varnish_name] "
-	    "[-P file] [-w file]\n", VSL_USAGE);
+	    "[-P file] [-w host:port]\n", VSL_USAGE);
 	exit(1);
 }
 
@@ -784,8 +878,10 @@ main(int argc, char *argv[])
 	const char *P_arg = NULL;
 	const char *w_arg = NULL;
 	struct vpf_fh *pfh = NULL;
+	char hostname[1024];
+	struct hostent *lh;
 	FILE *of;
-	format = "%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-agent}i\"";
+	format = "%l %n %t %{Varnish:time_firstbyte}x %h %{Varnish:handling}x/%s %b %m http://%{Host}i%U%q - - %{Referer}i %{X-Forwarded-For}i %{User-agent}i";
 
 	vd = VSM_New();
 	VSL_Setup(vd);
@@ -800,7 +896,7 @@ main(int argc, char *argv[])
 				fprintf(stderr, "-f and -F can not be combined\n");
 				exit(1);
 			}
-			format = "%{X-Forwarded-For}i %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-agent}i\"";
+			format = "%l %n %t %{Varnish:time_firstbyte}x %{X-Forwarded-For} %{Varnish:handling}x/%s %b %m http://%{Host}i%U%q - - %{Referer}i %{X-Forwarded-For}i %{User-agent}i";
 			format_flag = 1;
 			break;
 		case 'F':
@@ -846,6 +942,11 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
+
+	hostname[1023] = '\0';
+	gethostname(hostname, 1023);
+	lh = gethostbyname(hostname);
+	strcpy(localhost, lh->h_name);
 
 	VSL_Arg(vd, 'c', optarg);
 
