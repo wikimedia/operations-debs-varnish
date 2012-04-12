@@ -95,6 +95,11 @@ struct hdr {
 	VTAILQ_ENTRY(hdr) list;
 };
 
+struct ncsa_opts {
+	FILE *fs;
+	int packet_len;
+};
+
 static struct logline {
 	char *df_H;			/* %H, Protocol version */
 	char *df_U;			/* %U, URL path */
@@ -571,6 +576,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 	const char *p;
 	char *nh;
 	struct vsb *os;
+	struct ncsa_opts *opts;
 
 	if (fd >= nll) {
 		struct logline **newll = ll;
@@ -618,7 +624,8 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 
 	/* We have a complete data set - log a line */
 
-	fo = priv;
+	opts = (struct ncsa_opts *)priv;
+	fo = opts->fs;
 	sequence_number++;
 	os = VSB_new_auto();
 
@@ -781,7 +788,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 
 	/* flush the stream */
 	VSB_finish(os);
-	if (fo != stdout && __fpending(fo) + VSB_len(os) > __fbufsize(fo)) {
+	if (fo != stdout && __fpending(fo) + VSB_len(os) > opts->packet_len) {
 		if (fflush(fo) != 0) {
 			perror("fflush");
 			exit(1);
@@ -889,14 +896,14 @@ int
 main(int argc, char *argv[])
 {
 	int c;
-	int a_flag = 0, D_flag = 0, format_flag = 0, packet_len = 1450;
+	int a_flag = 0, D_flag = 0, format_flag = 0;
 	const char *P_arg = NULL;
 	const char *w_arg = NULL;
 	const char *l_arg = NULL;
 	struct vpf_fh *pfh = NULL;
 	char hostname[1024];
 	struct hostent *lh;
-	FILE *of;
+	struct ncsa_opts h_ncsa_args;
 	format = "%l %n %t %{Varnish:time_firstbyte}x %h %{Varnish:handling}x/%s %b %m http://%{Host}i%U%q - - %{Referer}i %{X-Forwarded-For}i %{User-agent}i";
 
 	vd = VSM_New();
@@ -988,30 +995,33 @@ main(int argc, char *argv[])
 		VPF_Write(pfh);
 
 	if (l_arg) {
-		if (sscanf(l_arg, "%i", &packet_len) != 1) {
+		if (sscanf(l_arg, "%i", &h_ncsa_args.packet_len) != 1) {
 			perror("sscanf()");
 			exit(1);
 		}
 	}
+	else {
+		h_ncsa_args.packet_len = 0;
+	}
 
 	if (w_arg) {
-		if (packet_len == 0)
-			packet_len = 1450;
-		of = open_log(w_arg, a_flag, packet_len);
+		if (h_ncsa_args.packet_len == 0)
+			h_ncsa_args.packet_len = 1450;
+		h_ncsa_args.fs = open_log(w_arg, a_flag, h_ncsa_args.packet_len);
 		signal(SIGHUP, sighup);
 	} else {
 		w_arg = "stdout";
-		of = stdout;
+		h_ncsa_args.fs = stdout;
 	}
 
-	while (VSL_Dispatch(vd, h_ncsa, of) >= 0) {
-		if (packet_len == 0 && fflush(of) != 0) {
+	while (VSL_Dispatch(vd, h_ncsa, &h_ncsa_args) >= 0) {
+		if (h_ncsa_args.packet_len == 0 && fflush(h_ncsa_args.fs) != 0) {
 			perror(w_arg);
 			exit(1);
 		}
-		if (reopen && of != stdout && packet_len == 0) {
-			fclose(of);
-			of = open_log(w_arg, a_flag, packet_len);
+		if (reopen && h_ncsa_args.fs != stdout && h_ncsa_args.packet_len == 0) {
+			fclose(h_ncsa_args.fs);
+			h_ncsa_args.fs = open_log(w_arg, a_flag, h_ncsa_args.packet_len);
 			reopen = 0;
 		}
 	}
