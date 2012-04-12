@@ -988,7 +988,7 @@ main(int argc, char *argv[])
 		VPF_Write(pfh);
 
 	if (l_arg) {
-		if (sscanf("%i", &packet_len) != 1) {
+		if (sscanf(l_arg, "%i", &packet_len) != 1) {
 			perror("sscanf()");
 			exit(1);
 		}
@@ -1011,7 +1011,7 @@ main(int argc, char *argv[])
 		}
 		if (reopen && of != stdout && packet_len == 0) {
 			fclose(of);
-			of = open_log(w_arg, a_flag);
+			of = open_log(w_arg, a_flag, packet_len);
 			reopen = 0;
 		}
 	}
