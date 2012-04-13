@@ -1,3 +1,9 @@
+varnish (3.0.2-2wm4) lucid-wikimedia; urgency=low
+
+  * Log multiple requests per udp log packet
+
+ -- Mark Bergsma <mark@wikimedia.org>  Fri, 13 Apr 2012 11:26:08 +0000
+
 varnish (3.0.2-2wm3) lucid-wikimedia; urgency=low
 
   * Correct chash director author, styling and additional comments
