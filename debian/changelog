@@ -1,3 +1,9 @@
+varnish (3.0.2-2wm5) precise-wikimedia; urgency=low
+
+  * Build for precise
+
+ -- Mark Bergsma <mark@wikimedia.org>  Wed, 02 May 2012 14:28:00 +0000
+
 varnish (3.0.2-2wm4) lucid-wikimedia; urgency=low
 
   * Log multiple requests per udp log packet
