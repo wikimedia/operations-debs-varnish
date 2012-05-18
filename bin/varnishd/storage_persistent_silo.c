@@ -174,48 +174,45 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 void
 smp_new_seg(struct smp_sc *sc)
 {
-	struct smp_seg *sg, *sg2;
+	struct smp_seg tmpsg;
+	struct smp_seg *sg;
 
+	AZ(sc->cur_seg);
 	Lck_AssertHeld(&sc->mtx);
-	ALLOC_OBJ(sg, SMP_SEG_MAGIC);
-	AN(sg);
-	sg->sc = sc;
-	sg->lru = LRU_Alloc();
-	CHECK_OBJ_NOTNULL(sg->lru, LRU_MAGIC);
 
 	/* XXX: find where it goes in silo */
 
-	sg->p.offset = sc->free_offset;
-	// XXX: align */
-	assert(sg->p.offset >= sc->ident->stuff[SMP_SPC_STUFF]);
-	assert(sg->p.offset < sc->mediasize);
+	memset(&tmpsg, 0, sizeof tmpsg);
+	tmpsg.magic = SMP_SEG_MAGIC;
+	tmpsg.sc = sc;
+	tmpsg.p.offset = sc->free_offset;
+	/* XXX: align */
+	assert(tmpsg.p.offset >= sc->ident->stuff[SMP_SPC_STUFF]);
+	assert(tmpsg.p.offset < sc->mediasize);
 
-	sg->p.length = sc->aim_segl;
-	sg->p.length &= ~7;
+	tmpsg.p.length = sc->aim_segl;
+	tmpsg.p.length &= ~7;
 
-	if (smp_segend(sg) > sc->mediasize) {
-		sc->free_offset = sc->ident->stuff[SMP_SPC_STUFF];
-		sg->p.offset = sc->free_offset;
-		sg2 = VTAILQ_FIRST(&sc->segments);
-		if (smp_segend(sg) > sg2->p.offset) {
-			printf("Out of space in persistent silo\n");
-			printf("Committing suicide, restart will make space\n");
-			exit (0);
-		}
+	if (smp_segend(&tmpsg) > sc->mediasize)
+		tmpsg.p.offset = sc->ident->stuff[SMP_SPC_STUFF];
+
+	assert(smp_segend(&tmpsg) <= sc->mediasize);
+
+	sg = VTAILQ_FIRST(&sc->segments);
+	if (sg != NULL && sg->p.offset >= tmpsg.p.offset) {
+		if (smp_segend(&tmpsg) > sg->p.offset)
+			return;
+		assert(smp_segend(&tmpsg) <= sg->p.offset);
 	}
 
+	if (tmpsg.p.offset == sc->ident->stuff[SMP_SPC_STUFF])
+		printf("Wrapped silo\n");
 
-	assert(smp_segend(sg) <= sc->mediasize);
-
-	sg2 = VTAILQ_FIRST(&sc->segments);
-	if (sg2 != NULL && sg2->p.offset > sc->free_offset) {
-		if (smp_segend(sg) > sg2->p.offset) {
-			printf("Out of space in persistent silo\n");
-			printf("Committing suicide, restart will make space\n");
-			exit (0);
-		}
-		assert(smp_segend(sg) <= sg2->p.offset);
-	}
+	ALLOC_OBJ(sg, SMP_SEG_MAGIC);
+	AN(sg);
+	*sg = tmpsg;
+	sg->lru = LRU_Alloc();
+	CHECK_OBJ_NOTNULL(sg->lru, LRU_MAGIC);
 
 	sg->p.offset = IRNUP(sc, sg->p.offset);
 	sg->p.length = IRNDN(sc, sg->p.length);
@@ -251,6 +248,7 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 
 	Lck_AssertHeld(&sc->mtx);
 
+	CHECK_OBJ_NOTNULL(sg, SMP_SEG_MAGIC);
 	assert(sg == sc->cur_seg);
 	AN(sg->p.offset);
 	sc->cur_seg = NULL;
