@@ -700,6 +700,7 @@ void EXP_Init(void);
 void EXP_Rearm(const struct object *o);
 int EXP_Touch(struct objcore *oc);
 int EXP_NukeOne(struct worker *w, struct lru *lru);
+void EXP_NukeLRU(struct worker *wrk, struct lru *lru);
 
 /* cache_fetch.c */
 struct storage *FetchStorage(const struct sess *sp, ssize_t sz);
