@@ -35,6 +35,8 @@ struct iovec;
 struct object;
 struct objcore;
 struct stv_objsecrets;
+struct worker;
+struct ban;
 
 typedef void storage_init_f(struct stevedore *, int ac, char * const *av);
 typedef void storage_open_f(const struct stevedore *);
@@ -44,6 +46,7 @@ typedef void storage_free_f(struct storage *);
 typedef struct object *storage_allocobj_f(struct stevedore *, struct sess *sp,
     unsigned ltot, const struct stv_objsecrets *);
 typedef void storage_close_f(const struct stevedore *);
+typedef void storage_newban_f(struct stevedore *, const struct ban *ban);
 
 /* Prototypes for VCL variable responders */
 #define VRTSTVTYPE(ct) typedef ct storage_var_##ct(const struct stevedore *);
@@ -73,6 +76,7 @@ struct stevedore {
 	storage_free_f		*free;		/* --//-- */
 	storage_close_f		*close;		/* --//-- */
 	storage_allocobj_f	*allocobj;	/* --//-- */
+	storage_newban_f	*newban;	/* --//-- */
 
 	struct lru		*lru;
 
@@ -100,6 +104,7 @@ void STV_close(void);
 void STV_Config(const char *spec);
 void STV_Config_Transient(void);
 void STV_Freestore(struct object *o);
+void STV_NewBan(const struct ban *ban);
 
 struct lru *LRU_Alloc(void);
 void LRU_Free(struct lru *lru);
