@@ -68,13 +68,15 @@ static VTAILQ_HEAD(,smp_sc)	silos = VTAILQ_HEAD_INITIALIZER(silos);
  */
 
 static void
-smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx,
-    uint32_t len, const uint8_t *ban)
+smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx, const struct ban *ban)
 {
+	const uint8_t *spec;
+	unsigned len;
 	uint8_t *ptr, *ptr2;
 
 	(void)sc;
 	ptr = ptr2 = SIGN_END(ctx);
+	BAN_Spec(ban, &spec, &len);
 
 	memcpy(ptr, "BAN", 4);
 	ptr += 4;
@@ -82,7 +84,7 @@ smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx,
 	vbe32enc(ptr, len);
 	ptr += 4;
 
-	memcpy(ptr, ban, len);
+	memcpy(ptr, spec, len);
 	ptr += len;
 
 	smp_append_sign(ctx, ptr2, ptr - ptr2);
@@ -90,14 +92,16 @@ smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx,
 
 /* Trust that cache_ban.c takes care of locking */
 
-void
-SMP_NewBan(const uint8_t *ban, unsigned ln)
+static void
+smp_newban(struct stevedore *stv, const struct ban *ban)
 {
 	struct smp_sc *sc;
 
+	(void)stv;
+
 	VTAILQ_FOREACH(sc, &silos, list) {
-		smp_appendban(sc, &sc->ban1, ln, ban);
-		smp_appendban(sc, &sc->ban2, ln, ban);
+		smp_appendban(sc, &sc->ban1, ban);
+		smp_appendban(sc, &sc->ban2, ban);
 	}
 }
 
@@ -714,6 +718,7 @@ const struct stevedore smp_stevedore = {
 	.allocobj =	smp_allocobj,
 	.free	=	smp_free,
 	.trim	=	smp_trim,
+	.newban =	smp_newban,
 };
 
 /*--------------------------------------------------------------------

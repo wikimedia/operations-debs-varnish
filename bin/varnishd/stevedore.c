@@ -425,6 +425,16 @@ STV_close(void)
 		stv->close(stv);
 }
 
+void
+STV_NewBan(const struct ban *ban)
+{
+	struct stevedore *stv;
+
+	VTAILQ_FOREACH(stv, &stevedores, list)
+		if (stv->newban != NULL)
+			stv->newban(stv, ban);
+}
+
 /*--------------------------------------------------------------------
  * Parse a stevedore argument on the form:
  *	[ name '=' ] strategy [ ',' arg ] *
