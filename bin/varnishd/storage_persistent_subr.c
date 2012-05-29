@@ -50,7 +50,8 @@
  * SIGNATURE functions
  * The signature is SHA256 over:
  *    1. The smp_sign struct up to but not including the length field.
- *    2. smp_sign->length bytes, starting after the smp_sign structure
+ *    2. smp_sign->length bytes, starting after the extra bytes.
+ *    3. smp_sign->extra bytes, starting after the smp_sign structure.
  *    3. The smp-sign->length field.
  * The signature is stored after the byte-range from step 2.
  */
@@ -61,7 +62,7 @@
 
 void
 smp_def_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
-    uint64_t off, const char *id)
+    uint64_t off, uint64_t extra, const char *id)
 {
 
 	AZ(off & 7);			/* Alignment */
@@ -70,6 +71,7 @@ smp_def_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
 	memset(ctx, 0, sizeof *ctx);
 	ctx->ss = (void*)(sc->base + off);
 	ctx->unique = sc->unique;
+	ctx->extra = extra;
 	ctx->id = id;
 }
 
@@ -89,16 +91,19 @@ smp_chk_sign(struct smp_signctx *ctx)
 		r = 2;
 	else if ((uintptr_t)ctx->ss != ctx->ss->mapped)
 		r = 3;
+	else if (ctx->extra != ctx->ss->extra)
+		r = 4;
 	else {
 		SHA256_Init(&ctx->ctx);
 		SHA256_Update(&ctx->ctx, ctx->ss,
 		    offsetof(struct smp_sign, length));
 		SHA256_Update(&ctx->ctx, SIGN_DATA(ctx), ctx->ss->length);
 		cx = ctx->ctx;
+		SHA256_Update(&cx, SIGN_EXTRA(ctx), ctx->ss->extra);
 		SHA256_Update(&cx, &ctx->ss->length, sizeof(ctx->ss->length));
 		SHA256_Final(sign, &cx);
 		if (memcmp(sign, SIGN_END(ctx), sizeof sign))
-			r = 4;
+			r = 5;
 	}
 	if (r) {
 		fprintf(stderr, "CHK(%p %s %p %s) = %d\n",
@@ -122,6 +127,7 @@ smp_append_sign(struct smp_signctx *ctx, const void *ptr, uint32_t len)
 		ctx->ss->length += len;
 	}
 	cx = ctx->ctx;
+	SHA256_Update(&cx, SIGN_EXTRA(ctx), ctx->ss->extra);
 	SHA256_Update(&cx, &ctx->ss->length, sizeof(ctx->ss->length));
 	SHA256_Final(sign, &cx);
 	memcpy(SIGN_END(ctx), sign, sizeof sign);
@@ -151,8 +157,10 @@ smp_reset_sign(struct smp_signctx *ctx)
 {
 
 	memset(ctx->ss, 0, sizeof *ctx->ss);
+	memset(SIGN_EXTRA(ctx), 0, ctx->extra);
 	strcpy(ctx->ss->ident, ctx->id);
 	ctx->ss->unique = ctx->unique;
+	ctx->ss->extra = ctx->extra;
 	ctx->ss->mapped = (uintptr_t)ctx->ss;
 	SHA256_Init(&ctx->ctx);
 	SHA256_Update(&ctx->ctx, ctx->ss,
@@ -170,7 +178,8 @@ smp_sync_sign(const struct smp_signctx *ctx)
 	int i;
 
 	/* XXX: round to pages */
-	i = msync((void*)ctx->ss, ctx->ss->length + SMP_SIGN_SPACE, MS_SYNC);
+	i = msync((void*)ctx->ss,
+		  ctx->ss->extra + ctx->ss->length + SMP_SIGN_SPACE, MS_SYNC);
 	if (i && 0)
 		fprintf(stderr, "SyncSign(%p %s) = %d %s\n",
 		    ctx->ss, ctx->id, i, strerror(errno));
@@ -183,7 +192,9 @@ smp_sync_sign(const struct smp_signctx *ctx)
 void
 smp_copy_sign(struct smp_signctx *dst, const struct smp_signctx *src)
 {
+	dst->extra = src->ss->extra;
 	smp_reset_sign(dst);
+	memcpy(SIGN_EXTRA(dst), SIGN_EXTRA(src), src->ss->extra);
 	memcpy(SIGN_DATA(dst), SIGN_DATA(src), src->ss->length);
 	smp_append_sign(dst, SIGN_DATA(dst), src->ss->length);
 }
@@ -194,9 +205,9 @@ smp_copy_sign(struct smp_signctx *dst, const struct smp_signctx *src)
 
 static void
 smp_new_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
-    uint64_t off, const char *id)
+    uint64_t off, uint64_t extra, const char *id)
 {
-	smp_def_sign(sc, ctx, off, id);
+	smp_def_sign(sc, ctx, off, extra, id);
 	smp_reset_sign(ctx);
 	smp_sync_sign(ctx);
 }
@@ -243,10 +254,10 @@ smp_newsilo(struct smp_sc *sc)
 	si->stuff[SMP_END_STUFF] = si->mediasize;
 	assert(si->stuff[SMP_SPC_STUFF] < si->stuff[SMP_END_STUFF]);
 
-	smp_new_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], "BAN 1");
-	smp_new_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], "BAN 2");
-	smp_new_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], "SEG 1");
-	smp_new_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], "SEG 2");
+	smp_new_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], 0, "BAN 1");
+	smp_new_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], 0, "BAN 2");
+	smp_new_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], 0, "SEG 1");
+	smp_new_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], 0, "SEG 2");
 
 	smp_append_sign(&sc->idn, si, sizeof *si);
 	smp_sync_sign(&sc->idn);
@@ -305,10 +316,10 @@ smp_valid_silo(struct smp_sc *sc)
 	assert(smp_stuff_len(sc, SMP_BAN1_STUFF) ==
 	  smp_stuff_len(sc, SMP_BAN2_STUFF));
 
-	smp_def_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], "BAN 1");
-	smp_def_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], "BAN 2");
-	smp_def_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], "SEG 1");
-	smp_def_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], "SEG 2");
+	smp_def_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], 0, "BAN 1");
+	smp_def_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], 0, "BAN 2");
+	smp_def_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], 0, "SEG 1");
+	smp_def_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], 0, "SEG 2");
 
 	/* We must have one valid BAN table */
 	i = smp_chk_sign(&sc->ban1);

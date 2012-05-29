@@ -60,6 +60,7 @@ struct smp_signctx {
 	struct smp_sign		*ss;
 	struct SHA256Context	ctx;
 	uint32_t		unique;
+	uint64_t		extra;
 	const char		*id;
 };
 
@@ -177,8 +178,12 @@ struct smp_sc {
 
 /*--------------------------------------------------------------------*/
 
-#define SIGN_DATA(ctx)	((void *)((ctx)->ss + 1))
+#define SIGN_START(ctx) ((void *)((ctx)->ss + 1))
+#define SIGN_EXTRA(ctx)	(SIGN_START(ctx))
+#define SIGN_DATA(ctx)	((void *)((int8_t *)SIGN_EXTRA(ctx) + (ctx)->ss->extra))
 #define SIGN_END(ctx)	((void *)((int8_t *)SIGN_DATA(ctx) + (ctx)->ss->length))
+#define SIGN_LEFT(ctx, len) \
+    (len - ((int8_t *)SIGN_END(ctx) - (int8_t *)SIGN_START(ctx)))
 
 /* storage_persistent_mgt.c */
 
@@ -196,7 +201,7 @@ void smp_sync_segs(struct smp_sc *sc);
 /* storage_persistent_subr.c */
 
 void smp_def_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
-    uint64_t off, const char *id);
+    uint64_t off, uint64_t extra, const char *id);
 int smp_chk_sign(struct smp_signctx *ctx);
 void smp_append_sign(struct smp_signctx *ctx, const void *ptr, uint32_t len);
 void smp_reapply_sign(struct smp_signctx *ctx, uint32_t len);

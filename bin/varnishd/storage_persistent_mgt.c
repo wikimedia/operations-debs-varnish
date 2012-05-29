@@ -175,7 +175,7 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
 		ARGV_ERR("(-spersistent) failed to mmap (%s)\n",
 		    strerror(errno));
 
-	smp_def_sign(sc, &sc->idn, 0, "SILO");
+	smp_def_sign(sc, &sc->idn, 0, 0, "SILO");
 	sc->ident = SIGN_DATA(&sc->idn);
 
 	i = smp_valid_silo(sc);

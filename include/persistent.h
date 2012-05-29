@@ -111,6 +111,7 @@ struct smp_sign {
 	char			ident[8];
 	uint32_t		unique;
 	uint64_t		mapped;
+	uint64_t		extra;
 	uint64_t		length;		/* NB: Must be last */
 };
 
