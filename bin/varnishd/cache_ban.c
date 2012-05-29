@@ -788,6 +788,8 @@ ban_lurker_work(const struct sess *sp, unsigned pass)
 	do {
 		Lck_Lock(&ban_mtx);
 		b2 = ban_CheckLast();
+		if (b2 != NULL)
+			STV_DropBan(b2); /* Notify stevedores */
 		Lck_Unlock(&ban_mtx);
 		if (b2 != NULL)
 			BAN_Free(b2);
@@ -919,6 +921,8 @@ ban_lurker(struct sess *sp, void *priv)
 			 */
 			Lck_Lock(&ban_mtx);
 			bf = ban_CheckLast();
+			if (bf != NULL)
+				STV_DropBan(bf); /* Notify stevedores */
 			Lck_Unlock(&ban_mtx);
 			if (bf != NULL)
 				BAN_Free(bf);
