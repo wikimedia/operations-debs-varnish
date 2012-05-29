@@ -136,12 +136,14 @@ struct smp_sc {
 	VTAILQ_ENTRY(smp_sc)	list;
 
 	struct smp_signctx	idn;
-	struct smp_signctx	ban1;
-	struct smp_signctx	ban2;
 	struct smp_signctx	seg1;
 	struct smp_signctx	seg2;
 
+	/* Bans */
+	struct smp_signctx	ban1;
+	struct smp_signctx	ban2;
 	struct ban		*tailban;
+	double			ban_t0;
 
 	struct lock		mtx;
 
@@ -157,6 +159,12 @@ struct smp_sc {
 
 	uint64_t		free_reserve;
 };
+
+struct smp_ban_extra {
+	uint64_t		offset;
+};
+
+#define SMP_BAN_EXTRA		(sizeof(struct smp_ban_extra))
 
 /*--------------------------------------------------------------------*/
 

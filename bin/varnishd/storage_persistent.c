@@ -95,6 +95,51 @@ smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx, const struct ban *ban)
 	smp_append_sign(ctx, ptr2, ptr - ptr2);
 }
 
+static void
+smp_offset_banlist(struct smp_sc *sc, struct smp_signctx *ctx)
+{
+	struct smp_ban_extra	*extra;
+	uint64_t		offset;
+	double			t;
+	uint32_t		length;
+	const uint8_t		*ptr, *ps, *pe;
+
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	offset = extra->offset;
+	assert(offset <= ctx->ss->length);
+
+	ps = SIGN_DATA(ctx);
+	pe = ps + ctx->ss->length;
+	ptr = ps + extra->offset;
+
+	while (ptr < pe) {
+		assert(ptr + 4 + sizeof t + 4 <= pe);
+
+		assert(!memcmp(ptr, "BAN", 4));
+		ptr += 4;
+
+		memcpy(&t, ptr, sizeof t);
+		ptr += sizeof t;
+
+		length = vbe32dec(ptr);
+		ptr += 4;
+
+		ptr += length;
+		assert(ptr <= pe);
+
+		if (t > sc->ban_t0)
+			break;
+
+		offset = ptr - ps;
+	}
+	if (offset == extra->offset)
+		return;
+
+	extra->offset = offset;
+	smp_append_sign(ctx, pe, 0);
+}
+
 /* Trust that cache_ban.c takes care of locking */
 
 static void
@@ -105,7 +150,9 @@ smp_newban(struct stevedore *stv, const struct ban *ban)
 	(void)stv;
 
 	VTAILQ_FOREACH(sc, &silos, list) {
+		smp_offset_banlist(sc, &sc->ban1);
 		smp_appendban(sc, &sc->ban1, ban);
+		smp_offset_banlist(sc, &sc->ban2);
 		smp_appendban(sc, &sc->ban2, ban);
 	}
 }
@@ -113,8 +160,15 @@ smp_newban(struct stevedore *stv, const struct ban *ban)
 static void
 smp_dropban(struct stevedore *stv, const struct ban *ban)
 {
+	double t0;
+	struct smp_sc *sc;
+
 	(void)stv;
-	(void)ban;
+
+	t0 = BAN_Time(ban);
+	VTAILQ_FOREACH(sc, &silos, list) {
+		sc->ban_t0 = t0;
+	}
 }
 
 /*--------------------------------------------------------------------
@@ -124,6 +178,7 @@ smp_dropban(struct stevedore *stv, const struct ban *ban)
 static int
 smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 {
+	struct smp_ban_extra *extra;
 	uint8_t *ptr, *pe;
 	uint32_t length;
 	double t;
@@ -134,8 +189,12 @@ smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 	i = smp_chk_sign(ctx);
 	if (i)
 		return (i);
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	assert(extra->offset <= ctx->ss->length);
 	ptr = SIGN_DATA(ctx);
 	pe = ptr + ctx->ss->length;
+	ptr += extra->offset;
 
 	while (ptr < pe) {
 		if (memcmp(ptr, "BAN", 4)) {

@@ -254,8 +254,10 @@ smp_newsilo(struct smp_sc *sc)
 	si->stuff[SMP_END_STUFF] = si->mediasize;
 	assert(si->stuff[SMP_SPC_STUFF] < si->stuff[SMP_END_STUFF]);
 
-	smp_new_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], 0, "BAN 1");
-	smp_new_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], 0, "BAN 2");
+	smp_new_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF],
+		     SMP_BAN_EXTRA, "BAN 1");
+	smp_new_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF],
+		     SMP_BAN_EXTRA, "BAN 2");
 	smp_new_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], 0, "SEG 1");
 	smp_new_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], 0, "SEG 2");
 
@@ -316,8 +318,10 @@ smp_valid_silo(struct smp_sc *sc)
 	assert(smp_stuff_len(sc, SMP_BAN1_STUFF) ==
 	  smp_stuff_len(sc, SMP_BAN2_STUFF));
 
-	smp_def_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF], 0, "BAN 1");
-	smp_def_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF], 0, "BAN 2");
+	smp_def_sign(sc, &sc->ban1, si->stuff[SMP_BAN1_STUFF],
+		     SMP_BAN_EXTRA, "BAN 1");
+	smp_def_sign(sc, &sc->ban2, si->stuff[SMP_BAN2_STUFF],
+		     SMP_BAN_EXTRA, "BAN 2");
 	smp_def_sign(sc, &sc->seg1, si->stuff[SMP_SEG1_STUFF], 0, "SEG 1");
 	smp_def_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], 0, "SEG 2");
 
