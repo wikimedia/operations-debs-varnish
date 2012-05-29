@@ -72,14 +72,19 @@ smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx, const struct ban *ban)
 {
 	const uint8_t *spec;
 	unsigned len;
+	double t;
 	uint8_t *ptr, *ptr2;
 
 	(void)sc;
 	ptr = ptr2 = SIGN_END(ctx);
 	BAN_Spec(ban, &spec, &len);
+	t = BAN_Time(ban);
 
 	memcpy(ptr, "BAN", 4);
 	ptr += 4;
+
+	memcpy(ptr, &t, sizeof t);
+	ptr += sizeof t;
 
 	vbe32enc(ptr, len);
 	ptr += 4;
@@ -121,6 +126,7 @@ smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 {
 	uint8_t *ptr, *pe;
 	uint32_t length;
+	double t;
 	int i, retval = 0;
 
 	ASSERT_CLI();
@@ -137,6 +143,9 @@ smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 			break;
 		}
 		ptr += 4;
+
+		memcpy(&t, ptr, sizeof t);
+		ptr += sizeof t;
 
 		length = vbe32dec(ptr);
 		ptr += 4;
