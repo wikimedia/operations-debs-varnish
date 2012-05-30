@@ -67,18 +67,37 @@ static VTAILQ_HEAD(,smp_sc)	silos = VTAILQ_HEAD_INITIALIZER(silos);
  * Add bans to silos
  */
 
+static void smp_offset_banlist(struct smp_sc *sc, struct smp_signctx *ctx);
+static uint64_t smp_compact_banlist(struct smp_sc *sc, struct smp_signctx *ctx);
+
 static void
 smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx, const struct ban *ban)
 {
+	struct smp_ban_extra *extra;
 	const uint8_t *spec;
 	unsigned len;
 	double t;
 	uint8_t *ptr, *ptr2;
+	uint64_t space, left;
 
-	(void)sc;
-	ptr = ptr2 = SIGN_END(ctx);
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	space = smp_stuff_len(sc, SMP_BAN1_STUFF);
+	left = SIGN_LEFT(ctx, space);
+
 	BAN_Spec(ban, &spec, &len);
 	t = BAN_Time(ban);
+
+	if (4 + sizeof t + 4 + len > left && extra->offset > space / 8) {
+		/* Out of space - but room to compact */
+		left += smp_compact_banlist(sc, ctx);
+		assert(left == SIGN_LEFT(ctx, space));
+	}
+	/* If this fails there is nothing to do but bail */
+	assert(4 + sizeof t + 4 + len < left);
+
+	/* Append the ban */
+	ptr = ptr2 = SIGN_END(ctx);
 
 	memcpy(ptr, "BAN", 4);
 	ptr += 4;
@@ -138,6 +157,35 @@ smp_offset_banlist(struct smp_sc *sc, struct smp_signctx *ctx)
 
 	extra->offset = offset;
 	smp_append_sign(ctx, pe, 0);
+}
+
+static uint64_t
+smp_compact_banlist(struct smp_sc *sc, struct smp_signctx *ctx)
+{
+	struct smp_ban_extra	*extra;
+	uint64_t		offset;
+	uint8_t			*ps, *pe, *ptr;
+
+	(void)sc;
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	offset = extra->offset;
+	assert(offset <= ctx->ss->length);
+
+	if (offset == 0)
+		return (offset);
+
+	ps = SIGN_DATA(ctx);
+	pe = ps + ctx->ss->length;
+	ptr = ps + extra->offset;
+
+	memmove(ps, ptr, pe - ptr);
+	extra->offset = 0;
+
+	smp_reapply_sign(ctx, pe - ptr);
+	XXXAZ(smp_chk_sign(ctx));
+
+	return (offset);
 }
 
 /* Trust that cache_ban.c takes care of locking */
@@ -545,6 +593,14 @@ smp_open(const struct stevedore *st)
 		smp_copy_sign(&sc->ban2, &sc->ban1);
 		smp_sync_sign(&sc->ban2);
 	}
+
+	/* Compact the ban lists on startup */
+	if (smp_compact_banlist(sc, &sc->ban1))
+		smp_sync_sign(&sc->ban1);
+	if (smp_compact_banlist(sc, &sc->ban2))
+		smp_sync_sign(&sc->ban2);
+
+	/* Import bans */
 	AZ(smp_open_bans(sc, &sc->ban1));
 
 	/* We attempt seg1 first, and if that fails, try seg2 */
