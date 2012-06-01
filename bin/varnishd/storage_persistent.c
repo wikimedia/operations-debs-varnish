@@ -264,6 +264,64 @@ smp_open_segs(struct smp_sc *sc, struct smp_signctx *ctx)
 }
 
 /*--------------------------------------------------------------------
+ * Write the segmentlist back to the silo.
+ *
+ * We write the first copy, sync it synchronously, then write the
+ * second copy and sync it synchronously.
+ *
+ * Provided the kernel doesn't lie, that means we will always have
+ * at least one valid copy on in the silo.
+ */
+
+static void
+smp_save_segs(struct smp_sc *sc)
+{
+	struct smp_segptr *ss;
+	struct smp_seg *sg, *sg2;
+	uint64_t length;
+
+	Lck_AssertHeld(&sc->mtx);
+
+	/*
+	 * Remove empty segments from the front of the list
+	 * before we write the segments to disk.
+	 */
+	VTAILQ_FOREACH_SAFE(sg, &sc->segments, list, sg2) {
+		if (sg->nobj > 0)
+			break;
+		if (sg == sc->cur_seg)
+			continue;
+		VTAILQ_REMOVE(&sc->segments, sg, list);
+		LRU_Free(sg->lru);
+		FREE_OBJ(sg);
+	}
+
+	Lck_Unlock(&sc->mtx);
+	AZ(smp_chk_sign(&sc->seg1)); /* Page in */
+	smp_reset_sign(&sc->seg1);
+	Lck_Lock(&sc->mtx);
+
+	/* First write to seg1 while holding lock */
+	ss = SIGN_DATA(&sc->seg1);
+	length = 0;
+	VTAILQ_FOREACH(sg, &sc->segments, list) {
+		assert(sg->p.offset < sc->mediasize);
+		assert(sg->p.offset + sg->p.length <= sc->mediasize);
+		*ss = sg->p;
+		ss++;
+		length += sizeof *ss;
+	}
+	sc->flags &= ~SMP_SC_SYNC;
+
+	Lck_Unlock(&sc->mtx);
+	smp_append_sign(&sc->seg1, SIGN_DATA(&sc->seg1), length);
+	smp_sync_sign(&sc->seg1); /* Sync without lock */
+	/* Copy seg1 to seg2 */
+	smp_copy_sign(&sc->seg2, &sc->seg1);
+	smp_sync_sign(&sc->seg2);
+	Lck_Lock(&sc->mtx);
+}
+/*--------------------------------------------------------------------
  * Silo worker thread
  */
 
@@ -289,10 +347,8 @@ smp_thread(struct sess *sp, void *priv)
 	/* Housekeeping loop */
 	Lck_Lock(&sc->mtx);
 	while (!(sc->flags & SMP_SC_STOP)) {
-		sg = VTAILQ_FIRST(&sc->segments);
-		if (sg != NULL && sg != sc->cur_seg && sg->nobj == 0) {
+		if (sc->flags & SMP_SC_SYNC)
 			smp_save_segs(sc);
-		}
 
 		Lck_Unlock(&sc->mtx);
 		TIM_sleep(1);
@@ -653,6 +709,12 @@ debug_persistent(struct cli *cli, const char * const * av, void *priv)
 	if (!strcmp(av[3], "sync")) {
 		if (sc->cur_seg != NULL)
 			smp_close_seg(sc, sc->cur_seg);
+		smp_sync_segs(sc);
+		while (sc->flags & SMP_SC_SYNC) {
+			Lck_Unlock(&sc->mtx);
+			TIM_sleep(0.1);
+			Lck_Lock(&sc->mtx);
+		}
 		smp_new_seg(sc);
 	} else if (!strcmp(av[3], "dump")) {
 		debug_report_silo(cli, sc, 1);

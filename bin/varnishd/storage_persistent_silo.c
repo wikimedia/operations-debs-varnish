@@ -49,59 +49,14 @@
 #include "storage_persistent.h"
 
 /*--------------------------------------------------------------------
- * Write the segmentlist back to the silo.
- *
- * We write the first copy, sync it synchronously, then write the
- * second copy and sync it synchronously.
- *
- * Provided the kernel doesn't lie, that means we will always have
- * at least one valid copy on in the silo.
+ * Signal smp_thread() to sync the segment list to disk
  */
 
-static void
-smp_save_seg(const struct smp_sc *sc, struct smp_signctx *ctx)
-{
-	struct smp_segptr *ss;
-	struct smp_seg *sg;
-	uint64_t length;
-
-	Lck_AssertHeld(&sc->mtx);
-	smp_reset_sign(ctx);
-	ss = SIGN_DATA(ctx);
-	length = 0;
-	VTAILQ_FOREACH(sg, &sc->segments, list) {
-		assert(sg->p.offset < sc->mediasize);
-		assert(sg->p.offset + sg->p.length <= sc->mediasize);
-		*ss = sg->p;
-		ss++;
-		length += sizeof *ss;
-	}
-	smp_append_sign(ctx, SIGN_DATA(ctx), length);
-	smp_sync_sign(ctx);
-}
-
 void
-smp_save_segs(struct smp_sc *sc)
+smp_sync_segs(struct smp_sc *sc)
 {
-	struct smp_seg *sg, *sg2;
-
 	Lck_AssertHeld(&sc->mtx);
-
-	/*
-	 * Remove empty segments from the front of the list
-	 * before we write the segments to disk.
-	 */
-	VTAILQ_FOREACH_SAFE(sg, &sc->segments, list, sg2) {
-		if (sg->nobj > 0)
-			break;
-		if (sg == sc->cur_seg)
-			continue;
-		VTAILQ_REMOVE(&sc->segments, sg, list);
-		LRU_Free(sg->lru);
-		FREE_OBJ(sg);
-	}
-	smp_save_seg(sc, &sc->seg1);
-	smp_save_seg(sc, &sc->seg2);
+	sc->flags |= SMP_SC_SYNC;
 }
 
 /*--------------------------------------------------------------------
@@ -179,6 +134,12 @@ smp_new_seg(struct smp_sc *sc)
 
 	AZ(sc->cur_seg);
 	Lck_AssertHeld(&sc->mtx);
+
+	if (sc->flags & SMP_SC_STOP) {
+		/* Housekeeping thread is stopping, don't allow new
+		 * segments as there is noone around to persist it */
+		return;
+	}
 
 	/* XXX: find where it goes in silo */
 
@@ -298,8 +259,8 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 	smp_reset_sign(sg->ctx);
 	smp_sync_sign(sg->ctx);
 
-	/* Save segment list */
-	smp_save_segs(sc);
+	/* Request sync of segment list */
+	smp_sync_segs(sc);
 	sc->free_offset = smp_segend(sg);
 }
 
@@ -489,6 +450,11 @@ smp_oc_freeobj(struct objcore *oc)
 	assert(sg->nfixed > 0);
 	sg->nobj--;
 	sg->nfixed--;
+
+	if (sg->nobj == 0 && sg == VTAILQ_FIRST(&sg->sc->segments)) {
+		/* Sync segments to remove empty at start */
+		sg->sc->flags |= SMP_SC_SYNC;
+	}
 
 	Lck_Unlock(&sg->sc->mtx);
 }
