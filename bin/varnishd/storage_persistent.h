@@ -99,6 +99,8 @@ struct smp_sc {
 
 	unsigned		flags;
 #define SMP_SC_LOADED		(1 << 0)
+#define SMP_SC_STOP		(1 << 1)
+#define SMP_SC_STOPPED		(1 << 2)
 
 	const struct stevedore	*stevedore;
 	int			fd;
