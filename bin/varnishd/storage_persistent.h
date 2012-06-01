@@ -101,6 +101,7 @@ struct smp_sc {
 #define SMP_SC_LOADED		(1 << 0)
 #define SMP_SC_STOP		(1 << 1)
 #define SMP_SC_STOPPED		(1 << 2)
+#define SMP_SC_SYNC		(1 << 3)
 
 	const struct stevedore	*stevedore;
 	int			fd;
@@ -182,7 +183,7 @@ void smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 void smp_new_seg(struct smp_sc *sc);
 void smp_close_seg(struct smp_sc *sc, struct smp_seg *sg);
 void smp_init_oc(struct objcore *oc, struct smp_seg *sg, unsigned objidx);
-void smp_save_segs(struct smp_sc *sc);
+void smp_sync_segs(struct smp_sc *sc);
 
 /* storage_persistent_subr.c */
 
