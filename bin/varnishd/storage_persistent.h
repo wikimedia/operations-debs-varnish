@@ -81,6 +81,7 @@ struct smp_seg {
 #define SMP_SEG_MUSTLOAD	(1 << 0)
 #define SMP_SEG_LOADED		(1 << 1)
 #define SMP_SEG_NEW		(1 << 2)
+#define SMP_SEG_SYNCSIGNS	(1 << 3)
 
 	uint32_t		nobj;		/* Number of objects */
 	uint32_t		nalloc;		/* Allocations */
@@ -88,7 +89,10 @@ struct smp_seg {
 
 	/* Only for open segment */
 	struct smp_object	*objs;		/* objdesc array */
-	struct smp_signctx	ctx[1];
+
+	struct smp_signctx	ctx_head;
+	struct smp_signctx	ctx_obj;
+	struct smp_signctx	ctx_tail;
 };
 
 VTAILQ_HEAD(smp_seghead, smp_seg);
