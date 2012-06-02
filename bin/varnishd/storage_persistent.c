@@ -296,6 +296,26 @@ smp_save_segs(struct smp_sc *sc)
 		FREE_OBJ(sg);
 	}
 
+	/* Sync the signs of any segments marked as needing it */
+	VTAILQ_FOREACH(sg, &sc->segments, list) {
+		if (sg->flags & SMP_SEG_SYNCSIGNS) {
+			AZ(sg->flags & SMP_SEG_NEW);
+			AN(sg->nalloc); /* Empty segments shouldn't be here */
+
+			/* Make sure they have all been set up */
+			AN(sg->ctx_head.ss);
+			AN(sg->ctx_obj.ss);
+			AN(sg->ctx_tail.ss);
+
+			sg->flags &= ~SMP_SEG_SYNCSIGNS;
+			Lck_Unlock(&sc->mtx);
+			smp_sync_sign(&sg->ctx_head);
+			smp_sync_sign(&sg->ctx_obj);
+			smp_sync_sign(&sg->ctx_tail);
+			Lck_Lock(&sc->mtx);
+		}
+	}
+
 	Lck_Unlock(&sc->mtx);
 	AZ(smp_chk_sign(&sc->seg1)); /* Page in */
 	smp_reset_sign(&sc->seg1);
@@ -493,7 +513,8 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 	if (left < extra + min_size) {
 		if (sc->cur_seg != NULL)
 			smp_close_seg(sc, sc->cur_seg);
-		smp_new_seg(sc);
+		if (sc->cur_seg == NULL)
+			smp_new_seg(sc);
 		if (sc->cur_seg != NULL)
 			left = smp_spaceleft(sc, sc->cur_seg);
 	}
@@ -717,7 +738,8 @@ debug_persistent(struct cli *cli, const char * const * av, void *priv)
 			TIM_sleep(0.1);
 			Lck_Lock(&sc->mtx);
 		}
-		smp_new_seg(sc);
+		if (sc->cur_seg == NULL)
+			smp_new_seg(sc);
 	} else if (!strcmp(av[3], "dump")) {
 		debug_report_silo(cli, sc, 1);
 	} else {

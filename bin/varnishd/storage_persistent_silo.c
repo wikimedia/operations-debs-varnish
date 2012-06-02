@@ -81,7 +81,6 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	struct objcore *oc;
 	uint32_t no;
 	double t_now = TIM_real();
-	struct smp_signctx ctx[1];
 
 	ASSERT_SILO_THREAD(sc);
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
@@ -92,8 +91,8 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	AN(sg->p.offset);
 	if (sg->p.objlist == 0)
 		return;
-	smp_def_sign(sc, ctx, sg->p.offset, "SEGHEAD");
-	if (smp_chk_sign(ctx))
+	smp_def_sign(sc, &sg->ctx_head, sg->p.offset, "SEGHEAD");
+	if (smp_chk_sign(&sg->ctx_head))
 		return;
 
 	/* test SEGTAIL */
@@ -182,12 +181,6 @@ smp_new_seg(struct smp_sc *sc)
 
 	VTAILQ_INSERT_TAIL(&sc->segments, sg, list);
 
-	/* Neuter the new segment in case there is an old one there */
-	AN(sg->p.offset);
-	smp_def_sign(sc, sg->ctx, sg->p.offset, "SEGHEAD");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
-
 	/* Set up our allocation points */
 	sc->cur_seg = sg;
 	sc->next_bot = sg->p.offset + IRNUP(sc, SMP_SIGN_SPACE);
@@ -196,6 +189,11 @@ smp_new_seg(struct smp_sc *sc)
 	IASSERTALIGN(sc, sc->next_bot);
 	IASSERTALIGN(sc, sc->next_top);
 	sg->objs = (void*)(sc->base + sc->next_top);
+
+	/* Neuter the new segment in case there is an old one there */
+	AN(sg->p.offset);
+	smp_def_sign(sc, &sg->ctx_head, sg->p.offset, "SEGHEAD");
+	smp_reset_sign(&sg->ctx_head);
 }
 
 /*--------------------------------------------------------------------
@@ -241,29 +239,29 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 		sg->p.length = (sc->next_top - sg->p.offset)
 		     + len + IRNUP(sc, SMP_SIGN_SPACE);
 		(void)smp_spaceleft(sc, sg);	/* for the asserts */
-
 	}
+	sc->free_offset = smp_segend(sg);
 
 	/* Update the segment header */
 	sg->p.objlist = sc->next_top;
 
+	dst = sc->next_top - IRNUP(sc, SMP_SIGN_SPACE);
+	assert(dst >= sc->next_bot);
+
 	/* Write the (empty) OBJIDX signature */
-	sc->next_top -= IRNUP(sc, SMP_SIGN_SPACE);
-	assert(sc->next_top >= sc->next_bot);
-	smp_def_sign(sc, sg->ctx, sc->next_top, "OBJIDX");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
-
+	smp_def_sign(sc, &sg->ctx_obj, dst, "OBJIDX");
+	smp_reset_sign(&sg->ctx_obj);
 	/* Write the (empty) SEGTAIL signature */
-	smp_def_sign(sc, sg->ctx,
-	    sg->p.offset + sg->p.length - IRNUP(sc, SMP_SIGN_SPACE), "SEGTAIL");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
+	smp_def_sign(sc, &sg->ctx_tail,
+	    sg->p.offset + sg->p.length - IRNUP(sc, SMP_SIGN_SPACE),
+	    "SEGTAIL");
+	smp_reset_sign(&sg->ctx_tail);
+	/* Ask smp_thread() to sync the signs */
+	sg->flags |= SMP_SEG_SYNCSIGNS;
 
-	/* Request sync of segment list */
+	/* Remove the new flag and request sync of segment list */
 	sg->flags &= ~SMP_SEG_NEW;
 	smp_sync_segs(sc);
-	sc->free_offset = smp_segend(sg);
 }
 
 
