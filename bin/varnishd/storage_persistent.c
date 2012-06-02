@@ -289,8 +289,8 @@ smp_save_segs(struct smp_sc *sc)
 	VTAILQ_FOREACH_SAFE(sg, &sc->segments, list, sg2) {
 		if (sg->nobj > 0)
 			break;
-		if (sg == sc->cur_seg)
-			continue;
+		if (sg->flags & SMP_SEG_NEW)
+			break;
 		VTAILQ_REMOVE(&sc->segments, sg, list);
 		LRU_Free(sg->lru);
 		FREE_OBJ(sg);
@@ -307,6 +307,8 @@ smp_save_segs(struct smp_sc *sc)
 	VTAILQ_FOREACH(sg, &sc->segments, list) {
 		assert(sg->p.offset < sc->mediasize);
 		assert(sg->p.offset + sg->p.length <= sc->mediasize);
+		if (sg->flags & SMP_SEG_NEW)
+			break;
 		*ss = sg->p;
 		ss++;
 		length += sizeof *ss;

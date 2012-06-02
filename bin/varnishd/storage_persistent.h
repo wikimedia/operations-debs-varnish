@@ -80,6 +80,7 @@ struct smp_seg {
 	unsigned		flags;
 #define SMP_SEG_MUSTLOAD	(1 << 0)
 #define SMP_SEG_LOADED		(1 << 1)
+#define SMP_SEG_NEW		(1 << 2)
 
 	uint32_t		nobj;		/* Number of objects */
 	uint32_t		nalloc;		/* Allocations */

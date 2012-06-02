@@ -173,6 +173,7 @@ smp_new_seg(struct smp_sc *sc)
 	AN(sg);
 	*sg = tmpsg;
 	sg->lru = LRU_Alloc();
+	sg->flags |= SMP_SEG_NEW;
 	CHECK_OBJ_NOTNULL(sg->lru, LRU_MAGIC);
 
 	sg->p.offset = IRNUP(sc, sg->p.offset);
@@ -260,6 +261,7 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 	smp_sync_sign(sg->ctx);
 
 	/* Request sync of segment list */
+	sg->flags &= ~SMP_SEG_NEW;
 	smp_sync_segs(sc);
 	sc->free_offset = smp_segend(sg);
 }
