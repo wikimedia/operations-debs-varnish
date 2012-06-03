@@ -256,9 +256,11 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 	sc->cur_seg = NULL;
 
 	if (sg->nalloc == 0) {
-		/* XXX: if segment is empty, delete instead */
+		/* If segment is empty, delete instead */
+		sc->free_offset = sg->p.offset;
 		VTAILQ_REMOVE(&sc->segments, sg, list);
-		free(sg);
+		LRU_Free(sg->lru);
+		FREE_OBJ(sg);
 		return;
 	}
 
