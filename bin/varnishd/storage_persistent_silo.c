@@ -58,6 +58,7 @@ smp_sync_segs(struct smp_sc *sc)
 {
 	Lck_AssertHeld(&sc->mtx);
 	sc->flags |= SMP_SC_SYNC;
+	AZ(pthread_cond_signal(&sc->cond));
 }
 
 /*--------------------------------------------------------------------
@@ -289,8 +290,10 @@ smp_check_reserve(struct smp_sc *sc)
 {
 	Lck_AssertHeld(&sc->mtx);
 
-	if (smp_silospaceleft(sc) + sc->free_pending < sc->free_reserve)
+	if (smp_silospaceleft(sc) + sc->free_pending < sc->free_reserve) {
 		sc->flags |= SMP_SC_LOW;
+		AZ(pthread_cond_signal(&sc->cond));
+	}
 }
 
 /*---------------------------------------------------------------------
@@ -508,7 +511,7 @@ smp_oc_freeobj(struct objcore *oc)
 
 	if (sg->nobj == 0 && sg == VTAILQ_FIRST(&sg->sc->segments)) {
 		/* Sync segments to remove empty at start */
-		sg->sc->flags |= SMP_SC_SYNC;
+		smp_sync_segs(sg->sc);
 	}
 
 	Lck_Unlock(&sg->sc->mtx);

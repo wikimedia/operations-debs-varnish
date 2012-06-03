@@ -141,6 +141,7 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
 	/* Allocate softc */
 	ALLOC_OBJ(sc, SMP_SC_MAGIC);
 	XXXAN(sc);
+	AZ(pthread_cond_init(&sc->cond, NULL));
 	sc->parent = parent;
 	sc->fd = -1;
 	VTAILQ_INIT(&sc->segments);
