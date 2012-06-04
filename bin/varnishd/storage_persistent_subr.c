@@ -169,18 +169,27 @@ smp_reset_sign(struct smp_signctx *ctx)
 }
 
 /*--------------------------------------------------------------------
- * Force a write of a signature block to the backing store.
+ * Force a write of a signature block (rounded to nearest page sizes)
+ * to the backing store.
  */
 
 void
-smp_sync_sign(const struct smp_signctx *ctx)
+smp_sync_sign(const struct smp_sc *sc, const struct smp_signctx *ctx)
 {
-	int i;
+	intptr_t start, end;
+	int i, pagesize;
 
-	/* XXX: round to pages */
-	i = msync((void*)ctx->ss,
-		  ctx->ss->extra + ctx->ss->length + SMP_SIGN_SPACE, MS_SYNC);
-	if (i && 0)
+	pagesize = sc->granularity;
+	AN(pagesize);
+	AN(PWR2(pagesize));
+	start = RDN2((uintptr_t)ctx->ss, pagesize);
+	assert(start >= (intptr_t)sc->base);
+	end = (uintptr_t)ctx->ss;
+	end += ctx->ss->extra + ctx->ss->length + SMP_SIGN_SPACE;
+	end = RUP2(end, pagesize);
+	assert(end <= (intptr_t)sc->base + sc->mediasize);
+	i = msync((void *)start, end - start, MS_SYNC);
+	if (i)
 		fprintf(stderr, "SyncSign(%p %s) = %d %s\n",
 		    ctx->ss, ctx->id, i, strerror(errno));
 }
@@ -209,7 +218,7 @@ smp_new_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
 {
 	smp_def_sign(sc, ctx, off, extra, id);
 	smp_reset_sign(ctx);
-	smp_sync_sign(ctx);
+	smp_sync_sign(sc, ctx);
 }
 
 /*--------------------------------------------------------------------
@@ -262,7 +271,7 @@ smp_newsilo(struct smp_sc *sc)
 	smp_new_sign(sc, &sc->seg2, si->stuff[SMP_SEG2_STUFF], 0, "SEG 2");
 
 	smp_append_sign(&sc->idn, si, sizeof *si);
-	smp_sync_sign(&sc->idn);
+	smp_sync_sign(sc, &sc->idn);
 }
 
 /*--------------------------------------------------------------------
