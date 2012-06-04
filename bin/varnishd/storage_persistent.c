@@ -440,9 +440,9 @@ smp_save_segs(struct smp_sc *sc)
 
 			sg->flags &= ~SMP_SEG_SYNCSIGNS;
 			Lck_Unlock(&sc->mtx);
-			smp_sync_sign(&sg->ctx_head);
-			smp_sync_sign(&sg->ctx_obj);
-			smp_sync_sign(&sg->ctx_tail);
+			smp_sync_sign(sc, &sg->ctx_head);
+			smp_sync_sign(sc, &sg->ctx_obj);
+			smp_sync_sign(sc, &sg->ctx_tail);
 			Lck_Lock(&sc->mtx);
 		}
 	}
@@ -472,10 +472,10 @@ smp_save_segs(struct smp_sc *sc)
 
 	Lck_Unlock(&sc->mtx);
 	smp_append_sign(&sc->seg1, SIGN_DATA(&sc->seg1), length);
-	smp_sync_sign(&sc->seg1); /* Sync without lock */
+	smp_sync_sign(sc, &sc->seg1); /* Sync without lock */
 	/* Copy seg1 to seg2 */
 	smp_copy_sign(&sc->seg2, &sc->seg1);
-	smp_sync_sign(&sc->seg2);
+	smp_sync_sign(sc, &sc->seg2);
 	Lck_Lock(&sc->mtx);
 }
 
@@ -587,18 +587,18 @@ smp_open(const struct stevedore *st)
 		/* Ban list 1 is broken, use ban2 */
 		AZ(smp_chk_sign(&sc->ban2));
 		smp_copy_sign(&sc->ban1, &sc->ban2);
-		smp_sync_sign(&sc->ban1);
+		smp_sync_sign(sc, &sc->ban1);
 	} else {
 		/* Ban1 is OK, copy to ban2 for consistency */
 		smp_copy_sign(&sc->ban2, &sc->ban1);
-		smp_sync_sign(&sc->ban2);
+		smp_sync_sign(sc, &sc->ban2);
 	}
 
 	/* Compact the ban lists on startup */
 	if (smp_compact_banlist(sc, &sc->ban1))
-		smp_sync_sign(&sc->ban1);
+		smp_sync_sign(sc, &sc->ban1);
 	if (smp_compact_banlist(sc, &sc->ban2))
-		smp_sync_sign(&sc->ban2);
+		smp_sync_sign(sc, &sc->ban2);
 
 	/* Import bans */
 	AZ(smp_open_bans(sc, &sc->ban1));

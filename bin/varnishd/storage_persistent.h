@@ -216,7 +216,7 @@ int smp_chk_sign(struct smp_signctx *ctx);
 void smp_append_sign(struct smp_signctx *ctx, const void *ptr, uint32_t len);
 void smp_reapply_sign(struct smp_signctx *ctx, uint32_t len);
 void smp_reset_sign(struct smp_signctx *ctx);
-void smp_sync_sign(const struct smp_signctx *ctx);
+void smp_sync_sign(const struct smp_sc *sc, const struct smp_signctx *ctx);
 void smp_copy_sign(struct smp_signctx *dst, const struct smp_signctx *src);
 void smp_newsilo(struct smp_sc *sc);
 int smp_valid_silo(struct smp_sc *sc);
