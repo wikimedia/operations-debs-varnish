@@ -204,6 +204,7 @@ void smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 void smp_new_seg(struct smp_sc *sc);
 void smp_close_seg(struct smp_sc *sc, struct smp_seg *sg);
 void smp_init_oc(struct objcore *oc, struct smp_seg *sg, unsigned objidx);
+struct smp_object * smp_find_so(const struct smp_seg *sg, unsigned priv2);
 void smp_sync_segs(struct smp_sc *sc);
 
 /* storage_persistent_subr.c */
