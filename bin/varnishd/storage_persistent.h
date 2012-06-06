@@ -82,6 +82,7 @@ struct smp_seg {
 #define SMP_SEG_LOADED		(1 << 1)
 #define SMP_SEG_NEW		(1 << 2)
 #define SMP_SEG_SYNCSIGNS	(1 << 3)
+#define SMP_SEG_NUKED		(1 << 4)
 
 	uint32_t		nobj;		/* Number of objects */
 	uint32_t		nalloc;		/* Allocations */
@@ -107,6 +108,7 @@ struct smp_sc {
 #define SMP_SC_STOP		(1 << 1)
 #define SMP_SC_STOPPED		(1 << 2)
 #define SMP_SC_SYNC		(1 << 3)
+#define SMP_SC_LOW		(1 << 4)
 
 	const struct stevedore	*stevedore;
 	int			fd;
@@ -126,6 +128,7 @@ struct smp_sc {
 	uint64_t		next_top;	/* next alloc address top */
 
 	uint64_t		free_offset;
+	uint64_t		free_pending;
 
 	pthread_t		thread;
 
@@ -202,6 +205,8 @@ void smp_sync_sign(const struct smp_signctx *ctx);
 void smp_copy_sign(struct smp_signctx *dst, const struct smp_signctx *src);
 void smp_newsilo(struct smp_sc *sc);
 int smp_valid_silo(struct smp_sc *sc);
+uint64_t smp_silospaceleft(struct smp_sc *sc);
+void smp_check_reserve(struct smp_sc *sc);
 
 /*--------------------------------------------------------------------
  * Caculate payload of some stuff

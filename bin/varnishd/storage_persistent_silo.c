@@ -180,6 +180,7 @@ smp_new_seg(struct smp_sc *sc)
 	sc->free_offset = sg->p.offset + sg->p.length;
 
 	VTAILQ_INSERT_TAIL(&sc->segments, sg, list);
+	smp_check_reserve(sc);
 
 	/* Set up our allocation points */
 	sc->cur_seg = sg;
@@ -264,6 +265,31 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 	smp_sync_segs(sc);
 }
 
+uint64_t
+smp_silospaceleft(struct smp_sc *sc)
+{
+	struct smp_seg *sg;
+
+	Lck_AssertHeld(&sc->mtx);
+
+	sg = VTAILQ_FIRST(&sc->segments);
+	if (sg == NULL)
+		return (sc->mediasize - sc->free_offset);
+	if (sg->p.offset < sc->free_offset) {
+		return ((sc->mediasize - sc->free_offset) +
+			(sg->p.offset - sc->ident->stuff[SMP_SPC_STUFF]));
+	}
+	return (sg->p.offset - sc->free_offset);
+}
+
+void
+smp_check_reserve(struct smp_sc *sc)
+{
+	Lck_AssertHeld(&sc->mtx);
+
+	if (smp_silospaceleft(sc) + sc->free_pending < sc->free_reserve)
+		sc->flags |= SMP_SC_LOW;
+}
 
 /*---------------------------------------------------------------------
  */
