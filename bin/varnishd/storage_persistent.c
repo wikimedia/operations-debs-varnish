@@ -724,6 +724,8 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 			(*so)->ptr = 0;;
 			sg->objs = *so;
 			*idx = ++sg->p.lobjlist;
+			/* Add ref early so segment will stick around */
+			sg->nobj++;
 		}
 		(void)smp_spaceleft(sc, sg);	/* for the assert */
 	}
@@ -787,19 +789,19 @@ smp_allocobj(struct stevedore *stv, struct sess *sp, unsigned ltot,
 	oc = o->objcore;
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
 	oc->flags |= OC_F_LRUDONTMOVE;
+	smp_init_oc(oc, sg, objidx);
 
 	Lck_Lock(&sc->mtx);
 	sg->nfixed++;
-	sg->nobj++;
+	assert(sg->nobj > 0);	/* Our ref added by smp_allocx() */
 
 	/* We have to do this somewhere, might as well be here... */
+	so = smp_find_so(sg, objidx); /* Might have changed during unlock */
 	assert(sizeof so->hash == DIGEST_LEN);
 	memcpy(so->hash, oc->objhead->digest, DIGEST_LEN);
 	so->ttl = EXP_Grace(NULL, o);
 	so->ptr = (uint8_t*)o - sc->base;
 	so->ban = BAN_Time(oc->ban);
-
-	smp_init_oc(oc, sg, objidx);
 
 	Lck_Unlock(&sc->mtx);
 	return (o);
