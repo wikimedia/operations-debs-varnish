@@ -513,20 +513,21 @@ wrk_herdtimer_thread(void *priv)
 
 /*--------------------------------------------------------------------
  * Create another thread, if necessary & possible
+ * Returns 1 if thread created
  */
 
-static void
+static int
 wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 {
 	pthread_t tp;
+	int r = 0;
 
 	/*
 	 * If we need more threads, and have space, create
 	 * one more thread.
 	 */
 	if (qp->nthr < params->wthread_min ||	/* Not enough threads yet */
-	    (qp->lqueue > params->wthread_add_threshold && /* more needed */
-	    qp->lqueue > qp->last_lqueue)) {	/* not getting better since last */
+	    qp->lqueue > params->wthread_add_threshold) { /* more needed */
 		if (qp->nthr >= nthr_max) {
 			VSC_C_main->n_wrk_max++;
 		} else if (pthread_create(&tp, tp_attr, wrk_thread, qp)) {
@@ -538,9 +539,12 @@ wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 			AZ(pthread_detach(tp));
 			VSC_C_main->n_wrk_create++;
 			TIM_sleep(params->wthread_add_delay * 1e-3);
+			r = 1;
 		}
 	}
 	qp->last_lqueue = qp->lqueue;
+
+	return (r);
 }
 
 /*--------------------------------------------------------------------
@@ -559,7 +563,7 @@ wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 static void *
 wrk_herder_thread(void *priv)
 {
-	unsigned u, w;
+	unsigned u, v;
 	pthread_attr_t tp_attr;
 
 	/* Set the stacksize for worker threads */
@@ -568,19 +572,21 @@ wrk_herder_thread(void *priv)
 	THR_SetName("wrk_herder");
 	(void)priv;
 	while (1) {
+		v = 0;
 		for (u = 0 ; u < nwq; u++) {
 			if (params->wthread_stacksize != UINT_MAX)
 				AZ(pthread_attr_setstacksize(&tp_attr,
 				    params->wthread_stacksize));
 
-			wrk_breed_flock(wq[u], &tp_attr);
+			v += wrk_breed_flock(wq[u], &tp_attr);
 
 			/*
-			 * Make sure all pools have their minimum complement
+			 * Make sure the pool has it's minimum complement
 			 */
-			for (w = 0 ; w < nwq; w++)
-				while (wq[w]->nthr < params->wthread_min)
-					wrk_breed_flock(wq[w], &tp_attr);
+			while (wq[u]->nthr < params->wthread_min)
+				v += wrk_breed_flock(wq[u], &tp_attr);
+		}
+		if (v == 0) {
 			/*
 			 * We cannot avoid getting a mutex, so we have a
 			 * bogo mutex just for POSIX_STUPIDITY
