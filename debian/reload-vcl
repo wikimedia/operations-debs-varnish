@@ -160,12 +160,12 @@ then
 else
     printf "$msg_compile_failed" $vcl_label $vcl_file
     exitstatus=1
-fi | grep -v "^$" > $logfile
+fi > $logfile
 
 # Blather
 if [ -z "${quiet}" -o -n "$exitstatus" ]
 then
-    cat >&2 $logfile
+    grep -v '^$' >&2 $logfile
 fi
 
 # Cleanup
