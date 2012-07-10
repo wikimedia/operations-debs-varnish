@@ -8,6 +8,22 @@ varnish (3.0.3~rc1+persistent-wm1~1.gbp73f4f8) UNRELEASED; urgency=low
 
  -- Mark Bergsma <mark@wikimedia.org>  Tue, 10 Jul 2012 12:44:31 +0000
 
+varnish (3.0.2-2) unstable; urgency=low
+
+  [ Knut Arne Bjørndal ]
+  * Fix exit code from reload-vcl (Closes: #664857)
+
+  [ Stig Sandbeck Mathisen ]
+  * Do not run build tests by default (Closes: #663667)
+  * Use debhelper compat level 9 (Closes: #663064)
+    This gives us multiarch and hardening flags
+  * Remove /etc/varnish/secret on purge (Closes: #656220)
+  * Bump standards-version (no changes)
+  * Add systemd services
+  * Remove vcs_version.h patch
+
+ -- Stig Sandbeck Mathisen <ssm@debian.org>  Tue, 01 May 2012 16:20:31 +0200
+
 varnish (3.0.2-2wm5) precise-wikimedia; urgency=low
 
   * Build for precise
