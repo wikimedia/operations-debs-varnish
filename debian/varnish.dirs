@@ -5,3 +5,4 @@ usr/sbin
 usr/share/varnish
 var/lib/varnish
 var/log/varnish
+lib/systemd/system

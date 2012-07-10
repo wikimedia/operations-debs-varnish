@@ -1,0 +1,5 @@
+[Unit]
+Description=Varnish HTTP accelerator log daemon
+
+[Service]
+ExecStart=/usr/bin/varnishncsa -a -w /var/log/varnish/varnishncsa.log
