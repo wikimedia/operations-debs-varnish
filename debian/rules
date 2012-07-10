@@ -2,9 +2,6 @@
 
 DH_VERBOSE=1
 
-# List of architectures we run tests on
-BUILD_TEST_ARCH_LIST := amd64 i386
-
 # List of architectures that lack the *_2POW definitions in varnish,
 # which is needed by jemalloc
 DISABLE_JEMALLOC_ARCH_LIST := hppa s390 sparc m68k
@@ -25,7 +22,7 @@ endif
 %:
 	dh $@ --parallel
 
-ifeq ($(filter $(DEB_HOST_ARCH),$(BUILD_TEST_ARCH_LIST)),)
+ifeq (,$(filter test,$(LOCAL_BUILD_OPTIONS)))
 # Disable automated build tests
 override_dh_auto_test:
 endif
