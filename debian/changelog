@@ -1,3 +1,12 @@
+varnish (3.0.3~rc1+persistent-wm1~1.gbp752659) UNRELEASED; urgency=low
+
+  ** SNAPSHOT build @7526590776fc3f7e9bf1a3202f64f41f58c7660e **
+
+  * Test Martin Blix Grydeland's persistent-3.0 branch
+  * chash and udplog patches reenabled
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 10 Jul 2012 17:20:28 +0000
+
 varnish (3.0.3~rc1+persistent-wm1~1.gbp73f4f8) UNRELEASED; urgency=low
 
   ** SNAPSHOT build @73f4f87b855974ce679c9b5d09dfa63ba991fd1f **
