@@ -441,8 +441,8 @@ cnt_error(struct sess *sp)
 		     &w->exp, (uint16_t)params->http_max_hdr);
 		if (sp->obj == NULL)
 			sp->obj = STV_NewObject(sp, TRANSIENT_STORAGE,
-			     params->http_resp_size , &w->exp,
-			     (uint16_t)params->http_max_hdr);
+			    params->http_resp_size, &w->exp,
+			    (uint16_t)params->http_max_hdr);
 		if (sp->obj == NULL) {
 			sp->doclose = "Out of objects";
 			sp->director = NULL;
@@ -468,7 +468,7 @@ cnt_error(struct sess *sp)
 	http_PutStatus(h, sp->err_code);
 	TIM_format(TIM_real(), date);
 	http_PrintfHeader(w, sp->fd, h, "Date: %s", date);
-	http_PrintfHeader(w, sp->fd, h, "Server: Varnish");
+	http_SetHeader(w, sp->fd, h, "Server: Varnish");
 
 	if (sp->err_reason != NULL)
 		http_PutResponse(w, sp->fd, h, sp->err_reason);
@@ -728,8 +728,8 @@ cnt_fetchbody(struct sess *sp)
 
 	/* If we do gzip, add the C-E header */
 	if (sp->wrk->do_gzip)
-		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->beresp,
-		    "Content-Encoding: %s", "gzip");
+		http_SetHeader(sp->wrk, sp->fd, sp->wrk->beresp,
+		    "Content-Encoding: gzip");
 
 	/* But we can't do both at the same time */
 	assert(sp->wrk->do_gzip == 0 || sp->wrk->do_gunzip == 0);
@@ -935,7 +935,7 @@ cnt_streambody(struct sess *sp)
 
 	RES_StreamEnd(sp);
 	if (sp->wrk->res_mode & RES_GUNZIP)
-		VGZ_Destroy(&sctx.vgz);
+		(void)VGZ_Destroy(&sctx.vgz);
 
 	sp->wrk->sctx = NULL;
 	assert(WRW_IsReleased(sp->wrk));
@@ -1194,7 +1194,7 @@ cnt_miss(struct sess *sp)
 		 * the minority of clients which don't.
 		 */
 		http_Unset(sp->wrk->bereq, H_Accept_Encoding);
-		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->bereq,
+		http_SetHeader(sp->wrk, sp->fd, sp->wrk->bereq,
 		    "Accept-Encoding: gzip");
 	}
 	sp->wrk->connect_timeout = 0;
@@ -1398,7 +1398,7 @@ cnt_recv(struct sess *sp)
 	     (recv_handling != VCL_RET_PASS)) {
 		if (RFC2616_Req_Gzip(sp)) {
 			http_Unset(sp->http, H_Accept_Encoding);
-			http_PrintfHeader(sp->wrk, sp->fd, sp->http,
+			http_SetHeader(sp->wrk, sp->fd, sp->http,
 			    "Accept-Encoding: gzip");
 		} else {
 			http_Unset(sp->http, H_Accept_Encoding);
@@ -1575,14 +1575,21 @@ CNT_Session(struct sess *sp)
 	AZ(w->do_esi);
 
 	/*
-	 * Whenever we come in from the acceptor we need to set blocking
-	 * mode, but there is no point in setting it when we come from
+	 * Whenever we come in from the acceptor or waiter, we need to set
+	 * blocking mode, but there is no point in setting it when we come from
 	 * ESI or when a parked sessions returns.
-	 * It would be simpler to do this in the acceptor, but we'd rather
-	 * do the syscall in the worker thread.
+	 * It would be simpler to do this in the acceptor or waiter, but we'd
+	 * rather do the syscall in the worker thread.
+	 * On systems which return errors for ioctl, we close early
 	 */
-	if (sp->step == STP_FIRST || sp->step == STP_START)
-		(void)VTCP_blocking(sp->fd);
+	if ((sp->step == STP_FIRST || sp->step == STP_START) &&
+	    VTCP_blocking(sp->fd)) {
+		if (errno == ECONNRESET)
+			vca_close_session(sp, "remote closed");
+		else
+			vca_close_session(sp, "error");
+		sp->step = STP_DONE;
+	}
 
 	/*
 	 * NB: Once done is set, we can no longer touch sp!

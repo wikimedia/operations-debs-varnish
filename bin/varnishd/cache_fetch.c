@@ -43,6 +43,40 @@
 static unsigned fetchfrag;
 
 /*--------------------------------------------------------------------
+ * We want to issue the first error we encounter on fetching and
+ * supress the rest.  This function does that.
+ *
+ * Other code is allowed to look at w->fetch_failed to bail out
+ *
+ * For convenience, always return -1
+ */
+
+int
+FetchError2(const struct sess *sp, const char *error, const char *more)
+{
+	struct worker *w;
+
+	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+	CHECK_OBJ_NOTNULL(sp->wrk, WORKER_MAGIC);
+	w = sp->wrk;
+
+	if (!w->fetch_failed) {
+		if (more == NULL)
+			WSP(sp, SLT_FetchError, "%s", error);
+		else
+			WSP(sp, SLT_FetchError, "%s: %s", error, more);
+	}
+	w->fetch_failed = 1;
+	return (-1);
+}
+
+int
+FetchError(const struct sess *sp, const char *error)
+{
+	return(FetchError2(sp, error, NULL));
+}
+
+/*--------------------------------------------------------------------
  * VFP_NOP
  *
  * This fetch-processor does nothing but store the object.
@@ -61,11 +95,6 @@ static void __match_proto__()
 vfp_nop_begin(struct sess *sp, size_t estimate)
 {
 
-	if (fetchfrag > 0) {
-		estimate = fetchfrag;
-		WSL(sp->wrk, SLT_Debug, sp->fd,
-		    "Fetch %d byte segments:", fetchfrag);
-	}
 	if (estimate > 0)
 		(void)FetchStorage(sp, estimate);
 }
@@ -75,7 +104,8 @@ vfp_nop_begin(struct sess *sp, size_t estimate)
  *
  * Process (up to) 'bytes' from the socket.
  *
- * Return -1 on error
+ * Return -1 on error, issue FetchError()
+ *	will not be called again, once error happens.
  * Return 0 on EOF on socket even if bytes not reached.
  * Return 1 when 'bytes' have been processed.
  */
@@ -86,18 +116,17 @@ vfp_nop_bytes(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 	ssize_t l, w;
 	struct storage *st;
 
+	AZ(sp->wrk->fetch_failed);
 	while (bytes > 0) {
 		st = FetchStorage(sp, 0);
-		if (st == NULL) {
-			htc->error = "Could not get storage";
-			return (-1);
-		}
+		if (st == NULL)
+			return(-1);
 		l = st->space - st->len;
 		if (l > bytes)
 			l = bytes;
-		w = HTC_Read(htc, st->ptr + st->len, l);
+		w = HTC_Read(sp->wrk, htc, st->ptr + st->len, l);
 		if (w <= 0)
-			return (w);
+			return(w);
 		st->len += w;
 		sp->obj->len += w;
 		bytes -= w;
@@ -142,7 +171,8 @@ static struct vfp vfp_nop = {
 };
 
 /*--------------------------------------------------------------------
- * Fetch Storage
+ * Fetch Storage to put object into.
+ *
  */
 
 struct storage *
@@ -162,7 +192,7 @@ FetchStorage(const struct sess *sp, ssize_t sz)
 		l = params->fetch_chunksize * 1024LL;
 	st = STV_alloc(sp, l);
 	if (st == NULL) {
-		errno = ENOMEM;
+		(void)FetchError(sp, "Could not get storage");
 		return (NULL);
 	}
 	AZ(st->len);
@@ -196,41 +226,29 @@ fetch_number(const char *nbr, int radix)
 /*--------------------------------------------------------------------*/
 
 static int
-fetch_straight(struct sess *sp, struct http_conn *htc, const char *b)
+fetch_straight(struct sess *sp, struct http_conn *htc, ssize_t cl)
 {
 	int i;
-	ssize_t cl;
 
 	assert(sp->wrk->body_status == BS_LENGTH);
 
-	cl = fetch_number(b, 10);
-	sp->wrk->vfp->begin(sp, cl > 0 ? cl : 0);
 	if (cl < 0) {
-		WSP(sp, SLT_FetchError, "straight length field bogus");
-		return (-1);
+		return (FetchError(sp, "straight length field bogus"));
 	} else if (cl == 0)
 		return (0);
 
 	i = sp->wrk->vfp->bytes(sp, htc, cl);
 	if (i <= 0) {
-		WSP(sp, SLT_FetchError, "straight read_error: %d %d (%s)",
-		    i, errno, htc->error);
-		return (-1);
+		return (FetchError(sp, "straight insufficient bytes"));
 	}
 	return (0);
 }
 
-/*--------------------------------------------------------------------*/
-/* XXX: Cleanup.  It must be possible somehow :-( */
-
-#define CERR() do {						\
-		if (i != 1) {					\
-			WSP(sp, SLT_FetchError,			\
-			    "chunked read_error: %d (%s)",	\
-			    errno, htc->error);			\
-			return (-1);				\
-		}						\
-	} while (0)
+/*--------------------------------------------------------------------
+ * Read a chunked HTTP object.
+ *
+ * XXX: Reading one byte at a time is pretty pessimal.
+ */
 
 static int
 fetch_chunked(struct sess *sp, struct http_conn *htc)
@@ -240,65 +258,57 @@ fetch_chunked(struct sess *sp, struct http_conn *htc)
 	unsigned u;
 	ssize_t cl;
 
-	sp->wrk->vfp->begin(sp, 0);
 	assert(sp->wrk->body_status == BS_CHUNKED);
 	do {
 		/* Skip leading whitespace */
 		do {
-			i = HTC_Read(htc, buf, 1);
-			CERR();
+			if (HTC_Read(sp->wrk, htc, buf, 1) <= 0)
+				return (-1);
 		} while (vct_islws(buf[0]));
+
+		if (!vct_ishex(buf[0]))
+			return (FetchError(sp,"chunked header non-hex"));
 
 		/* Collect hex digits, skipping leading zeros */
 		for (u = 1; u < sizeof buf; u++) {
 			do {
-				i = HTC_Read(htc, buf + u, 1);
-				CERR();
+				if (HTC_Read(sp->wrk, htc, buf + u, 1) <= 0)
+					return (-1);
 			} while (u == 1 && buf[0] == '0' && buf[u] == '0');
 			if (!vct_ishex(buf[u]))
 				break;
 		}
 
 		if (u >= sizeof buf) {
-			WSP(sp, SLT_FetchError,	"chunked header too long");
-			return (-1);
+			return (FetchError(sp,"chunked header too long"));
 		}
 
 		/* Skip trailing white space */
-		while(vct_islws(buf[u]) && buf[u] != '\n') {
-			i = HTC_Read(htc, buf + u, 1);
-			CERR();
-		}
+		while(vct_islws(buf[u]) && buf[u] != '\n')
+			if (HTC_Read(sp->wrk, htc, buf + u, 1) <= 0)
+				return (-1);
 
-		if (buf[u] != '\n') {
-			WSP(sp, SLT_FetchError,	"chunked header char syntax");
-			return (-1);
-		}
+		if (buf[u] != '\n') 
+			return (FetchError(sp,"chunked header no NL"));
+
 		buf[u] = '\0';
-
 		cl = fetch_number(buf, 16);
-		if (cl < 0) {
-			WSP(sp, SLT_FetchError,	"chunked header nbr syntax");
+		if (cl < 0)
+			return (FetchError(sp,"chunked header number syntax"));
+
+		if (cl > 0 && sp->wrk->vfp->bytes(sp, htc, cl) <= 0)
 			return (-1);
-		} else if (cl > 0) {
-			i = sp->wrk->vfp->bytes(sp, htc, cl);
-			CERR();
-		}
-		i = HTC_Read(htc, buf, 1);
-		CERR();
-		if (buf[0] == '\r') {
-			i = HTC_Read(htc, buf, 1);
-			CERR();
-		}
-		if (buf[0] != '\n') {
-			WSP(sp, SLT_FetchError,	"chunked tail syntax");
+
+		i = HTC_Read(sp->wrk, htc, buf, 1);
+		if (i <= 0)
 			return (-1);
-		}
+		if (buf[0] == '\r' && HTC_Read(sp->wrk, htc, buf, 1) <= 0)
+			return (-1);
+		if (buf[0] != '\n')
+			return (FetchError(sp,"chunked tail no NL"));
 	} while (cl > 0);
 	return (0);
 }
-
-#undef CERR
 
 /*--------------------------------------------------------------------*/
 
@@ -308,13 +318,9 @@ fetch_eof(struct sess *sp, struct http_conn *htc)
 	int i;
 
 	assert(sp->wrk->body_status == BS_EOF);
-	sp->wrk->vfp->begin(sp, 0);
 	i = sp->wrk->vfp->bytes(sp, htc, SSIZE_MAX);
-	if (i < 0) {
-		WSP(sp, SLT_FetchError, "eof read_error: %d (%s)",
-		    errno, htc->error);
+	if (i < 0) 
 		return (-1);
-	}
 	return (0);
 }
 
@@ -342,7 +348,7 @@ FetchReqBody(struct sess *sp)
 				rdcnt = sizeof buf;
 			else
 				rdcnt = content_length;
-			rdcnt = HTC_Read(sp->htc, buf, rdcnt);
+			rdcnt = HTC_Read(sp->wrk, sp->htc, buf, rdcnt);
 			if (rdcnt <= 0)
 				return (1);
 			content_length -= rdcnt;
@@ -443,7 +449,7 @@ FetchHdr(struct sess *sp)
 
 	if (i < 0) {
 		WSP(sp, SLT_FetchError, "http first read error: %d %d (%s)",
-		    i, errno, w->htc->error);
+		    i, errno, strerror(errno));
 		VDI_CloseFd(sp);
 		/* XXX: other cleanup ? */
 		/* Retryable if we never received anything */
@@ -457,7 +463,7 @@ FetchHdr(struct sess *sp)
 		if (i < 0) {
 			WSP(sp, SLT_FetchError,
 			    "http first read error: %d %d (%s)",
-			    i, errno, w->htc->error);
+			    i, errno, strerror(errno));
 			VDI_CloseFd(sp);
 			/* XXX: other cleanup ? */
 			return (-1);
@@ -484,6 +490,7 @@ FetchBody(struct sess *sp)
 	struct storage *st;
 	struct worker *w;
 	int mklen;
+	ssize_t cl;
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	CHECK_OBJ_NOTNULL(sp->wrk, WORKER_MAGIC);
@@ -499,6 +506,10 @@ FetchBody(struct sess *sp)
 
 	AZ(w->vgz_rx);
 	AZ(VTAILQ_FIRST(&sp->obj->store));
+
+	/* XXX: pick up estimate from objdr ? */
+	cl = 0;
+	w->fetch_failed = 0;
 	switch (w->body_status) {
 	case BS_NONE:
 		cls = 0;
@@ -509,20 +520,26 @@ FetchBody(struct sess *sp)
 		mklen = 1;
 		break;
 	case BS_LENGTH:
-		cls = fetch_straight(sp, w->htc,
-		    w->h_content_length);
+		cl = fetch_number(sp->wrk->h_content_length, 10);
+		w->vfp->begin(sp, cl > 0 ? cl : 0);
+		cls = fetch_straight(sp, w->htc, cl);
 		mklen = 1;
-		XXXAZ(w->vfp->end(sp));
+		if (w->vfp->end(sp))
+			cls = -1;
 		break;
 	case BS_CHUNKED:
+		w->vfp->begin(sp, cl);
 		cls = fetch_chunked(sp, w->htc);
 		mklen = 1;
-		XXXAZ(w->vfp->end(sp));
+		if (w->vfp->end(sp))
+			cls = -1;
 		break;
 	case BS_EOF:
+		w->vfp->begin(sp, cl);
 		cls = fetch_eof(sp, w->htc);
 		mklen = 1;
-		XXXAZ(w->vfp->end(sp));
+		if (w->vfp->end(sp))
+			cls = -1;
 		break;
 	case BS_ERROR:
 		cls = 1;
@@ -563,6 +580,7 @@ FetchBody(struct sess *sp)
 		sp->obj->len = 0;
 		return (__LINE__);
 	}
+	AZ(w->fetch_failed);
 
 	if (cls == 0 && w->do_close)
 		cls = 1;

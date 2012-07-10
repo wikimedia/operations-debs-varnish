@@ -130,7 +130,7 @@ RES_BuildHttp(const struct sess *sp)
 	}
 
 	if (sp->wrk->res_mode & RES_CHUNKED)
-		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
+		http_SetHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Transfer-Encoding: chunked");
 
 	TIM_format(TIM_real(), time_str);
@@ -187,7 +187,7 @@ res_WriteGunzipObj(struct sess *sp)
 		(void)WRW_Write(sp->wrk, obuf, obufl);
 		(void)WRW_Flush(sp->wrk);
 	}
-	VGZ_Destroy(&vg);
+	(void)VGZ_Destroy(&vg);
 	assert(u == sp->obj->len);
 }
 

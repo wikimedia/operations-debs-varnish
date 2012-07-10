@@ -203,7 +203,6 @@ struct http_conn {
 	struct ws		*ws;
 	txt			rxbuf;
 	txt			pipeline;
-	const char		*error;
 };
 
 /*--------------------------------------------------------------------*/
@@ -260,7 +259,7 @@ struct exp {
 
 struct wrw {
 	int			*wfd;
-	unsigned		werr;	/* valid after WRK_Flush() */
+	unsigned		werr;	/* valid after WRW_Flush() */
 	struct iovec		*iov;
 	unsigned		siov;
 	unsigned		niov;
@@ -331,6 +330,7 @@ struct worker {
 	struct vfp		*vfp;
 	struct vgz		*vgz_rx;
 	struct vef_priv		*vef_priv;
+	unsigned		fetch_failed;
 	unsigned		do_stream;
 	unsigned		do_esi;
 	unsigned		do_gzip;
@@ -714,10 +714,12 @@ void EXP_Inject(struct objcore *oc, struct lru *lru, double when);
 void EXP_Init(void);
 void EXP_Rearm(const struct object *o);
 int EXP_Touch(struct objcore *oc);
-int EXP_NukeOne(const struct sess *sp, struct lru *lru);
+int EXP_NukeOne(struct worker *w, struct lru *lru);
 
 /* cache_fetch.c */
 struct storage *FetchStorage(const struct sess *sp, ssize_t sz);
+int FetchError(const struct sess *sp, const char *error);
+int FetchError2(const struct sess *sp, const char *error, const char *more);
 int FetchHdr(struct sess *sp);
 int FetchBody(struct sess *sp);
 int FetchReqBody(struct sess *sp);
@@ -736,7 +738,7 @@ int VGZ_ObufFull(const struct vgz *vg);
 int VGZ_ObufStorage(const struct sess *sp, struct vgz *vg);
 int VGZ_Gzip(struct vgz *, const void **, size_t *len, enum vgz_flag);
 int VGZ_Gunzip(struct vgz *, const void **, size_t *len);
-void VGZ_Destroy(struct vgz **);
+int VGZ_Destroy(struct vgz **);
 void VGZ_UpdateObj(const struct vgz*, struct object *);
 int VGZ_WrwGunzip(const struct sess *, struct vgz *, const void *ibuf,
     ssize_t ibufl, char *obuf, ssize_t obufl, ssize_t *obufp);
@@ -795,7 +797,7 @@ void HTC_Init(struct http_conn *htc, struct ws *ws, int fd, unsigned maxbytes,
     unsigned maxhdr);
 int HTC_Reinit(struct http_conn *htc);
 int HTC_Rx(struct http_conn *htc);
-ssize_t HTC_Read(struct http_conn *htc, void *d, size_t len);
+ssize_t HTC_Read(struct worker *w, struct http_conn *htc, void *d, size_t len);
 int HTC_Complete(struct http_conn *htc);
 
 #define HTTPH(a, b, c, d, e, f, g) extern char b[];
