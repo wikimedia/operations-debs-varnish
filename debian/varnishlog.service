@@ -2,4 +2,8 @@
 Description=Varnish HTTP accelerator log daemon
 
 [Service]
+User=varnishlog
 ExecStart=/usr/bin/varnishlog -a -w /var/log/varnish/varnish.log
+
+[Install]
+WantedBy=multi-user.target
