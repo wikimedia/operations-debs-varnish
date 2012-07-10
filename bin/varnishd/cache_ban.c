@@ -56,6 +56,7 @@
 #include "cli_priv.h"
 #include "cache.h"
 #include "hash_slinger.h"
+#include "stevedore.h"
 
 struct ban {
 	unsigned		magic;
@@ -395,7 +396,7 @@ BAN_Insert(struct ban *b)
 	else
 		be = NULL;
 
-	SMP_NewBan(b->spec, ln);
+	STV_NewBan(b);		/* Notify stevedores */
 	Lck_Unlock(&ban_mtx);
 
 	if (be == NULL)
@@ -557,6 +558,21 @@ BAN_Time(const struct ban *b)
 }
 
 /*--------------------------------------------------------------------
+ * Get a bans byte spec and length
+ */
+
+void
+BAN_Spec(const struct ban *ban, const uint8_t **spec, unsigned *len)
+{
+	CHECK_OBJ_NOTNULL(ban, BAN_MAGIC);
+	AN(spec);
+	AN(len);
+
+	*spec = ban->spec;
+	*len = ban_len(ban->spec);
+}
+
+/*--------------------------------------------------------------------
  * All silos have read their bans, ready for action
  */
 
@@ -566,7 +582,7 @@ BAN_Compile(void)
 
 	ASSERT_CLI();
 
-	SMP_NewBan(ban_magic->spec, ban_len(ban_magic->spec));
+	STV_NewBan(ban_magic);	/* Notify stevedores */
 	ban_start = VTAILQ_FIRST(&ban_head);
 	WRK_BgThread(&ban_thread, "ban-lurker", ban_lurker, NULL);
 }
@@ -772,6 +788,8 @@ ban_lurker_work(const struct sess *sp, unsigned pass)
 	do {
 		Lck_Lock(&ban_mtx);
 		b2 = ban_CheckLast();
+		if (b2 != NULL)
+			STV_DropBan(b2); /* Notify stevedores */
 		Lck_Unlock(&ban_mtx);
 		if (b2 != NULL)
 			BAN_Free(b2);
@@ -903,6 +921,8 @@ ban_lurker(struct sess *sp, void *priv)
 			 */
 			Lck_Lock(&ban_mtx);
 			bf = ban_CheckLast();
+			if (bf != NULL)
+				STV_DropBan(bf); /* Notify stevedores */
 			Lck_Unlock(&ban_mtx);
 			if (bf != NULL)
 				BAN_Free(bf);

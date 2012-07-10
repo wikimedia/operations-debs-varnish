@@ -671,6 +671,7 @@ void BAN_Compile(void);
 struct ban *BAN_RefBan(struct objcore *oc, double t0, const struct ban *tail);
 void BAN_TailDeref(struct ban **ban);
 double BAN_Time(const struct ban *ban);
+void BAN_Spec(const struct ban *ban, const uint8_t **spec, unsigned *len);
 
 /* cache_center.c [CNT] */
 void CNT_Session(struct sess *sp);
@@ -700,6 +701,7 @@ void EXP_Init(void);
 void EXP_Rearm(const struct object *o);
 int EXP_Touch(struct objcore *oc);
 int EXP_NukeOne(struct worker *w, struct lru *lru);
+void EXP_NukeLRU(struct worker *wrk, struct lru *lru);
 
 /* cache_fetch.c */
 struct storage *FetchStorage(const struct sess *sp, ssize_t sz);
@@ -945,7 +947,6 @@ void SMS_Finish(struct object *obj);
 /* storage_persistent.c */
 void SMP_Init(void);
 void SMP_Ready(void);
-void SMP_NewBan(const uint8_t *ban, unsigned len);
 
 /*
  * A normal pointer difference is signed, but we never want a negative value

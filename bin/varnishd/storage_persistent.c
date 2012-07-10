@@ -67,37 +67,155 @@ static VTAILQ_HEAD(,smp_sc)	silos = VTAILQ_HEAD_INITIALIZER(silos);
  * Add bans to silos
  */
 
-static void
-smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx,
-    uint32_t len, const uint8_t *ban)
-{
-	uint8_t *ptr, *ptr2;
+static void smp_offset_banlist(struct smp_sc *sc, struct smp_signctx *ctx);
+static uint64_t smp_compact_banlist(struct smp_sc *sc, struct smp_signctx *ctx);
 
-	(void)sc;
+static void
+smp_appendban(struct smp_sc *sc, struct smp_signctx *ctx, const struct ban *ban)
+{
+	struct smp_ban_extra *extra;
+	const uint8_t *spec;
+	unsigned len;
+	double t;
+	uint8_t *ptr, *ptr2;
+	uint64_t space, left;
+
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	space = smp_stuff_len(sc, SMP_BAN1_STUFF);
+	left = SIGN_LEFT(ctx, space);
+
+	BAN_Spec(ban, &spec, &len);
+	t = BAN_Time(ban);
+
+	if (4 + sizeof t + 4 + len > left && extra->offset > space / 8) {
+		/* Out of space - but room to compact */
+		left += smp_compact_banlist(sc, ctx);
+		assert(left == SIGN_LEFT(ctx, space));
+	}
+	/* If this fails there is nothing to do but bail */
+	assert(4 + sizeof t + 4 + len < left);
+
+	/* Append the ban */
 	ptr = ptr2 = SIGN_END(ctx);
 
 	memcpy(ptr, "BAN", 4);
 	ptr += 4;
 
+	memcpy(ptr, &t, sizeof t);
+	ptr += sizeof t;
+
 	vbe32enc(ptr, len);
 	ptr += 4;
 
-	memcpy(ptr, ban, len);
+	memcpy(ptr, spec, len);
 	ptr += len;
 
 	smp_append_sign(ctx, ptr2, ptr - ptr2);
 }
 
+static void
+smp_offset_banlist(struct smp_sc *sc, struct smp_signctx *ctx)
+{
+	struct smp_ban_extra	*extra;
+	uint64_t		offset;
+	double			t;
+	uint32_t		length;
+	const uint8_t		*ptr, *ps, *pe;
+
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	offset = extra->offset;
+	assert(offset <= ctx->ss->length);
+
+	ps = SIGN_DATA(ctx);
+	pe = ps + ctx->ss->length;
+	ptr = ps + extra->offset;
+
+	while (ptr < pe) {
+		assert(ptr + 4 + sizeof t + 4 <= pe);
+
+		assert(!memcmp(ptr, "BAN", 4));
+		ptr += 4;
+
+		memcpy(&t, ptr, sizeof t);
+		ptr += sizeof t;
+
+		length = vbe32dec(ptr);
+		ptr += 4;
+
+		ptr += length;
+		assert(ptr <= pe);
+
+		if (t > sc->ban_t0)
+			break;
+
+		offset = ptr - ps;
+	}
+	if (offset == extra->offset)
+		return;
+
+	extra->offset = offset;
+	smp_append_sign(ctx, pe, 0);
+}
+
+static uint64_t
+smp_compact_banlist(struct smp_sc *sc, struct smp_signctx *ctx)
+{
+	struct smp_ban_extra	*extra;
+	uint64_t		offset;
+	uint8_t			*ps, *pe, *ptr;
+
+	(void)sc;
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	offset = extra->offset;
+	assert(offset <= ctx->ss->length);
+
+	if (offset == 0)
+		return (offset);
+
+	ps = SIGN_DATA(ctx);
+	pe = ps + ctx->ss->length;
+	ptr = ps + extra->offset;
+
+	memmove(ps, ptr, pe - ptr);
+	extra->offset = 0;
+
+	smp_reapply_sign(ctx, pe - ptr);
+	XXXAZ(smp_chk_sign(ctx));
+
+	return (offset);
+}
+
 /* Trust that cache_ban.c takes care of locking */
 
-void
-SMP_NewBan(const uint8_t *ban, unsigned ln)
+static void
+smp_newban(struct stevedore *stv, const struct ban *ban)
 {
 	struct smp_sc *sc;
 
+	(void)stv;
+
 	VTAILQ_FOREACH(sc, &silos, list) {
-		smp_appendban(sc, &sc->ban1, ln, ban);
-		smp_appendban(sc, &sc->ban2, ln, ban);
+		smp_offset_banlist(sc, &sc->ban1);
+		smp_appendban(sc, &sc->ban1, ban);
+		smp_offset_banlist(sc, &sc->ban2);
+		smp_appendban(sc, &sc->ban2, ban);
+	}
+}
+
+static void
+smp_dropban(struct stevedore *stv, const struct ban *ban)
+{
+	double t0;
+	struct smp_sc *sc;
+
+	(void)stv;
+
+	t0 = BAN_Time(ban);
+	VTAILQ_FOREACH(sc, &silos, list) {
+		sc->ban_t0 = t0;
 	}
 }
 
@@ -108,8 +226,10 @@ SMP_NewBan(const uint8_t *ban, unsigned ln)
 static int
 smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 {
+	struct smp_ban_extra *extra;
 	uint8_t *ptr, *pe;
 	uint32_t length;
+	double t;
 	int i, retval = 0;
 
 	ASSERT_CLI();
@@ -117,8 +237,12 @@ smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 	i = smp_chk_sign(ctx);
 	if (i)
 		return (i);
+	assert(ctx->ss->extra == SMP_BAN_EXTRA);
+	extra = SIGN_EXTRA(ctx);
+	assert(extra->offset <= ctx->ss->length);
 	ptr = SIGN_DATA(ctx);
 	pe = ptr + ctx->ss->length;
+	ptr += extra->offset;
 
 	while (ptr < pe) {
 		if (memcmp(ptr, "BAN", 4)) {
@@ -126,6 +250,9 @@ smp_open_bans(struct smp_sc *sc, struct smp_signctx *ctx)
 			break;
 		}
 		ptr += 4;
+
+		memcpy(&t, ptr, sizeof t);
+		ptr += sizeof t;
 
 		length = vbe32dec(ptr);
 		ptr += 4;
@@ -264,6 +391,127 @@ smp_open_segs(struct smp_sc *sc, struct smp_signctx *ctx)
 }
 
 /*--------------------------------------------------------------------
+ * Write the segmentlist back to the silo.
+ *
+ * We write the first copy, sync it synchronously, then write the
+ * second copy and sync it synchronously.
+ *
+ * Provided the kernel doesn't lie, that means we will always have
+ * at least one valid copy on in the silo.
+ */
+
+static void
+smp_save_segs(struct smp_sc *sc)
+{
+	struct smp_segptr *ss;
+	struct smp_seg *sg, *sg2;
+	uint64_t length;
+
+	Lck_AssertHeld(&sc->mtx);
+
+	/*
+	 * Remove empty segments from the front of the list
+	 * before we write the segments to disk.
+	 */
+	VTAILQ_FOREACH_SAFE(sg, &sc->segments, list, sg2) {
+		if (sg->nobj > 0)
+			break;
+		if (sg->flags & SMP_SEG_NEW)
+			break;
+		VTAILQ_REMOVE(&sc->segments, sg, list);
+		if (sg->flags & SMP_SEG_NUKED) {
+			assert(sc->free_pending >= sg->p.length);
+			sc->free_pending -= sg->p.length;
+		}
+		LRU_Free(sg->lru);
+		FREE_OBJ(sg);
+	}
+
+	/* Sync the signs of any segments marked as needing it */
+	VTAILQ_FOREACH(sg, &sc->segments, list) {
+		if (sg->flags & SMP_SEG_SYNCSIGNS) {
+			AZ(sg->flags & SMP_SEG_NEW);
+			AN(sg->nalloc); /* Empty segments shouldn't be here */
+
+			/* Make sure they have all been set up */
+			AN(sg->ctx_head.ss);
+			AN(sg->ctx_obj.ss);
+			AN(sg->ctx_tail.ss);
+
+			sg->flags &= ~SMP_SEG_SYNCSIGNS;
+			Lck_Unlock(&sc->mtx);
+			smp_sync_sign(sc, &sg->ctx_head);
+			smp_sync_sign(sc, &sg->ctx_obj);
+			smp_sync_sign(sc, &sg->ctx_tail);
+			Lck_Lock(&sc->mtx);
+		}
+	}
+
+	Lck_Unlock(&sc->mtx);
+	AZ(smp_chk_sign(&sc->seg1)); /* Page in */
+	smp_reset_sign(&sc->seg1);
+	Lck_Lock(&sc->mtx);
+
+	/* First write to seg1 while holding lock */
+	ss = SIGN_DATA(&sc->seg1);
+	length = 0;
+	VTAILQ_FOREACH(sg, &sc->segments, list) {
+		assert(sg->p.offset < sc->mediasize);
+		assert(sg->p.offset + sg->p.length <= sc->mediasize);
+		if (sg->flags & SMP_SEG_NUKED) {
+			AZ(length);
+			continue;
+		}
+		if (sg->flags & SMP_SEG_NEW)
+			break;
+		*ss = sg->p;
+		ss++;
+		length += sizeof *ss;
+	}
+	sc->flags &= ~SMP_SC_SYNC;
+
+	Lck_Unlock(&sc->mtx);
+	smp_append_sign(&sc->seg1, SIGN_DATA(&sc->seg1), length);
+	smp_sync_sign(sc, &sc->seg1); /* Sync without lock */
+	/* Copy seg1 to seg2 */
+	smp_copy_sign(&sc->seg2, &sc->seg1);
+	smp_sync_sign(sc, &sc->seg2);
+	Lck_Lock(&sc->mtx);
+}
+
+/*
+ * Raise the free_reserve by nuking segments
+ */
+
+static void
+smp_raise_reserve(struct worker *wrk, struct smp_sc *sc)
+{
+	struct smp_seg *sg;
+
+	Lck_AssertHeld(&sc->mtx);
+
+	VTAILQ_FOREACH(sg, &sc->segments, list) {
+		if (sg == sc->cur_seg)
+			break;
+		if (smp_silospaceleft(sc) + sc->free_pending > sc->free_reserve)
+			break;
+		if (sg->flags & SMP_SEG_NEW)
+			break;
+		if (sg->flags & SMP_SEG_NUKED)
+			continue;
+
+		/* Nuke this segment */
+		Lck_Unlock(&sc->mtx);
+		EXP_NukeLRU(wrk, sg->lru);
+		Lck_Lock(&sc->mtx);
+		sg->flags |= SMP_SEG_NUKED;
+		sc->free_pending += sg->p.length;
+	}
+	assert(smp_silospaceleft(sc) + sc->free_pending > sc->free_reserve);
+	sc->flags &= ~SMP_SC_LOW;
+}
+
+/*--------------------------------------------------------------------
  * Silo worker thread
  */
 
@@ -285,16 +533,27 @@ smp_thread(struct sess *sp, void *priv)
 	BAN_TailDeref(&sc->tailban);
 	AZ(sc->tailban);
 	printf("Silo completely loaded\n");
-	while (1) {
-		(void)sleep (1);
-		sg = VTAILQ_FIRST(&sc->segments);
-		if (sg != NULL && sg -> sc->cur_seg &&
-		    sg->nobj == 0) {
-			Lck_Lock(&sc->mtx);
+
+	/* Housekeeping loop */
+	Lck_Lock(&sc->mtx);
+	while (!(sc->flags & SMP_SC_STOP)) {
+		if (sc->flags & SMP_SC_LOW)
+			smp_raise_reserve(sp->wrk, sc);
+		if (sc->flags & SMP_SC_SYNC)
 			smp_save_segs(sc);
-			Lck_Unlock(&sc->mtx);
-		}
+
+		if (!(sc->flags & (SMP_SC_LOW | SMP_SC_SYNC | SMP_SC_STOP)))
+			/* Wait for something to do */
+			(void)Lck_CondWait(&sc->cond, &sc->mtx);
 	}
+
+	sc->flags |= SMP_SC_STOPPED;
+	smp_save_segs(sc);
+
+	Lck_Unlock(&sc->mtx);
+	while (1)
+		TIM_sleep(1);
+
 	NEEDLESS_RETURN(NULL);
 }
 
@@ -323,9 +582,26 @@ smp_open(const struct stevedore *st)
 
 	sc->ident = SIGN_DATA(&sc->idn);
 
-	/* We attempt ban1 first, and if that fails, try ban2 */
-	if (smp_open_bans(sc, &sc->ban1))
-		AZ(smp_open_bans(sc, &sc->ban2));
+	/* Check ban lists */
+	if (smp_chk_sign(&sc->ban1)) {
+		/* Ban list 1 is broken, use ban2 */
+		AZ(smp_chk_sign(&sc->ban2));
+		smp_copy_sign(&sc->ban1, &sc->ban2);
+		smp_sync_sign(sc, &sc->ban1);
+	} else {
+		/* Ban1 is OK, copy to ban2 for consistency */
+		smp_copy_sign(&sc->ban2, &sc->ban1);
+		smp_sync_sign(sc, &sc->ban2);
+	}
+
+	/* Compact the ban lists on startup */
+	if (smp_compact_banlist(sc, &sc->ban1))
+		smp_sync_sign(sc, &sc->ban1);
+	if (smp_compact_banlist(sc, &sc->ban2))
+		smp_sync_sign(sc, &sc->ban2);
+
+	/* Import bans */
+	AZ(smp_open_bans(sc, &sc->ban1));
 
 	/* We attempt seg1 first, and if that fails, try seg2 */
 	if (smp_open_segs(sc, &sc->seg1))
@@ -366,7 +642,17 @@ smp_close(const struct stevedore *st)
 
 	CAST_OBJ_NOTNULL(sc, st->priv, SMP_SC_MAGIC);
 	Lck_Lock(&sc->mtx);
-	smp_close_seg(sc, sc->cur_seg);
+	if (sc->cur_seg != NULL)
+		smp_close_seg(sc, sc->cur_seg);
+	AZ(sc->cur_seg);
+	sc->flags |= SMP_SC_STOP;
+	AZ(pthread_cond_signal(&sc->cond));
+
+	while (!(sc->flags & SMP_SC_STOPPED)) {
+		Lck_Unlock(&sc->mtx);
+		TIM_sleep(0.1);
+		Lck_Lock(&sc->mtx);
+	}
 	Lck_Unlock(&sc->mtx);
 
 	/* XXX: reap thread */
@@ -391,7 +677,6 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 	struct smp_sc *sc;
 	struct storage *ss;
 	struct smp_seg *sg;
-	unsigned tries;
 	uint64_t left, extra;
 
 	CAST_OBJ_NOTNULL(sc, st->priv, SMP_SC_MAGIC);
@@ -409,14 +694,21 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 	Lck_Lock(&sc->mtx);
 	sg = NULL;
 	ss = NULL;
-	for (tries = 0; tries < 3; tries++) {
+
+	left = 0;
+	if (sc->cur_seg != NULL)
 		left = smp_spaceleft(sc, sc->cur_seg);
-		if (left >= extra + min_size)
-			break;
-		smp_close_seg(sc, sc->cur_seg);
-		smp_new_seg(sc);
+	if (left < extra + min_size) {
+		if (sc->cur_seg != NULL)
+			smp_close_seg(sc, sc->cur_seg);
+		if (sc->cur_seg == NULL)
+			smp_new_seg(sc);
+		if (sc->cur_seg != NULL)
+			left = smp_spaceleft(sc, sc->cur_seg);
 	}
+
 	if (left >= extra + min_size)  {
+		AN(sc->cur_seg);
 		if (left < extra + max_size)
 			max_size = IRNDN(sc, left - extra);
 
@@ -433,6 +725,8 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 			(*so)->ptr = 0;;
 			sg->objs = *so;
 			*idx = ++sg->p.lobjlist;
+			/* Add ref early so segment will stick around */
+			sg->nobj++;
 		}
 		(void)smp_spaceleft(sc, sg);	/* for the assert */
 	}
@@ -496,19 +790,19 @@ smp_allocobj(struct stevedore *stv, struct sess *sp, unsigned ltot,
 	oc = o->objcore;
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
 	oc->flags |= OC_F_LRUDONTMOVE;
+	smp_init_oc(oc, sg, objidx);
 
 	Lck_Lock(&sc->mtx);
 	sg->nfixed++;
-	sg->nobj++;
+	assert(sg->nobj > 0);	/* Our ref added by smp_allocx() */
 
 	/* We have to do this somewhere, might as well be here... */
+	so = smp_find_so(sg, objidx); /* Might have changed during unlock */
 	assert(sizeof so->hash == DIGEST_LEN);
 	memcpy(so->hash, oc->objhead->digest, DIGEST_LEN);
 	so->ttl = EXP_Grace(NULL, o);
 	so->ptr = (uint8_t*)o - sc->base;
 	so->ban = BAN_Time(oc->ban);
-
-	smp_init_oc(oc, sg, objidx);
 
 	Lck_Unlock(&sc->mtx);
 	return (o);
@@ -567,6 +861,8 @@ const struct stevedore smp_stevedore = {
 	.allocobj =	smp_allocobj,
 	.free	=	smp_free,
 	.trim	=	smp_trim,
+	.newban =	smp_newban,
+	.dropban =	smp_dropban,
 };
 
 /*--------------------------------------------------------------------
@@ -626,8 +922,16 @@ debug_persistent(struct cli *cli, const char * const * av, void *priv)
 	}
 	Lck_Lock(&sc->mtx);
 	if (!strcmp(av[3], "sync")) {
-		smp_close_seg(sc, sc->cur_seg);
-		smp_new_seg(sc);
+		if (sc->cur_seg != NULL)
+			smp_close_seg(sc, sc->cur_seg);
+		smp_sync_segs(sc);
+		while (sc->flags & SMP_SC_SYNC) {
+			Lck_Unlock(&sc->mtx);
+			TIM_sleep(0.1);
+			Lck_Lock(&sc->mtx);
+		}
+		if (sc->cur_seg == NULL)
+			smp_new_seg(sc);
 	} else if (!strcmp(av[3], "dump")) {
 		debug_report_silo(cli, sc, 1);
 	} else {
