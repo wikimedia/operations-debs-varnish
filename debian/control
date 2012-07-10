@@ -21,7 +21,7 @@ Build-Depends:
 Vcs-Browser: http://git.debian.org/?p=pkg-varnish/pkg-varnish.git;a=summary
 Vcs-Git: git://git.debian.org/pkg-varnish/pkg-varnish.git
 Homepage: http://varnish-cache.org/
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 
 Package: varnish
 Architecture: any
