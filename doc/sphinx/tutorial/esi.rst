@@ -22,11 +22,13 @@ have three ESI statements:
 Content substitution based on variables and cookies is not implemented
 but is on the roadmap. 
 
-Example: esi include
+Varnish will not process ESI instructions in HTML comments.
+
+Example: esi:include
 ~~~~~~~~~~~~~~~~~~~~
 
 Lets see an example how this could be used. This simple cgi script
-outputs the date:::
+outputs the date::
 
      #!/bin/sh
      
@@ -34,7 +36,7 @@ outputs the date:::
      echo ''
      date "+%Y-%m-%d %H:%M"
 
-Now, lets have an HTML file that has an ESI include statement:::
+Now, lets have an HTML file that has an ESI include statement::
 
      <HTML>
      <BODY>
@@ -43,7 +45,7 @@ Now, lets have an HTML file that has an ESI include statement:::
      </BODY>
      </HTML>
 
-For ESI to work you need to activate ESI processing in VCL, like this:::
+For ESI to work you need to activate ESI processing in VCL, like this::
 
     sub vcl_fetch {
     	if (req.url == "/test.html") {
@@ -55,32 +57,23 @@ For ESI to work you need to activate ESI processing in VCL, like this:::
         }
     }
 
-Example: esi remove
-~~~~~~~~~~~~~~~~~~~
+Example: esi:remove and <!--esi ... -->
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The <esi:remove> and <!--esi ... --> constructs can be used to present
+appropriate content whether or not ESI is available, for example you can
+include content when ESI is available or link to it when it is not.
+ESI processors will remove the start ("<!--esi") and end ("-->") when
+the page is processed, while still processing the contents. If the page
+is not processed, it will remain, becoming an HTML/XML comment tag.
+ESI processors will remove <esi:remove> tags and all content contained
+in them, allowing you to only render the content when the page is not
+being ESI-processed.
+For example::
 
-The *remove* keyword allows you to remove output. You can use this to make
-a fall back of sorts, when ESI is not available, like this:::
-
-  <esi:include src="http://www.example.com/ad.html"/> 
   <esi:remove> 
-    <a href="http://www.example.com">www.example.com</a>
+    <a href="http://www.example.com/LICENSE">The license</a>
   </esi:remove>
-
-Example: <!--esi ... -->
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-This is a special construct to allow HTML marked up with ESI to render
-without processing. ESI Processors will remove the start ("<!--esi")
-and end ("-->") when the page is processed, while still processing the
-contents. If the page is not processed, it will remain, becoming an
-HTML/XML comment tag. For example::
-
   <!--esi  
-  <p>Warning: ESI Disabled!</p>
-  </p>  -->
-
-This assures that the ESI markup will not interfere with the rendering
-of the final HTML if not processed.
-
-
+  <p>The full text of the license:</p>
+  <esi:include src="http://example.com/LICENSE" />
+  -->

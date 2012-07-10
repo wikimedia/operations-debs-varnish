@@ -1003,7 +1003,6 @@ http_PutResponse(struct worker *w, int fd, const struct http *to,
 	if (to->hd[HTTP_HDR_RESPONSE].b == NULL)
 		http_SetH(to, HTTP_HDR_RESPONSE, "Lost Response");
 	Tcheck(to->hd[HTTP_HDR_RESPONSE]);
-
 }
 
 void
@@ -1079,7 +1078,7 @@ http_Write(struct worker *w, const struct http *hp, int resp)
 		l = WRW_WriteH(w, &hp->hd[HTTP_HDR_PROTO], " ");
 		WSLH(w, fd, hp, HTTP_HDR_PROTO);
 
-		hp->hd[HTTP_HDR_STATUS].b = WS_Alloc(w->ws, 4);
+		hp->hd[HTTP_HDR_STATUS].b = WS_Alloc(hp->ws, 4);
 		AN(hp->hd[HTTP_HDR_STATUS].b);
 
 		sprintf(hp->hd[HTTP_HDR_STATUS].b, "%3d", hp->status);

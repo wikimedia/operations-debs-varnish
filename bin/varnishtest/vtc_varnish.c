@@ -120,6 +120,61 @@ varnish_ask_cli(const struct varnish *v, const char *cmd, char **repl)
 }
 
 /**********************************************************************
+ *
+ */
+
+static void
+wait_stopped(const struct varnish *v)
+{
+	char *r;
+	enum VCLI_status_e st;
+
+	while (1) {
+		vtc_log(v->vl, 3, "wait-stopped");
+		st = varnish_ask_cli(v, "status", &r);
+		if (st != CLIS_OK)
+			vtc_log(v->vl, 0,
+			    "CLI status command failed: %u %s", st, r);
+		if (!strcmp(r, "Child in state stopped")) {
+			free(r);
+			break;
+		}
+		free(r);
+		(void)usleep(200000);
+	}
+}
+/**********************************************************************
+ *
+ */
+
+static void
+wait_running(const struct varnish *v)
+{
+	char *r;
+	enum VCLI_status_e st;
+
+	while (1) {
+		vtc_log(v->vl, 3, "wait-running");
+		st = varnish_ask_cli(v, "status", &r);
+		if (st != CLIS_OK)
+			vtc_log(v->vl, 0,
+			    "CLI status command failed: %u %s", st, r);
+		if (!strcmp(r, "Child in state stopped")) {
+			vtc_log(v->vl, 0,
+			    "Child stopped before running: %u %s", st, r);
+			free(r);
+			break;
+		}
+		if (!strcmp(r, "Child in state running")) {
+			free(r);
+			break;
+		}
+		free(r);
+		(void)usleep(200000);
+	}
+}
+
+/**********************************************************************
  * Varnishlog gatherer + thread
  */
 
@@ -270,7 +325,7 @@ varnish_thread(void *priv)
 		if (i <= 0)
 			break;
 		buf[i] = '\0';
-		vtc_dump(v->vl, 3, "debug", buf, -1);
+		vtc_dump(v->vl, 3, "debug", buf, -2);
 	}
 	return (NULL);
 }
@@ -431,6 +486,7 @@ varnish_start(struct varnish *v)
 		return;
 	if (u != CLIS_OK)
 		vtc_log(v->vl, 0, "CLI start command failed: %u %s", u, resp);
+	wait_running(v);
 	free(resp);
 	u = varnish_ask_cli(v, "debug.xid 1000", &resp);
 	if (vtc_error)
@@ -471,9 +527,9 @@ varnish_stop(struct varnish *v)
 		varnish_launch(v);
 	if (vtc_error)
 		return;
-	macro_def(v->vl, v->name, "addr", NULL);
-	macro_def(v->vl, v->name, "port", NULL);
-	macro_def(v->vl, v->name, "sock", NULL);
+	macro_undef(v->vl, v->name, "addr");
+	macro_undef(v->vl, v->name, "port");
+	macro_undef(v->vl, v->name, "sock");
 	vtc_log(v->vl, 2, "Stop");
 	(void)varnish_ask_cli(v, "stop", NULL);
 	while (1) {
@@ -813,6 +869,14 @@ cmd_varnish(CMD_ARGS)
 		}
 		if (!strcmp(*av, "-stop")) {
 			varnish_stop(v);
+			continue;
+		}
+		if (!strcmp(*av, "-wait-stopped")) {
+			wait_stopped(v);
+			continue;
+		}
+		if (!strcmp(*av, "-wait-running")) {
+			wait_running(v);
 			continue;
 		}
 		if (!strcmp(*av, "-wait")) {

@@ -234,9 +234,9 @@ vca_acct(void *arg)
 	t0 = TIM_real();
 	while (1) {
 #ifdef SO_SNDTIMEO_WORKS
-		if (params->send_timeout != send_timeout) {
+		if (params->idle_send_timeout != send_timeout) {
 			need_test = 1;
-			send_timeout = params->send_timeout;
+			send_timeout = params->idle_send_timeout;
 			tv_sndtimeo = TIM_timeval(send_timeout);
 			VTAILQ_FOREACH(ls, &heritage.socks, list) {
 				if (ls->sock < 0)
@@ -382,9 +382,10 @@ vca_return_session(struct sess *sp)
 	 * Set nonblocking in the worker-thread, before passing to the
 	 * acceptor thread, to reduce syscall density of the latter.
 	 */
-	if (VTCP_nonblocking(sp->fd))
+	if (VTCP_nonblocking(sp->fd)) {
 		vca_close_session(sp, "remote closed");
-	else if (vca_act->pass == NULL)
+		SES_Delete(sp);
+	} else if (vca_act->pass == NULL)
 		assert(sizeof sp == write(vca_pipes[1], &sp, sizeof sp));
 	else
 		vca_act->pass(sp);

@@ -51,7 +51,7 @@ vcc_Type(enum var_type fmt)
 #include "vcc_types.h"
 #undef VCC_TYPE
 	default:
-		assert("Unknwon Type");
+		assert("Unknown Type");
 		return(NULL);
 	}
 }
@@ -454,6 +454,8 @@ vcc_Eval_Regsub(struct vcc *tl, struct expr **e, const struct symbol *sym)
 	SkipToken(tl, '(');
 
 	vcc_expr0(tl, &e2, STRING);
+	if (e2 == NULL)
+		return;
 	if (e2->fmt != STRING)
 		vcc_expr_tostring(&e2, STRING);
 
@@ -467,6 +469,8 @@ vcc_Eval_Regsub(struct vcc *tl, struct expr **e, const struct symbol *sym)
 
 	SkipToken(tl, ',');
 	vcc_expr0(tl, &e2, STRING);
+	if (e2 == NULL)
+		return;
 	if (e2->fmt != STRING)
 		vcc_expr_tostring(&e2, STRING);
 	*e = vcc_expr_edit(STRING, "\v1, \v2)", *e, e2);
@@ -941,7 +945,7 @@ vcc_expr_cmp(struct vcc *tl, struct expr **e, enum var_type fmt)
 		re = vcc_regexp(tl);
 		ERRCHK(tl);
 		vcc_NextToken(tl);
-		bprintf(buf, "%sVRT_re_match(\v1, %s)", not, re);
+		bprintf(buf, "%sVRT_re_match(sp, \v1, %s)", not, re);
 		*e = vcc_expr_edit(BOOL, buf, *e, NULL);
 		return;
 	}

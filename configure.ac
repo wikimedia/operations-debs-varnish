@@ -2,7 +2,7 @@ AC_PREREQ(2.59)
 AC_COPYRIGHT([Copyright (c) 2006 Verdens Gang AS
 Copyright (c) 2006-2011 Varnish Software AS])
 AC_REVISION([$Id$])
-AC_INIT([Varnish], [3.0.2], [varnish-dev@varnish-cache.org])
+AC_INIT([Varnish], [3.0.3-rc1], [varnish-dev@varnish-cache.org])
 AC_CONFIG_SRCDIR(include/varnishapi.h)
 AM_CONFIG_HEADER(config.h)
 
@@ -116,7 +116,7 @@ AC_SUBST(NET_LIBS)
 AC_CHECK_LIBM
 AC_SUBST(LIBM)
 
-m4_pattern_forbid([^_?PKG_[A-Z_]+$],[pkg.m4 missing, please install pkg-config])
+m4_ifndef([PKG_PROG_PKG_CONFIG], [m4_fatal([pkg.m4 missing, please install pkg-config])])
 PKG_PROG_PKG_CONFIG
 if test -n $PKG_CONFIG; then
    PKG_CHECK_MODULES([PCRE], [libpcre])
@@ -149,7 +149,15 @@ AC_SUBST(PCRE_LIBS)
 
 PKG_CHECK_MODULES([LIBEDIT], [libedit], 
 	[AC_DEFINE([HAVE_LIBEDIT], [1], [Define we have libedit])],
-	[AC_MSG_WARN([libedit not found, disabling libedit support])])
+	[AC_CHECK_HEADERS([readline/readline.h])
+	 AC_CHECK_HEADERS([edit/readline/readline.h])
+	 AC_CHECK_LIB(edit, el_init,
+	        [ AC_DEFINE([HAVE_LIBEDIT], [1], [Define we have libedit])
+		  LIBEDIT_CFLAGS=""
+		  LIBEDIT_LIBS="-ledit ${CURSES_LIBS}"
+		],
+               [AC_MSG_WARN([libedit not found, disabling libedit support])],
+               [${CURSES_LIBS}])])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -326,12 +334,6 @@ AC_CHECK_FUNCS([clock_gettime])
 AC_CHECK_FUNCS([gethrtime]) 
 LIBS="${save_LIBS}"
 
-# Check which mechanism to use for the acceptor.  We look for kqueue
-# only on platforms on which we know that it works, because there are
-# platforms where a simple AC_CHECK_FUNCS([kqueue]) would succeed but
-# the build would fail.  We also allow the user to disable mechanisms
-# he doesn't want to use.
-
 # --enable-kqueue
 AC_ARG_ENABLE(kqueue,
     AS_HELP_STRING([--enable-kqueue],
@@ -340,16 +342,7 @@ AC_ARG_ENABLE(kqueue,
     [enable_kqueue=yes])
 
 if test "$enable_kqueue" = yes; then
-	case $target in
-	*-*-freebsd* | *-*-darwin9* | *-*-netbsd* )
-		AC_CHECK_FUNCS([kqueue])
-		;;
-	*-*-bsd*)
-		# No other BSD has a sufficiently recent implementation
-		AC_MSG_WARN([won't look for kqueue() on $target])
-		ac_cv_func_kqueue=no
-		;;
-	esac
+	AC_CHECK_FUNCS([kqueue])
 else
 	ac_cv_func_kqueue=no
 fi

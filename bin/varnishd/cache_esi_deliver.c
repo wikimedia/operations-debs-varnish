@@ -47,7 +47,8 @@ ved_include(struct sess *sp, const char *src, const char *host)
 {
 	struct object *obj;
 	struct worker *w;
-	char *ws_wm;
+	char *sp_ws_wm;
+	char *wrk_ws_wm;
 	unsigned sxid, res_mode;
 
 	w = sp->wrk;
@@ -66,7 +67,8 @@ ved_include(struct sess *sp, const char *src, const char *host)
 	HTTP_Copy(sp->http, sp->http0);
 
 	/* Take a workspace snapshot */
-	ws_wm = WS_Snapshot(sp->ws);
+	sp_ws_wm = WS_Snapshot(sp->ws);
+	wrk_ws_wm = WS_Snapshot(w->ws);
 
 	http_SetH(sp->http, HTTP_HDR_URL, src);
 	if (host != NULL && *host != '\0')  {
@@ -116,7 +118,8 @@ ved_include(struct sess *sp, const char *src, const char *host)
 	sp->wrk->res_mode = res_mode;
 
 	/* Reset the workspace */
-	WS_Reset(sp->ws, ws_wm);
+	WS_Reset(sp->ws, sp_ws_wm);
+	WS_Reset(w->ws, wrk_ws_wm);
 
 	WRW_Reserve(sp->wrk, &sp->fd);
 	if (sp->wrk->res_mode & RES_CHUNKED)
@@ -405,7 +408,7 @@ ESI_Deliver(struct sess *sp)
 	if (vgz != NULL) {
 		if (obufl > 0)
 			(void)WRW_Write(sp->wrk, obuf, obufl);
-		VGZ_Destroy(&vgz);
+		(void)VGZ_Destroy(&vgz);
 	}
 	if (sp->wrk->gzip_resp && sp->esi_level == 0) {
 		/* Emit a gzip literal block with finish bit set */
@@ -437,12 +440,10 @@ ved_deliver_byterange(const struct sess *sp, ssize_t low, ssize_t high)
 	ssize_t l, lx;
 	u_char *p;
 
-//printf("BR %jd %jd\n", low, high);
 	lx = 0;
 	VTAILQ_FOREACH(st, &sp->obj->store, list) {
 		p = st->ptr;
 		l = st->len;
-//printf("[0-] %jd %jd\n", lx, lx + l);
 		if (lx + l < low) {
 			lx += l;
 			continue;
@@ -455,16 +456,14 @@ ved_deliver_byterange(const struct sess *sp, ssize_t low, ssize_t high)
 			l -= (low - lx);
 			lx = low;
 		}
-//printf("[1-] %jd %jd\n", lx, lx + l);
 		if (lx + l >= high)
 			l = high - lx;
-//printf("[2-] %jd %jd\n", lx, lx + l);
 		assert(lx >= low && lx + l <= high);
 		if (l != 0)
 			(void)WRW_Write(sp->wrk, p, l);
-		if (lx + st->len > high)
+		if (p + l < st->ptr + st->len)
 			return(p[l]);
-		lx += st->len;
+		lx += l;
 	}
 	INCOMPL();
 }
@@ -475,10 +474,12 @@ ESI_DeliverChild(const struct sess *sp)
 	struct storage *st;
 	struct object *obj;
 	ssize_t start, last, stop, lpad;
-	u_char *p, cc;
+	u_char cc;
 	uint32_t icrc;
 	uint32_t ilen;
 	uint8_t *dbits;
+	int i, j;
+	uint8_t tailbuf[8];
 
 	if (!sp->obj->gziped) {
 		VTAILQ_FOREACH(st, &sp->obj->store, list)
@@ -558,12 +559,21 @@ ESI_DeliverChild(const struct sess *sp)
 	}
 	if (lpad > 0)
 		(void)WRW_Write(sp->wrk, dbits + 1, lpad);
-	st = VTAILQ_LAST(&sp->obj->store, storagehead);
-	assert(st->len > 8);
 
-	p = st->ptr + st->len - 8;
-	icrc = vle32dec(p);
-	ilen = vle32dec(p + 4);
+	/* We need the entire tail, but it may not be in one storage segment */
+	st = VTAILQ_LAST(&sp->obj->store, storagehead);
+	for (i = sizeof tailbuf; i > 0; i -= j) {
+		j = st->len;
+		if (j > i)
+			j = i;
+		memcpy(tailbuf + i - j, st->ptr + st->len - j, j);
+		st = VTAILQ_PREV(st, storagehead, list);
+		assert(i == j || st != NULL);
+	}
+
+	icrc = vle32dec(tailbuf);
+	ilen = vle32dec(tailbuf + 4);
+
 	sp->wrk->crc = crc32_combine(sp->wrk->crc, icrc, ilen);
 	sp->wrk->l_crc += ilen;
 }

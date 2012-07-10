@@ -3,14 +3,18 @@
 Cookies
 -------
 
-Varnish will not cache a object coming from the backend with a
-Set-Cookie header present. Also, if the client sends a Cookie header,
-Varnish will bypass the cache and go directly to the backend.
+Varnish will, in the default configuration, not cache a object coming
+from the backend with a Set-Cookie header present. Also, if the client
+sends a Cookie header, Varnish will bypass the cache and go directly to
+the backend.
 
 This can be overly conservative. A lot of sites use Google Analytics
 (GA) to analyze their traffic. GA sets a cookie to track you. This
-cookie is used by the client side java script and is therefore of no
+cookie is used by the client side javascript and is therefore of no
 interest to the server. 
+
+Cookies from the client
+~~~~~~~~~~~~~~~~~~~~~~~
 
 For a lot of web application it makes sense to completely disregard the
 cookies unless you are accessing a special part of the web site. This
@@ -49,7 +53,7 @@ cookies named COOKIE1 and COOKIE2 and you can marvel at it::
 
   sub vcl_recv {
     if (req.http.Cookie) {
-      set req.http.Cookie = ";" req.http.Cookie;
+      set req.http.Cookie = ";" + req.http.Cookie;
       set req.http.Cookie = regsuball(req.http.Cookie, "; +", ";");
       set req.http.Cookie = regsuball(req.http.Cookie, ";(COOKIE1|COOKIE2)=", "; \1=");
       set req.http.Cookie = regsuball(req.http.Cookie, ";[^ ][^;]*", "");
@@ -61,4 +65,13 @@ cookies named COOKIE1 and COOKIE2 and you can marvel at it::
   }
 
 The example is taken from the Varnish Wiki, where you can find other
-scary examples of what can be done i VCL.
+scary examples of what can be done in VCL.
+
+Cookies coming from the backend
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your backend server sets a cookie using the Set-Cookie header
+Varnish will not cache the page.  A hit-for-pass object (see
+:ref:`tutorial_vcl_fetch_actions`) is created. So, if the backend
+server acts silly and sets unwanted cookies just unset the Set-Cookie
+header and all should be fine. 

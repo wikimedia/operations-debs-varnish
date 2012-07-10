@@ -1,8 +1,8 @@
-#% define v_rc ""
+%define v_rc rc1
 Summary: High-performance HTTP accelerator
 Name: varnish
-Version: 3.0.2
-Release: 1%{?dist}
+Version: 3.0.3
+Release: 0.rc1%{?dist}
 License: BSD
 Group: System Environment/Daemons
 URL: http://www.varnish-cache.org/
@@ -98,7 +98,7 @@ cp bin/varnishd/default.vcl etc/zope-plone.vcl examples
 #sed -i 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g;
 #	s|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool
 
-%{__make} %{?_smp_mflags}
+make %{?_smp_mflags}
 
 head -6 etc/default.vcl > redhat/default.vcl
 
@@ -119,7 +119,9 @@ tail -n +11 etc/default.vcl >> redhat/default.vcl
 	redhat/varnish.initrc redhat/varnishlog.initrc redhat/varnishncsa.initrc
 %endif
 
-cp -r doc/sphinx/\=build/html doc
+rm -rf doc/sphinx/\=build/html/_sources
+mv doc/sphinx/\=build/html doc
+rm -rf doc/sphinx/\=build
 
 %check
 # rhel5 on ppc64 is just too strange
@@ -138,7 +140,7 @@ cp -r doc/sphinx/\=build/html doc
 	%endif
 %endif
 
-%{__make} check LD_LIBRARY_PATH="../../lib/libvarnish/.libs:../../lib/libvarnishcompat/.libs:../../lib/libvarnishapi/.libs:../../lib/libvcl/.libs:../../lib/libvgz/.libs"
+make check LD_LIBRARY_PATH="../../lib/libvarnish/.libs:../../lib/libvarnishcompat/.libs:../../lib/libvarnishapi/.libs:../../lib/libvcl/.libs:../../lib/libvgz/.libs"
 
 %install
 rm -rf %{buildroot}
@@ -153,13 +155,13 @@ find %{buildroot}/%{_libdir}/ -name '*.la' -exec rm -f {} ';'
 mkdir -p %{buildroot}/var/lib/varnish
 mkdir -p %{buildroot}/var/log/varnish
 mkdir -p %{buildroot}/var/run/varnish
-%{__install} -D -m 0644 redhat/default.vcl %{buildroot}%{_sysconfdir}/varnish/default.vcl
-%{__install} -D -m 0644 redhat/varnish.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/varnish
-%{__install} -D -m 0644 redhat/varnish.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/varnish
-%{__install} -D -m 0755 redhat/varnish.initrc %{buildroot}%{_initrddir}/varnish
-%{__install} -D -m 0755 redhat/varnishlog.initrc %{buildroot}%{_initrddir}/varnishlog
-%{__install} -D -m 0755 redhat/varnishncsa.initrc %{buildroot}%{_initrddir}/varnishncsa
-%{__install} -D -m 0755 redhat/varnish_reload_vcl %{buildroot}%{_bindir}/varnish_reload_vcl
+install -D -m 0644 redhat/default.vcl %{buildroot}%{_sysconfdir}/varnish/default.vcl
+install -D -m 0644 redhat/varnish.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/varnish
+install -D -m 0644 redhat/varnish.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/varnish
+install -D -m 0755 redhat/varnish.initrc %{buildroot}%{_initrddir}/varnish
+install -D -m 0755 redhat/varnishlog.initrc %{buildroot}%{_initrddir}/varnishlog
+install -D -m 0755 redhat/varnishncsa.initrc %{buildroot}%{_initrddir}/varnishncsa
+install -D -m 0755 redhat/varnish_reload_vcl %{buildroot}%{_bindir}/varnish_reload_vcl
 
 %clean
 rm -rf %{buildroot}
@@ -174,7 +176,7 @@ rm -rf %{buildroot}
 %{_mandir}/man1/*.1*
 %{_mandir}/man3/*.3*
 %{_mandir}/man7/*.7*
-%doc INSTALL LICENSE README redhat/README.redhat ChangeLog
+%doc LICENSE README redhat/README.redhat ChangeLog
 %doc examples
 %dir %{_sysconfdir}/varnish/
 %config(noreplace) %{_sysconfdir}/varnish/default.vcl
@@ -239,6 +241,22 @@ fi
 %postun libs -p /sbin/ldconfig
 
 %changelog
+* Fri Feb 10 2012 Petr Pisar <ppisar@redhat.com> - 2.1.5-4
+- Rebuild against PCRE 8.30
+
+* Sat Jan 14 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.5-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+* Mon Feb 07 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.5-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+* Tue Feb 01 2011 Ingvar Hagelund <ingvar@redpill-linpro.com> - 2.1.5-1
+- New upstream release
+- New download location
+- Moved varnish_reload_vcl to sbin
+- Removed patches included upstream
+- Use jemalloc as system installed library
+
 * Mon Nov 15 2010 Ingvar Hagelund <ingvar@redpill-linpro.com> - 3.0.0-0.svn20101115r5543
 - Merged some changes from fedora
 - Upped general version to 3.0 prerelease in trunk

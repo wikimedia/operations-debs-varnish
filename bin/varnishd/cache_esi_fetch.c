@@ -46,7 +46,8 @@
  */
 
 static ssize_t
-vef_read(struct http_conn *htc, void *buf, ssize_t buflen, ssize_t bytes)
+vef_read(struct worker *w, struct http_conn *htc, void *buf, ssize_t buflen,
+    ssize_t bytes)
 {
 	ssize_t d;
 
@@ -57,7 +58,7 @@ vef_read(struct http_conn *htc, void *buf, ssize_t buflen, ssize_t bytes)
 		if (d < bytes)
 			bytes = d;
 	}
-	return (HTC_Read(htc, buf, bytes));
+	return (HTC_Read(w, htc, buf, bytes));
 }
 
 /*---------------------------------------------------------------------
@@ -76,7 +77,7 @@ vfp_esi_bytes_uu(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 		st = FetchStorage(sp, 0);
 		if (st == NULL)
 			return (-1);
-		w = vef_read(htc,
+		w = vef_read(sp->wrk, htc,
 		    st->ptr + st->len, st->space - st->len, bytes);
 		if (w <= 0)
 			return (w);
@@ -107,14 +108,14 @@ vfp_esi_bytes_gu(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 
 	while (bytes > 0) {
 		if (VGZ_IbufEmpty(vg) && bytes > 0) {
-			w = vef_read(htc, ibuf, sizeof ibuf, bytes);
+			w = vef_read(sp->wrk, htc, ibuf, sizeof ibuf, bytes);
 			if (w <= 0)
 				return (w);
 			VGZ_Ibuf(vg, ibuf, w);
 			bytes -= w;
 		}
 		if (VGZ_ObufStorage(sp, vg))
-			return (-1);
+			return(-1);
 		i = VGZ_Gunzip(vg, &dp, &dl);
 		xxxassert(i == VGZ_OK || i == VGZ_END);
 		VEP_parse(sp, dp, dl);
@@ -182,7 +183,7 @@ vfp_vep_callback(const struct sess *sp, ssize_t l, enum vgz_flag flg)
 		}
 		do {
 			if (VGZ_ObufStorage(sp, vef->vgz)) {
-				vef->error = errno;
+				vef->error = ENOMEM;
 				vef->tot += l;
 				return (vef->tot);
 			}
@@ -216,7 +217,7 @@ vfp_esi_bytes_ug(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 	CHECK_OBJ_NOTNULL(vef, VEF_MAGIC);
 
 	while (bytes > 0) {
-		w = vef_read(htc, ibuf, sizeof ibuf, bytes);
+		w = vef_read(sp->wrk, htc, ibuf, sizeof ibuf, bytes);
 		if (w <= 0)
 			return (w);
 		bytes -= w;
@@ -259,7 +260,7 @@ vfp_esi_bytes_gg(struct sess *sp, struct http_conn *htc, size_t bytes)
 	ibuf2[0] = 0; /* For Flexelint */
 
 	while (bytes > 0) {
-		w = vef_read(htc, ibuf, sizeof ibuf, bytes);
+		w = vef_read(sp->wrk, htc, ibuf, sizeof ibuf, bytes);
 		if (w <= 0)
 			return (w);
 		bytes -= w;
@@ -299,7 +300,6 @@ vfp_esi_begin(struct sess *sp, size_t estimate)
 	struct vef_priv *vef;
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
-	/* XXX: snapshot WS's ? We'll need the space */
 
 	AZ(sp->wrk->vgz_rx);
 	if (sp->wrk->is_gzip && sp->wrk->do_gunzip) {
@@ -308,9 +308,6 @@ vfp_esi_begin(struct sess *sp, size_t estimate)
 	} else if (sp->wrk->is_gunzip && sp->wrk->do_gzip) {
 		ALLOC_OBJ(vef, VEF_MAGIC);
 		AN(vef);
-		//vef = (void*)WS_Alloc(sp->ws, sizeof *vef);
-		//memset(vef, 0, sizeof *vef);
-		//vef->magic = VEF_MAGIC;
 		vef->vgz = VGZ_NewGzip(sp, "G F E");
 		AZ(sp->wrk->vef_priv);
 		sp->wrk->vef_priv = vef;
@@ -319,9 +316,6 @@ vfp_esi_begin(struct sess *sp, size_t estimate)
 		sp->wrk->vgz_rx = VGZ_NewUngzip(sp, "U F E");
 		ALLOC_OBJ(vef, VEF_MAGIC);
 		AN(vef);
-		//vef = (void*)WS_Alloc(sp->ws, sizeof *vef);
-		//memset(vef, 0, sizeof *vef);
-		//vef->magic = VEF_MAGIC;
 		vef->vgz = VGZ_NewGzip(sp, "G F E");
 		AZ(sp->wrk->vef_priv);
 		sp->wrk->vef_priv = vef;
@@ -342,6 +336,7 @@ vfp_esi_bytes(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	AN(sp->wrk->vep);
+	assert(sp->wrk->htc == htc);
 	if (sp->wrk->is_gzip && sp->wrk->do_gunzip)
 		i = vfp_esi_bytes_gu(sp, htc, bytes);
 	else if (sp->wrk->is_gunzip && sp->wrk->do_gzip)
@@ -360,35 +355,48 @@ vfp_esi_end(struct sess *sp)
 	struct vsb *vsb;
 	struct vef_priv *vef;
 	ssize_t l;
+	int retval;
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	AN(sp->wrk->vep);
 
+	retval = sp->wrk->fetch_failed;
+
+	if (sp->wrk->vgz_rx != NULL && VGZ_Destroy(&sp->wrk->vgz_rx) != VGZ_END)
+		retval = FetchError(sp,
+		    "Gunzip+ESI Failed at the very end");
+
 	vsb = VEP_Finish(sp);
 
 	if (vsb != NULL) {
-		l = VSB_len(vsb);
-		assert(l > 0);
-		/* XXX: This is a huge waste of storage... */
-		sp->obj->esidata = STV_alloc(sp, l);
-		XXXAN(sp->obj->esidata);
-		memcpy(sp->obj->esidata->ptr, VSB_data(vsb), l);
-		sp->obj->esidata->len = l;
+		if (!retval) {
+			l = VSB_len(vsb);
+			assert(l > 0);
+			/* XXX: This is a huge waste of storage... */
+			sp->obj->esidata = STV_alloc(sp, l);
+			if (sp->obj->esidata != NULL) {
+				memcpy(sp->obj->esidata->ptr,
+				       VSB_data(vsb), l);
+				sp->obj->esidata->len = l;
+			} else {
+				retval = FetchError(sp,
+				    "Could not allocate storage for esidata");
+			}
+		}
 		VSB_delete(vsb);
 	}
-	if (sp->wrk->vgz_rx != NULL)
-		VGZ_Destroy(&sp->wrk->vgz_rx);
 
 	if (sp->wrk->vef_priv != NULL) {
 		vef = sp->wrk->vef_priv;
 		CHECK_OBJ_NOTNULL(vef, VEF_MAGIC);
 		sp->wrk->vef_priv = NULL;
 		VGZ_UpdateObj(vef->vgz, sp->obj);
-		VGZ_Destroy(&vef->vgz);
-		XXXAZ(vef->error);
+		if (VGZ_Destroy(&vef->vgz) != VGZ_END)
+			retval = FetchError(sp, 
+			    "ESI+Gzip Failed at the very end");
 		FREE_OBJ(vef);
 	}
-	return (0);
+	return (retval);
 }
 
 struct vfp vfp_esi = {

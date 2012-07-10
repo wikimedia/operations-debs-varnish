@@ -612,6 +612,13 @@ static const struct parspec input_parspec[] = {
                 "seconds the session is closed. \n"
 		"See setsockopt(2) under SO_SNDTIMEO for more information.",
 		DELAYED_EFFECT,
+		"600", "seconds" },
+	{ "idle_send_timeout", tweak_timeout, &master.idle_send_timeout, 0, 0,
+		"Time to wait with no data sent. "
+		"If no data has been transmitted in this many\n"
+                "seconds the session is closed. \n"
+		"See setsockopt(2) under SO_SNDTIMEO for more information.",
+		DELAYED_EFFECT,
 		"60", "seconds" },
 	{ "auto_restart", tweak_bool, &master.auto_restart, 0, 0,
 		"Restart child process automatically if it dies.\n",
@@ -833,6 +840,7 @@ static const struct parspec input_parspec[] = {
 		"  0x00010000 - synchronize shmlog.\n"
 		"  0x00020000 - synchronous start of persistence.\n"
 		"  0x00040000 - release VCL early.\n"
+		"  0x00080000 - ban-lurker debugging.\n"
 		"  0x80000000 - do edge-detection on digest.\n"
 		"Use 0x notation and do the bitor in your head :-)\n",
 		0,
@@ -862,7 +870,7 @@ static const struct parspec input_parspec[] = {
 		"10", "objects" },
 	{ "http_range_support", tweak_bool, &master.http_range_support, 0, 0,
 		"Enable support for HTTP Range headers.\n",
-		EXPERIMENTAL,
+		0,
 		"on", "bool" },
 	{ "http_gzip_support", tweak_bool, &master.http_gzip_support, 0, 0,
 		"Enable gzip support. When enabled Varnish will compress "
@@ -948,6 +956,24 @@ static const struct parspec input_parspec[] = {
 		"Unreferenced VCL objects result in error.\n",
 		0,
 		"on", "bool" },
+
+
+	{ "pcre_match_limit", tweak_uint,
+		&master.vre_limits.match,
+		1, UINT_MAX,
+		"The limit for the  number of internal matching function"
+		" calls in a pcre_exec() execution.",
+		0,
+		"10000", ""},
+
+	{ "pcre_match_limit_recursion", tweak_uint,
+		&master.vre_limits.match_recursion,
+		1, UINT_MAX,
+		"The limit for the  number of internal matching function"
+		" recursions in a pcre_exec() execution.",
+		0,
+		"10000", ""},
+
 	{ NULL, NULL, NULL }
 };
 

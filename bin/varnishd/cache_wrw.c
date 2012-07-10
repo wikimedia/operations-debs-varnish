@@ -123,7 +123,45 @@ WRW_Flush(struct worker *w)
 			wrw->iov[wrw->ciov].iov_len = 0;
 		}
 		i = writev(*wrw->wfd, wrw->iov, wrw->niov);
-		if (i != wrw->liov) {
+		while (i != wrw->liov && i > 0) {
+			/* Remove sent data from start of I/O vector,
+			 * then retry; we hit a timeout, but some data
+			 * was sent.
+
+			 XXX: Add a "minimum sent data per timeout
+			 counter to prevent slowlaris attacks
+			*/
+			size_t used = 0;
+
+			if (TIM_real() - w->sp->t_resp > params->send_timeout) {
+				WSL(w, SLT_Debug, *wrw->wfd,
+				    "Hit total send timeout, wrote = %ld/%ld; not retrying",
+				    i, wrw->liov);
+				i = -1;
+				break;
+			}
+
+			WSL(w, SLT_Debug, *wrw->wfd,
+			    "Hit send timeout, wrote = %ld/%ld; retrying",
+			    i, wrw->liov);
+
+			for (int j = 0; j < wrw->niov; j++) {
+				if (used + wrw->iov[j].iov_len > i) {
+					/* Cutoff is in this iov */
+					int used_here = i - used;
+					wrw->iov[j].iov_len -= used_here;
+					wrw->iov[j].iov_base = (char*)wrw->iov[j].iov_base + used_here;
+					memmove(wrw->iov, &wrw->iov[j],
+						(wrw->niov - j) * sizeof(struct iovec));
+					wrw->niov -= j;
+					wrw->liov -= i;
+					break;
+				}
+				used += wrw->iov[j].iov_len;
+			}
+			i = writev(*wrw->wfd, wrw->iov, wrw->niov);
+		}
+		if (i <= 0) {
 			wrw->werr++;
 			WSL(w, SLT_Debug, *wrw->wfd,
 			    "Write error, retval = %d, len = %d, errno = %s",
@@ -264,7 +302,7 @@ WRW_Sendfile(struct worker *w, int fd, off_t off, unsigned len)
 	} while (0);
 #elif defined(__linux__)
 	do {
-		if (WRK_Flush(w) == 0 &&
+		if (WRW_Flush(w) == 0 &&
 		    sendfile(*wrw->wfd, fd, &off, len) != len)
 			wrw->werr++;
 	} while (0);
@@ -293,7 +331,7 @@ WRW_Sendfile(struct worker *w, int fd, off_t off, unsigned len)
 	} while (0);
 #elif defined(__sun) && defined(HAVE_SENDFILE)
 	do {
-		if (WRK_Flush(w) == 0 &&
+		if (WRW_Flush(w) == 0 &&
 		    sendfile(*wrw->wfd, fd, &off, len) != len)
 			wrw->werr++;
 	} while (0);

@@ -15,7 +15,7 @@ Display Varnish logs in Apache / NCSA combined log format
 SYNOPSIS
 ========
 
-varnishncsa [-a] [-b] [-C] [-c] [-D] [-d] [-f] [-F format] [-I regex]
+varnishncsa [-a] [-C] [-D] [-d] [-f] [-F format] [-I regex]
 [-i tag] [-n varnish_name] [-m tag:regex ...] [-P file] [-r file] [-V] [-w file] 
 [-X regex] [-x tag]
 
@@ -30,15 +30,7 @@ The following options are available:
 
 -a          When writing to a file, append to it rather than overwrite it.
 
--b          Include log entries which result from communication with a 
-	    backend server.  If neither -b nor -c is
-	    specified, varnishncsa acts as if they both were.
-
 -C          Ignore case when matching regular expressions.
-
--c          Include log entries which result from communication 
-	    with a client.  If neither -b nor -c is specified, 
-	    varnishncsa acts as if they both were.
 
 -D          Daemonize.
 
@@ -53,6 +45,8 @@ The following options are available:
    	    default log format is used. Currently it is:
 
             %h %l %u %t "%r" %s %b "%{Referer}i" "%{User-agent}i"
+
+	    Escape sequences \\n and \\t are supported.
 
 	    Supported formatters are:
 
@@ -70,7 +64,7 @@ The following options are available:
                  Defaults to 127.0.0.1 for backend requests.
 
 	      %{X}i
-	         The contents of request header line X.
+	         The contents of request header X.
 
 	      %l
 	         Remote logname (always '-')
@@ -83,7 +77,7 @@ The following options are available:
                  empty string.
 
 	      %{X}o
-	         The contents of response header line X.
+	         The contents of response header X.
 
 	      %r
 	         The first line of the request. Synthesized from other
@@ -95,6 +89,11 @@ The following options are available:
 	      %t
 	         Time when the request was received, in HTTP date/time
 	         format.
+
+	      %{X}t
+	         Time when the request was received, in the format
+		 specified by X.  The time specification format is the
+		 same as for strftime(3).
 
 	      %U
 	         The request URL without any query string. Defaults to
@@ -116,6 +115,10 @@ The following options are available:
 		   Varnish:handling
 		     How the request was handled, whether it was a
 		     cache hit, miss, pass, pipe or error.
+	
+		   VCL_Log:key
+		     Output value set by std.log("key:value") in VCL.
+		     
 
 -m tag:regex only list records where tag matches regex. Multiple
             -m options are AND-ed together.

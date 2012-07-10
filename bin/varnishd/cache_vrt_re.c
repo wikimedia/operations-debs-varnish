@@ -67,7 +67,7 @@ VRT_re_fini(void *rep)
 }
 
 int
-VRT_re_match(const char *s, void *re)
+VRT_re_match(const struct sess *sp, const char *s, void *re)
 {
 	vre_t *t;
 	int i;
@@ -76,10 +76,11 @@ VRT_re_match(const char *s, void *re)
 		s = "";
 	AN(re);
 	t = re;
-	i = VRE_exec(t, s, strlen(s), 0, 0, NULL, 0);
+	i = VRE_exec(t, s, strlen(s), 0, 0, NULL, 0, &params->vre_limits);
 	if (i >= 0)
 		return (1);
-	assert(i == VRE_ERROR_NOMATCH);
+	if (i < VRE_ERROR_NOMATCH )
+		WSP(sp, SLT_VCL_error, "Regexp matching returned %d", i);
 	return (0);
 }
 
@@ -94,17 +95,27 @@ VRT_regsub(const struct sess *sp, int all, const char *str, void *re,
 	char *b0;
 	const char *s;
 	unsigned u, x;
+	int options = 0;
+	size_t len;
 
 	AN(re);
 	if (str == NULL)
 		str = "";
+	if (sub == NULL)
+		sub = "";
 	t = re;
 	memset(ovector, 0, sizeof(ovector));
-	i = VRE_exec(t, str, strlen(str), 0, 0, ovector, 30);
+	len = strlen(str);
+	i = VRE_exec(t, str, len, 0, options, ovector, 30,
+	    &params->vre_limits);
 
 	/* If it didn't match, we can return the original string */
 	if (i == VRE_ERROR_NOMATCH)
 		return(str);
+	if (i < VRE_ERROR_NOMATCH ) {
+		WSP(sp, SLT_VCL_error, "Regexp matching returned %d", i);
+		return(str);
+	}
 
 	u = WS_Reserve(sp->http->ws, 0);
 	res.e = res.b = b0 = sp->http->ws->f;
@@ -131,15 +142,23 @@ VRT_regsub(const struct sess *sp, int all, const char *str, void *re,
 			}
 		}
 		str += ovector[1];
+		len -= ovector[1];
 		if (!all)
 			break;
 		memset(&ovector, 0, sizeof(ovector));
-		i = VRE_exec(t, str, strlen(str), 0, 0, ovector, 30);
+		options |= VRE_NOTEMPTY;
+		i = VRE_exec(t, str, len, 0, options, ovector, 30,
+		    &params->vre_limits);
+		if (i < VRE_ERROR_NOMATCH ) {
+			WS_Release(sp->http->ws, 0);
+			WSP(sp, SLT_VCL_error,
+			    "Regexp matching returned %d", i);
+			return(str);
+		}
 	} while (i != VRE_ERROR_NOMATCH);
 
 	/* Copy suffix to match */
-	l = strlen(str) + 1;
-	Tadd(&res, str, l);
+	Tadd(&res, str, len+1);
 	if (res.b >= res.e) {
 		WS_Release(sp->http->ws, 0);
 		return (str);

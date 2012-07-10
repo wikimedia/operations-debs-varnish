@@ -130,9 +130,10 @@ RES_BuildHttp(const struct sess *sp)
 	}
 
 	if (sp->wrk->res_mode & RES_CHUNKED)
-		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
+		http_SetHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Transfer-Encoding: chunked");
 
+	http_Unset(sp->wrk->resp, H_Date);
 	TIM_format(TIM_real(), time_str);
 	http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp, "Date: %s", time_str);
 
@@ -187,7 +188,7 @@ res_WriteGunzipObj(struct sess *sp)
 		(void)WRW_Write(sp->wrk, obuf, obufl);
 		(void)WRW_Flush(sp->wrk);
 	}
-	VGZ_Destroy(&vg);
+	(void)VGZ_Destroy(&vg);
 	assert(u == sp->obj->len);
 }
 
@@ -312,6 +313,9 @@ RES_WriteObj(struct sess *sp)
 		ESI_Deliver(sp);
 	} else if (sp->wrk->res_mode & RES_ESI_CHILD && sp->wrk->gzip_resp) {
 		ESI_DeliverChild(sp);
+	} else if (sp->wrk->res_mode & RES_ESI_CHILD &&
+	    !sp->wrk->gzip_resp && sp->obj->gziped) {
+		res_WriteGunzipObj(sp);
 	} else if (sp->wrk->res_mode & RES_GUNZIP) {
 		res_WriteGunzipObj(sp);
 	} else {
