@@ -104,7 +104,6 @@ struct smp_sc {
 #define SMP_SC_MAGIC		0x7b73af0a
 	struct stevedore	*parent;
 
-	pthread_cond_t		cond;
 	unsigned		flags;
 #define SMP_SC_LOADED		(1 << 0)
 #define SMP_SC_STOP		(1 << 1)
@@ -146,6 +145,7 @@ struct smp_sc {
 	struct ban		*tailban;
 	double			ban_t0;
 
+	pthread_cond_t		cond;
 	struct lock		mtx;
 
 	/* Cleaner metrics */

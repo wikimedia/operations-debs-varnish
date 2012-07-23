@@ -570,6 +570,7 @@ smp_open(const struct stevedore *st)
 
 	CAST_OBJ_NOTNULL(sc, st->priv, SMP_SC_MAGIC);
 
+	AZ(pthread_cond_init(&sc->cond, NULL));
 	Lck_New(&sc->mtx, lck_smp);
 	Lck_Lock(&sc->mtx);
 
