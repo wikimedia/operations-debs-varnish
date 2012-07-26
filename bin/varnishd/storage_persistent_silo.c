@@ -429,6 +429,13 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 	}
 	/* Check again, we might have raced. */
 	if (oc->flags & OC_F_NEEDFIXUP) {
+		/*
+		 * XXX: We can't allow this to fail, as the calling
+		 * code needs an object back. Assert on failure so the
+		 * error is noticed.
+		 */
+		AZ(smp_loaded_st(sg->sc, sg, o->objstore));
+
 		/* We trust caller to have a refcnt for us */
 		o->objcore = oc;
 
