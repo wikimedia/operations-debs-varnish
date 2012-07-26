@@ -442,6 +442,8 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 		}
 		if (l != o->len)
 			bad |= 0x100;
+		if (o->esidata != NULL)
+			bad |= (smp_loaded_st(sg->sc, sg, o->esidata) << 3);
 
 		if(bad) {
 			EXP_Set_ttl(&o->exp, -1);
