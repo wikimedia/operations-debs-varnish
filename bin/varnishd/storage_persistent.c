@@ -408,6 +408,7 @@ smp_save_segs(struct smp_sc *sc)
 	uint64_t length;
 
 	Lck_AssertHeld(&sc->mtx);
+	sc->flags &= ~SMP_SC_SYNC;
 
 	/*
 	 * Remove empty segments from the front of the list
@@ -468,7 +469,6 @@ smp_save_segs(struct smp_sc *sc)
 		ss++;
 		length += sizeof *ss;
 	}
-	sc->flags &= ~SMP_SC_SYNC;
 
 	Lck_Unlock(&sc->mtx);
 	smp_append_sign(&sc->seg1, SIGN_DATA(&sc->seg1), length);
