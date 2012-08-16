@@ -83,6 +83,7 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	struct objcore *oc;
 	uint32_t no;
 	double t_now = TIM_real();
+	unsigned count = 0;
 
 	ASSERT_SILO_THREAD(sc);
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
@@ -118,8 +119,12 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 		AZ(sp->wrk->nobjcore);
 		EXP_Inject(oc, sg->lru, so->ttl);
 		sg->nobj++;
+		count++;
 	}
 	WRK_SumStat(sp->wrk);
+	Lck_Lock(&sg->sc->mtx);
+	sg->sc->stats->g_vampireobjects += count;
+	Lck_Unlock(&sg->sc->mtx);
 	sg->flags |= SMP_SEG_LOADED;
 }
 
@@ -182,6 +187,8 @@ smp_new_seg(struct smp_sc *sc)
 	sc->free_offset = sg->p.offset + sg->p.length;
 
 	VTAILQ_INSERT_TAIL(&sc->segments, sg, list);
+	sc->stats->g_segments++;
+	sc->stats->g_free = smp_silospaceleft(sc);
 	smp_check_reserve(sc);
 
 	/* Set up our allocation points */
@@ -220,6 +227,7 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 		/* If segment is empty, delete instead */
 		sc->free_offset = sg->p.offset;
 		VTAILQ_REMOVE(&sc->segments, sg, list);
+		sg->sc->stats->g_segments--;
 		LRU_Free(sg->lru);
 		FREE_OBJ(sg);
 		return;
@@ -378,8 +386,8 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 	struct smp_seg *sg;
 	struct smp_object *so;
 	struct storage *st;
-	uint64_t l;
-	int bad;
+	uint64_t l, space;
+	int bad, count;
 	int has_lock;
 
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
@@ -446,27 +454,50 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 		/* We trust caller to have a refcnt for us */
 		o->objcore = oc;
 
-		bad = 0;
-		l = 0;
+		count = bad = 0;
+		space = l = 0;
 		VTAILQ_FOREACH(st, &o->store, list) {
 			bad |= smp_loaded_st(sg->sc, sg, st);
 			if (bad)
 				break;
 			l += st->len;
+			count++;
+			space += st->space;
 		}
 		if (l != o->len)
 			bad |= 0x100;
-		if (o->esidata != NULL)
+		if (o->esidata != NULL) {
 			bad |= (smp_loaded_st(sg->sc, sg, o->esidata) << 3);
+			count++;
+			if (!bad)
+				space += o->esidata->space;
+		}
 
 		if(bad) {
 			EXP_Set_ttl(&o->exp, -1);
 			so->ttl = 0;
+			sg->sc->stats->c_resurrection_fail++;
+			count = space = 0;
+
+			/*
+			 * Remove all storage chunk references except
+			 * the object itself, so the freeobj
+			 * statistics update will not look at them
+			 */
+			VTAILQ_INIT(&o->store);
+			o->esidata = NULL;
 		}
+
+		/* Add the object and it's data store to the
+		 * statistics */
+		sg->sc->stats->g_alloc += 1 + count;
+		sg->sc->stats->c_bytes += o->objstore->space + space;
+		sg->sc->stats->g_bytes += o->objstore->space + space;
 
 		sg->nfixed++;
 		wrk->stats.n_object++;
 		wrk->stats.n_vampireobject--;
+		sg->sc->stats->g_vampireobjects--;
 		oc->flags &= ~OC_F_NEEDFIXUP;
 	}
 	AN(has_lock);
@@ -510,11 +541,34 @@ smp_oc_freeobj(struct objcore *oc)
 {
 	struct smp_seg *sg;
 	struct smp_object *so;
+	struct object *o;
+	const struct storage *st;
+	uint64_t st_count, st_space;
 
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
+	AZ(oc->flags & OC_F_NEEDFIXUP);
 
 	CAST_OBJ_NOTNULL(sg, oc->priv, SMP_SEG_MAGIC);
 	so = smp_find_so(sg, oc->priv2);
+	o = smp_oc_getobj(NULL, oc);
+
+	/* We can't and don't need to go the normal route of free'ing
+	 * all the storage chunks. Count the space usage for
+	 * statistics. */
+	st_count = st_space = 0;
+	if (o->objstore != NULL) {
+		st_count++;
+		st_space += o->objstore->space;
+	}
+	if (o->esidata != NULL) {
+		st_count++;
+		st_space += o->esidata->space;
+	}
+	VTAILQ_FOREACH(st, &o->store, list) {
+		CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+		st_count++;
+		st_space += st->space;
+	}
 
 	Lck_Lock(&sg->sc->mtx);
 	so->ttl = 0;
@@ -529,6 +583,11 @@ smp_oc_freeobj(struct objcore *oc)
 		/* Sync segments to remove empty at start */
 		smp_sync_segs(sg->sc);
 	}
+
+	/* Update statistics */
+	sg->sc->stats->g_alloc -= st_count;
+	sg->sc->stats->c_freed += st_space;
+	sg->sc->stats->g_bytes -= st_space;
 
 	Lck_Unlock(&sg->sc->mtx);
 }

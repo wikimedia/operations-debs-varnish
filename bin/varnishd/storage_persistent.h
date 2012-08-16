@@ -112,6 +112,7 @@ struct smp_sc {
 #define SMP_SC_LOW		(1 << 4)
 
 	const struct stevedore	*stevedore;
+	struct VSC_C_smp	*stats;
 	int			fd;
 	const char		*filename;
 	off_t			mediasize;

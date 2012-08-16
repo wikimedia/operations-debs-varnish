@@ -382,6 +382,7 @@ smp_open_segs(struct smp_sc *sc, struct smp_signctx *ctx)
 		/* XXX: check that they are serial */
 		sg->sc = sc;
 		VTAILQ_INSERT_TAIL(&sc->segments, sg, list);
+		sc->stats->g_segments++;
 		sg2 = sg;
 		if (sg1 == NULL)
 			sg1 = sg;
@@ -420,13 +421,16 @@ smp_save_segs(struct smp_sc *sc)
 		if (sg->flags & SMP_SEG_NEW)
 			break;
 		VTAILQ_REMOVE(&sc->segments, sg, list);
+		sc->stats->g_segments--;
 		if (sg->flags & SMP_SEG_NUKED) {
 			assert(sc->free_pending >= sg->p.length);
 			sc->free_pending -= sg->p.length;
+			sc->stats->g_free_pending = sc->free_pending;
 		}
 		LRU_Free(sg->lru);
 		FREE_OBJ(sg);
 	}
+	sc->stats->g_free = smp_silospaceleft(sc);
 
 	/* Sync the signs of any segments marked as needing it */
 	VTAILQ_FOREACH(sg, &sc->segments, list) {
@@ -506,6 +510,8 @@ smp_raise_reserve(struct worker *wrk, struct smp_sc *sc)
 		Lck_Lock(&sc->mtx);
 		sg->flags |= SMP_SEG_NUKED;
 		sc->free_pending += sg->p.length;
+		sc->stats->g_free_pending = sc->free_pending;
+		sc->stats->c_segments_nuked++;
 	}
 	assert(smp_silospaceleft(sc) + sc->free_pending > sc->free_reserve);
 	sc->flags &= ~SMP_SC_LOW;
@@ -569,6 +575,10 @@ smp_open(const struct stevedore *st)
 	ASSERT_CLI();
 
 	CAST_OBJ_NOTNULL(sc, st->priv, SMP_SC_MAGIC);
+
+	sc->stats = VSM_Alloc(sizeof *sc->stats,
+			      VSC_CLASS, VSC_TYPE_SMP, st->ident);
+	memset(sc->stats, 0, sizeof *sc->stats);
 
 	AZ(pthread_cond_init(&sc->cond, NULL));
 	Lck_New(&sc->mtx, lck_smp);
@@ -731,6 +741,16 @@ smp_allocx(struct stevedore *st, size_t min_size, size_t max_size,
 		}
 		(void)smp_spaceleft(sc, sg);	/* for the assert */
 	}
+
+	/* Update statistics */
+	sc->stats->c_req++;
+	if (ss != NULL) {
+		sc->stats->g_alloc++;
+		sc->stats->c_bytes += max_size;
+		sc->stats->g_bytes += max_size;
+	} else
+		sc->stats->c_fail++;
+
 	Lck_Unlock(&sc->mtx);
 
 	if (ss == NULL)
@@ -844,6 +864,17 @@ smp_trim(struct storage *ss, size_t size)
 static void __match_proto__(storage_free_f)
 smp_free(struct storage *st)
 {
+	struct smp_sc *sc;
+
+	CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+	CAST_OBJ_NOTNULL(sc, st->priv, SMP_SC_MAGIC);
+
+	/* Update statistics */
+	Lck_Lock(&sc->mtx);
+	sc->stats->g_alloc--;
+	sc->stats->c_freed += st->space;
+	sc->stats->g_bytes -= st->space;
+	Lck_Unlock(&sc->mtx);
 
 	/* XXX */
 	(void)st;

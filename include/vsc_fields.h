@@ -213,6 +213,67 @@ VSC_F(g_smf_large,		uint64_t, 0, 'i', "N large free smf", "")
 
 /**********************************************************************/
 
+#ifdef VSC_DO_SMP
+#define VAMPIRE_NOTE "  Note: Does not include vampire objects"
+VSC_F(c_req,			uint64_t, 0, 'c',
+    "Allocater requests",
+        "Number of chunks allocated from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_fail,			uint64_t, 0, 'c',
+    "Allocater failures",
+        "Number of failed allocation attempts from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_bytes,			uint64_t, 0, 'c',
+    "Bytes allocated",
+        "Bytes allocated from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_freed,			uint64_t, 0, 'c',
+    "Bytes freed",
+        "Bytes freed from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_alloc,			uint64_t, 0, 'g',
+    "Allocations outstanding",
+        "Outstanding allocations from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_bytes,			uint64_t, 0, 'g',
+    "Bytes outstanding",
+        "Outstanding bytes from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_free,			uint64_t, 0, 'g',
+    "Free space",
+        "Free space in silo"
+)
+VSC_F(g_free_pending,		uint64_t, 0, 'g',
+    "Free space pending",
+        "Free space from nuked segments, pending release"
+)
+VSC_F(g_segments,		uint64_t, 0, 'g',
+    "In use segments",
+        "Number of segments currently in use in the silo."
+)
+VSC_F(c_segments_nuked,		uint64_t, 0, 'c',
+    "Number of nuked segments",
+	"Total number of segments nuked to make room"
+)
+VSC_F(g_vampireobjects,		uint64_t, 0, 'g',
+    "Vampire objects",
+        "Number of vampire objects in cache with storage in this silo."
+)
+VSC_F(c_resurrection_fail,	uint64_t, 0, 'c',
+    "Failed resurrections",
+        "Number of failed resurrections attempts of vampire objects"
+)
+#undef VAMPIRE_NOTE
+#endif
+
+/**********************************************************************/
+
 #ifdef VSC_DO_VBE
 
 VSC_F(vcls,			uint64_t, 0, 'i', "VCL references", "")
