@@ -75,6 +75,7 @@ static struct lock		ses_mem_mtx;
 
 static struct lock		stat_mtx;
 static volatile uint64_t	n_sess_grab = 0;
+static uint64_t			n_sess_nonvca = 0;
 static uint64_t			n_sess_rel = 0;
 
 /*--------------------------------------------------------------------*/
@@ -253,7 +254,10 @@ SES_NewNonVCA(void)
 	sp = &sm->sess;
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 
-	VSC_C_main->n_sess++;
+	Lck_Lock(&stat_mtx);
+	n_sess_nonvca++;
+	VSC_C_main->n_sess = n_sess_grab + n_sess_nonvca - n_sess_rel;
+	Lck_Unlock(&stat_mtx);
 
 	return (sp);
 }
@@ -320,7 +324,7 @@ SES_Delete(struct sess *sp)
 	if (sm == NULL)
 		VSC_C_main->n_sess_mem--;
 	n_sess_rel++;
-	VSC_C_main->n_sess = n_sess_grab - n_sess_rel;
+	VSC_C_main->n_sess = n_sess_grab + n_sess_nonvca - n_sess_rel;
 	Lck_Unlock(&stat_mtx);
 
 	/* Try to precreate some ses-mem so the acceptor will not have to */
