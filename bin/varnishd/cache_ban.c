@@ -513,8 +513,11 @@ BAN_Reload(const uint8_t *ban, unsigned len)
 			return;
 		if (t1 < t0)
 			break;
-		if (!memcmp(b->spec + 8, ban + 8, len - 8))
+		if (!memcmp(b->spec + 8, ban + 8, len - 8)) {
 			gone |= BAN_F_GONE;
+			VSC_C_main->n_ban_dups++;
+			VSC_C_main->n_ban_gone++;
+		}
 	}
 
 	VSC_C_main->n_ban++;
@@ -537,8 +540,11 @@ BAN_Reload(const uint8_t *ban, unsigned len)
 	for (b = VTAILQ_NEXT(b2, list); b != NULL; b = VTAILQ_NEXT(b, list)) {
 		if (b->flags & BAN_F_GONE)
 			continue;
-		if (!memcmp(b->spec + 8, ban + 8, len - 8))
+		if (!memcmp(b->spec + 8, ban + 8, len - 8)) {
 			b->flags |= BAN_F_GONE;
+			VSC_C_main->n_ban_dups++;
+			VSC_C_main->n_ban_gone++;
+		}
 	}
 }
 
