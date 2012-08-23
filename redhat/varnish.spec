@@ -1,7 +1,7 @@
 %define v_rc rc1
 Summary: High-performance HTTP accelerator
 Name: varnish
-Version: 3.0.3-plus
+Version: 3.0.3plus
 Release: 0.rc1%{?dist}
 License: BSD
 Group: System Environment/Daemons
