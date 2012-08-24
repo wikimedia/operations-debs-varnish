@@ -454,6 +454,8 @@ cnt_error(struct sess *sp)
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 
+	AZ(sp->stream_busyobj);
+
 	sp->wrk->do_esi = 0;
 	sp->wrk->is_gzip = 0;
 	sp->wrk->is_gunzip = 0;
@@ -1197,6 +1199,13 @@ cnt_hit(struct sess *sp)
 	/* Drop our object, we won't need it */
 	(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
 	sp->objcore = NULL;
+	if (sp->stream_busyobj != NULL) {
+		Lck_Lock(&sp->stream_busyobj->mtx);
+		sp->stream_busyobj->stream_refcnt--;
+		AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
+		Lck_Unlock(&sp->stream_busyobj->mtx);
+		sp->stream_busyobj = NULL;
+	}
 
 	switch(sp->handling) {
 	case VCL_RET_PASS:

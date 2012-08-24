@@ -1,0 +1,44 @@
+varnishtest "stream_busyobj release on non-deliver from vcl_hit"
+
+# Check that the stream_busyobj is properly released when
+# not doing return(lookup) in vcl_hit
+#
+# Spotted by Jocelyn De La Rosa (drw)
+
+server s1 {
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	sema r1 sync 2
+	sema r2 sync 2
+	chunked "<2>------------------------<2>\n"
+	chunkedlen 0
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_hit {
+		error 503 "interrupted";
+	}
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+	}
+} -start
+
+client c1 {
+	txreq
+	rxresp
+	expect resp.status == 200
+	expect resp.bodylen == 62
+} -start
+
+client c2 {
+	sema r1 sync 2
+	txreq
+	rxresp
+	expect resp.status == 503
+	expect resp.msg == interrupted
+	sema r2 sync 2
+} -start
+
+client c1 -wait
+client c2 -wait
