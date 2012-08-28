@@ -290,6 +290,53 @@ WRK_Queue(struct sess *sp)
 	return (0);
 }
 
+/*--------------------------------------------------------------------
+ * Queue a workrequest to be scheduled first. Will always queue the 
+ * request, bypassing the max queue length. This is for work loads we 
+ * have already committed to serving
+ *
+ * Return zero
+ */
+
+static int
+WRK_QueueFirst(struct sess *sp)
+{
+	struct worker *w;
+	struct wq *qp;
+	static unsigned nq = 0;
+	unsigned onq;
+
+	/*
+	 * Select which pool we issue to
+	 * XXX: better alg ?
+	 * XXX: per CPU ?
+	 */
+	onq = nq + 1;
+	if (onq >= nwq)
+		onq = 0;
+	qp = wq[onq];
+	nq = onq;
+
+	Lck_Lock(&qp->mtx);
+
+	/* If there are idle threads, we tickle the first one into action */
+	w = VTAILQ_FIRST(&qp->idle);
+	if (w != NULL) {
+		VTAILQ_REMOVE(&qp->idle, w, list);
+		Lck_Unlock(&qp->mtx);
+		w->sp = sp;
+		AZ(pthread_cond_signal(&w->cond));
+		return (0);
+	}
+
+	VTAILQ_INSERT_HEAD(&qp->queue, sp, poollist);
+	qp->nqueue++;
+	qp->lqueue++;
+	Lck_Unlock(&qp->mtx);
+	AZ(pthread_cond_signal(&herder_cond));
+	return (0);
+}
+
 /*--------------------------------------------------------------------*/
 
 int
@@ -316,6 +363,22 @@ WRK_QueueSession(struct sess *sp)
 		VCL_Rel(&sp->vcl);
 	}
 	SES_Delete(sp);
+	return (1);
+}
+
+/*--------------------------------------------------------------------
+ * Queue high priority session (one that we have already commited to 
+ * serving). Will not fail to Queue.
+ *
+ * Always returns 1
+ */
+
+int
+WRK_QueueSessionFirst(struct sess *sp)
+{
+	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+	AZ(sp->wrk);
+	AZ(WRK_QueueFirst(sp));
 	return (1);
 }
 
@@ -450,20 +513,21 @@ wrk_herdtimer_thread(void *priv)
 
 /*--------------------------------------------------------------------
  * Create another thread, if necessary & possible
+ * Returns 1 if thread created
  */
 
-static void
+static int
 wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 {
 	pthread_t tp;
+	int r = 0;
 
 	/*
 	 * If we need more threads, and have space, create
 	 * one more thread.
 	 */
 	if (qp->nthr < params->wthread_min ||	/* Not enough threads yet */
-	    (qp->lqueue > params->wthread_add_threshold && /* more needed */
-	    qp->lqueue > qp->last_lqueue)) {	/* not getting better since last */
+	    qp->lqueue > params->wthread_add_threshold) { /* more needed */
 		if (qp->nthr >= nthr_max) {
 			VSC_C_main->n_wrk_max++;
 		} else if (pthread_create(&tp, tp_attr, wrk_thread, qp)) {
@@ -475,9 +539,12 @@ wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 			AZ(pthread_detach(tp));
 			VSC_C_main->n_wrk_create++;
 			TIM_sleep(params->wthread_add_delay * 1e-3);
+			r = 1;
 		}
 	}
 	qp->last_lqueue = qp->lqueue;
+
+	return (r);
 }
 
 /*--------------------------------------------------------------------
@@ -496,7 +563,7 @@ wrk_breed_flock(struct wq *qp, const pthread_attr_t *tp_attr)
 static void *
 wrk_herder_thread(void *priv)
 {
-	unsigned u, w;
+	unsigned u, v;
 	pthread_attr_t tp_attr;
 
 	/* Set the stacksize for worker threads */
@@ -505,19 +572,21 @@ wrk_herder_thread(void *priv)
 	THR_SetName("wrk_herder");
 	(void)priv;
 	while (1) {
+		v = 0;
 		for (u = 0 ; u < nwq; u++) {
 			if (params->wthread_stacksize != UINT_MAX)
 				AZ(pthread_attr_setstacksize(&tp_attr,
 				    params->wthread_stacksize));
 
-			wrk_breed_flock(wq[u], &tp_attr);
+			v += wrk_breed_flock(wq[u], &tp_attr);
 
 			/*
-			 * Make sure all pools have their minimum complement
+			 * Make sure the pool has it's minimum complement
 			 */
-			for (w = 0 ; w < nwq; w++)
-				while (wq[w]->nthr < params->wthread_min)
-					wrk_breed_flock(wq[w], &tp_attr);
+			while (wq[u]->nthr < params->wthread_min)
+				v += wrk_breed_flock(wq[u], &tp_attr);
+		}
+		if (v == 0) {
 			/*
 			 * We cannot avoid getting a mutex, so we have a
 			 * bogo mutex just for POSIX_STUPIDITY

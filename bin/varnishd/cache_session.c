@@ -75,6 +75,7 @@ static struct lock		ses_mem_mtx;
 
 static struct lock		stat_mtx;
 static volatile uint64_t	n_sess_grab = 0;
+static uint64_t			n_sess_nonvca = 0;
 static uint64_t			n_sess_rel = 0;
 
 /*--------------------------------------------------------------------*/
@@ -223,6 +224,45 @@ SES_New(void)
 }
 
 /*--------------------------------------------------------------------
+ * Get a new session, preferably by recycling an already ready one
+ * This is for use by non-VCA-threads
+ */
+
+struct sess *
+SES_NewNonVCA(void)
+{
+	struct sessmem *sm;
+	struct sess *sp;
+	int qp;
+
+	Lck_Lock(&ses_mem_mtx);
+	/* We only look at the other queue that is not used by the
+	 * VCA. We do this while holding the lock so the queue can not
+	 * change under us */
+	qp = 1 - ses_qp;
+	assert(qp <= 1);
+	sm = VTAILQ_FIRST(&ses_free_mem[qp]);
+	if (sm != NULL)
+		VTAILQ_REMOVE(&ses_free_mem[qp], sm, list);
+	Lck_Unlock(&ses_mem_mtx);
+	if (sm == NULL) {
+		sm = ses_sm_alloc();
+		if (sm == NULL)
+			return (NULL);
+		ses_setup(sm);
+	}
+	sp = &sm->sess;
+	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+
+	Lck_Lock(&stat_mtx);
+	n_sess_nonvca++;
+	VSC_C_main->n_sess = n_sess_grab + n_sess_nonvca - n_sess_rel;
+	Lck_Unlock(&stat_mtx);
+
+	return (sp);
+}
+
+/*--------------------------------------------------------------------
  * Allocate a session for use by background threads.
  */
 
@@ -284,7 +324,7 @@ SES_Delete(struct sess *sp)
 	if (sm == NULL)
 		VSC_C_main->n_sess_mem--;
 	n_sess_rel++;
-	VSC_C_main->n_sess = n_sess_grab - n_sess_rel;
+	VSC_C_main->n_sess = n_sess_grab + n_sess_nonvca - n_sess_rel;
 	Lck_Unlock(&stat_mtx);
 
 	/* Try to precreate some ses-mem so the acceptor will not have to */

@@ -1,0 +1,59 @@
+varnishtest "Test restart in vcl_deliver while streaming"
+
+server s1 {
+	rxreq
+	txresp -nolen -hdr "Transfer-encoding: chunked"
+	chunked "<1>------------------------<1>\n"
+	sema r1 sync 3
+	chunked "<2>------------------------<2>\n"
+	sema r2 sync 3
+	chunkedlen 0
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+	}
+	sub vcl_deliver {
+		if (req.restarts == 0) {
+			return (restart);
+		}
+	}
+} -start
+
+client c1 {
+	txreq -hdr "foo: /foo"
+	rxresp -no_obj
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r1 sync 3
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r2 sync 3
+
+	rxchunk
+	expect resp.chunklen == 0
+	expect resp.bodylen == 62
+} -start
+
+client c2 {
+	txreq -hdr "foo: /foo"
+	rxresp -no_obj
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r1 sync 3
+
+	rxchunk
+	expect resp.chunklen == 31
+	sema r2 sync 3
+
+	rxchunk
+	expect resp.chunklen == 0
+	expect resp.bodylen == 62
+} -start
+
+client c1 -wait
+client c2 -wait

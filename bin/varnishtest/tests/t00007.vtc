@@ -1,0 +1,56 @@
+varnishtest "Test multiple streaming recepients with low token count"
+
+server s1 {
+	rxreq
+	sema r1 sync 6
+	txresp -bodylen 524288
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+	}
+} -start
+varnish v1 -cliok "param.set stream_tokens 1"
+varnish v1 -cliok "param.set stream_maxchunksize 4"
+
+client c1 {
+	txreq
+	sema r1 sync 6
+	rxresp
+	expect resp.bodylen == 524288
+} -start
+
+client c2 {
+	txreq
+	sema r1 sync 6
+	rxresp
+	expect resp.bodylen == 524288
+} -start
+
+client c3 {
+	txreq
+	sema r1 sync 6
+	rxresp
+	expect resp.bodylen == 524288
+} -start
+
+client c4 {
+	txreq
+	sema r1 sync 6
+	rxresp
+	expect resp.bodylen == 524288
+} -start
+
+client c5 {
+	txreq
+	sema r1 sync 6
+	rxresp
+	expect resp.bodylen == 524288
+} -start
+
+client c1 -wait
+client c2 -wait
+client c3 -wait
+client c4 -wait
+client c5 -wait

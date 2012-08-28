@@ -4,6 +4,7 @@
  * All rights reserved.
  *
  * Author: Poul-Henning Kamp <phk@phk.freebsd.dk>
+ * Author: Martin Blix Grydeland <martin@varnish-software.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -113,7 +114,6 @@ RES_BuildHttp(const struct sess *sp)
 	char time_str[30];
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
-
 
 	http_ClrHeader(sp->wrk->resp);
 	sp->wrk->resp->logtag = HTTP_Tx;
@@ -336,23 +336,30 @@ RES_WriteObj(struct sess *sp)
 void
 RES_StreamStart(struct sess *sp)
 {
-	struct stream_ctx *sctx;
-
-	sctx = sp->wrk->sctx;
-	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
-
 	AZ(sp->wrk->res_mode & RES_ESI_CHILD);
-	AN(sp->wantbody);
 
 	WRW_Reserve(sp->wrk, &sp->fd);
+
+	if (sp->obj->response == 200 &&
+	    sp->http->conds &&
+	    RFC2616_Do_Cond(sp)) {
+		sp->wantbody = 0;
+		http_SetResp(sp->wrk->resp, "HTTP/1.1", 304, "Not Modified");
+		http_Unset(sp->wrk->resp, H_Content_Length);
+		http_Unset(sp->wrk->resp, H_Transfer_Encoding);
+	}
+
 	/*
 	 * Always remove C-E if client don't grok it
 	 */
 	if (sp->wrk->res_mode & RES_GUNZIP)
 		http_Unset(sp->wrk->resp, H_Content_Encoding);
 
+	if (!sp->wantbody)
+		sp->wrk->res_mode &= ~RES_CHUNKED;
+
 	if (!(sp->wrk->res_mode & RES_CHUNKED) &&
-	    sp->wrk->h_content_length != NULL)
+	    sp->wrk->h_content_length != NULL && sp->wantbody)
 		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Content-Length: %s", sp->wrk->h_content_length);
 
@@ -363,35 +370,108 @@ RES_StreamStart(struct sess *sp)
 		WRW_Chunked(sp->wrk);
 }
 
-void
+/*--------------------------------------------------------------------
+ * Callback from the cache_fetch functions to notify new data
+ * 
+ * Returns 1 if the backend connection should be closed
+ */
+
+int
 RES_StreamPoll(const struct sess *sp)
+{
+	struct busyobj *bo = NULL;
+	struct storage *st;
+	int r = 0;
+
+	if (sp->stream_busyobj == NULL)
+		return (0);
+	bo = sp->stream_busyobj;
+	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
+
+	Lck_Lock(&bo->mtx);
+	assert(sp->obj->len >= bo->stream_max);
+	bo->stream_max = sp->obj->len;
+	if ((sp->obj->objcore == NULL ||
+	     (sp->obj->objcore->flags & OC_F_PASS)) &&
+	    bo->stream_refcnt == 0) {
+		/* Is pass and we've lost our audience - close backend
+		   connection */
+		bo->can_stream = 0;
+		r = 1;
+	}
+	pthread_cond_signal(&bo->cond_data);
+	Lck_Unlock(&bo->mtx);
+
+	if (bo->stream_frontchunk == NULL)
+		return (r);
+
+	/* It's a pass - remove chunks up til stream_frontchunk */
+	assert(sp->obj->objcore == NULL ||
+	       (sp->obj->objcore->flags & OC_F_PASS));
+	while (1) {
+		st = VTAILQ_FIRST(&sp->obj->store);
+		if (st == NULL || st == bo->stream_frontchunk)
+			break;
+		VTAILQ_REMOVE(&sp->obj->store, st, list);
+		STV_free(st);
+	}
+	return (r);
+}
+
+void
+RES_StreamWrite(const struct sess *sp)
 {
 	struct stream_ctx *sctx;
 	struct storage *st;
-	ssize_t l, l2;
+	ssize_t l, l2, stlen;
 	void *ptr;
 
 	sctx = sp->wrk->sctx;
 	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
-	if (sp->obj->len == sctx->stream_next)
+
+	if (sctx->stream_max == sctx->stream_next)
 		return;
-	assert(sp->obj->len > sctx->stream_next);
+	assert(sctx->stream_max > sctx->stream_next);
+
 	l = sctx->stream_front;
-	VTAILQ_FOREACH(st, &sp->obj->store, list) {
-		if (st->len + l <= sctx->stream_next) {
-			l += st->len;
+	st = sctx->stream_frontchunk;
+	if (st == NULL)
+		st = VTAILQ_FIRST(&sp->obj->store);
+	for (; st != NULL; st = VTAILQ_NEXT(st, list)) {
+		CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+		sctx->stream_front = l;
+		sctx->stream_frontchunk = st;
+		if (VTAILQ_NEXT(st, list) == NULL) {
+			/* Last element, do not trust st->len. This
+			 * element must contain byte number
+			 * stream_max. */
+			stlen = sctx->stream_max - l;
+			assert(stlen <= st->len);
+		} else
+			stlen = st->len;
+		if (l + stlen <= sctx->stream_next) {
+			l += stlen;
 			continue;
 		}
-		l2 = st->len + l - sctx->stream_next;
+		assert(l + stlen > sctx->stream_next);
+		l2 = l + stlen - sctx->stream_next;
+		if (sctx->stream_next + l2 > sctx->stream_max)
+			l2 = sctx->stream_max - sctx->stream_next;
+		assert(l2 > 0);
 		ptr = st->ptr + (sctx->stream_next - l);
 		if (sp->wrk->res_mode & RES_GUNZIP) {
 			(void)VGZ_WrwGunzip(sp, sctx->vgz, ptr, l2,
 			    sctx->obuf, sctx->obuf_len, &sctx->obuf_ptr);
 		} else {
 			(void)WRW_Write(sp->wrk, ptr, l2);
+			sp->wrk->acct_tmp.bodybytes += l2;
 		}
-		l += st->len;
 		sctx->stream_next += l2;
+		if (sctx->stream_next == sctx->stream_max)
+			break;
+		assert(sctx->stream_next < sctx->stream_max);
+		AN(VTAILQ_NEXT(st, list));
+		l += stlen;
 	}
 	if (!(sp->wrk->res_mode & RES_GUNZIP))
 		(void)WRW_Flush(sp->wrk);
@@ -399,34 +479,126 @@ RES_StreamPoll(const struct sess *sp)
 	if (sp->obj->objcore == NULL ||
 	    (sp->obj->objcore->flags & OC_F_PASS)) {
 		/*
-		 * This is a pass object, release storage as soon as we
-		 * have delivered it.
+		 * This is a pass object, notify fetching thread of
+		 * our current chunk and it will delete the ones
+		 * before it
 		 */
-		while (1) {
-			st = VTAILQ_FIRST(&sp->obj->store);
-			if (st == NULL ||
-			    sctx->stream_front + st->len > sctx->stream_next)
-				break;
-			VTAILQ_REMOVE(&sp->obj->store, st, list);
-			sctx->stream_front += st->len;
-			STV_free(st);
-		}
+		CHECK_OBJ_NOTNULL(sp->stream_busyobj, BUSYOBJ_MAGIC);
+		sp->stream_busyobj->stream_frontchunk = sctx->stream_frontchunk;
 	}
 }
 
 void
 RES_StreamEnd(struct sess *sp)
 {
-	struct stream_ctx *sctx;
-
-	sctx = sp->wrk->sctx;
-	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
-
-	if (sp->wrk->res_mode & RES_GUNZIP && sctx->obuf_ptr > 0)
-		(void)WRW_Write(sp->wrk, sctx->obuf, sctx->obuf_ptr);
 	if (sp->wrk->res_mode & RES_CHUNKED &&
 	    !(sp->wrk->res_mode & RES_ESI_CHILD))
 		WRW_EndChunk(sp->wrk);
 	if (WRW_FlushRelease(sp->wrk))
 		vca_close_session(sp, "remote closed");
+}
+
+/* Token strategy: Any thread hitting end of data will be marked as a
+ * fast writer. It will then have to get a token before calling
+ * RES_StreamWrite, thus n_tokens limits the number of thundering
+ * threads run whenever new data arrives. The fast writer flag is
+ * cleared on each pass through the loop, and reset if it hits the end
+ * of data and waits.
+ *
+ * Receivers slower than backend: Will gather a large number of iov's
+ * for the received data and flush them. Will then be stuck in writev
+ * for a long period while the system writes the data with one
+ * syscall. Returns from writev in a random distribution thus not
+ * creating a thundering horde.
+ *
+ * Receivers faster than backend: Initial arrival at the streaming
+ * object will be in a random distribution, so initially not being
+ * marked as a fast writer will not create thundering horde. Will at
+ * some point hit the end of data, and be stuck on cond_data, and
+ * setting the fast writer flag. When data arrives, will have to
+ * compete for n_tokens, so only n_tokens number of fast writers runs
+ * at once limiting the thundering horde. Gathers a small number of
+ * iov's, thus returning from writev quickly. Releases token giving
+ * the other fast writers a go, and clears the fast writer flag. If
+ * still a fast writer will hit end-of-data again setting it again.
+ */
+
+void
+RES_StreamBody(struct sess *sp)
+{
+	struct stream_ctx sctx;
+	struct busyobj *bo;
+	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
+		     params->gzip_stack_buffer : 1];
+	int fast_writer;
+
+	bo = sp->stream_busyobj;
+	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
+	AN(sp->wantbody);
+
+	sp->wrk->acct_tmp.stream++;
+
+	memset(&sctx, 0, sizeof sctx);
+	sctx.magic = STREAM_CTX_MAGIC;
+	AZ(sp->wrk->sctx);
+	sp->wrk->sctx = &sctx;
+
+	if (sp->wrk->res_mode & RES_GUNZIP) {
+		sctx.vgz = VGZ_NewUngzip(sp, "U S -");
+		sctx.obuf = obuf;
+		sctx.obuf_len = sizeof (obuf);
+	}
+
+	fast_writer = 0;
+	Lck_Lock(&bo->mtx);
+	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
+		if (fast_writer) {
+			if (bo->stream_tokens == 0) {
+				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
+				continue;
+			}
+			AN(bo->stream_tokens);
+			bo->stream_tokens--;
+			if (bo->stream_tokens > 0)
+				AZ(pthread_cond_signal(&bo->cond_tokens));
+			/* We escaped waiting for data, which means others
+			   would probably be able to do more work as well */
+			AZ(pthread_cond_signal(&bo->cond_data));
+		}
+		sctx.stream_max = bo->stream_max;
+		assert(sctx.stream_max >= sctx.stream_next);
+		Lck_Unlock(&bo->mtx);
+		RES_StreamWrite(sp);
+		Lck_Lock(&bo->mtx);
+		if (fast_writer) {
+			bo->stream_tokens++;
+			AZ(pthread_cond_signal(&bo->cond_tokens));
+			Lck_Unlock(&bo->mtx);
+			/* Release to give others a shot at the tokens */
+			Lck_Lock(&bo->mtx);
+			fast_writer = 0;
+		}
+		while (!bo->stream_stop &&
+		       sctx.stream_next == bo->stream_max) {
+			/* Wait for more data */
+			Lck_CondWait(&bo->cond_data, &bo->mtx);
+			fast_writer = 1;
+		}
+		if (WRW_Error(sp->wrk))
+			break;
+	}
+	if (bo->stream_error)
+		sp->doclose = "Stream error";
+	if (fast_writer)
+		AZ(pthread_cond_signal(&bo->cond_data));
+	Lck_Unlock(&bo->mtx);
+
+	if (sp->wrk->res_mode & RES_GUNZIP) {
+		if (sctx.obuf_ptr > 0)
+			(void)WRW_Write(sp->wrk, sctx.obuf, sctx.obuf_ptr);
+		VGZ_Destroy(&sctx.vgz);
+	}
+
+	sp->wrk->sctx = NULL;
+
 }

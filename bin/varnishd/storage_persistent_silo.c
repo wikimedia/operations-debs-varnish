@@ -44,64 +44,21 @@
 #include "stevedore.h"
 #include "hash_slinger.h"
 #include "vsha256.h"
+#include "vmb.h"
 
 #include "persistent.h"
 #include "storage_persistent.h"
 
 /*--------------------------------------------------------------------
- * Write the segmentlist back to the silo.
- *
- * We write the first copy, sync it synchronously, then write the
- * second copy and sync it synchronously.
- *
- * Provided the kernel doesn't lie, that means we will always have
- * at least one valid copy on in the silo.
+ * Signal smp_thread() to sync the segment list to disk
  */
 
-static void
-smp_save_seg(const struct smp_sc *sc, struct smp_signctx *ctx)
-{
-	struct smp_segptr *ss;
-	struct smp_seg *sg;
-	uint64_t length;
-
-	Lck_AssertHeld(&sc->mtx);
-	smp_reset_sign(ctx);
-	ss = SIGN_DATA(ctx);
-	length = 0;
-	VTAILQ_FOREACH(sg, &sc->segments, list) {
-		assert(sg->p.offset < sc->mediasize);
-		assert(sg->p.offset + sg->p.length <= sc->mediasize);
-		*ss = sg->p;
-		ss++;
-		length += sizeof *ss;
-	}
-	smp_append_sign(ctx, SIGN_DATA(ctx), length);
-	smp_sync_sign(ctx);
-}
-
 void
-smp_save_segs(struct smp_sc *sc)
+smp_sync_segs(struct smp_sc *sc)
 {
-	struct smp_seg *sg, *sg2;
-
 	Lck_AssertHeld(&sc->mtx);
-
-	/*
-	 * Remove empty segments from the front of the list
-	 * before we write the segments to disk.
-	 */
-	VTAILQ_FOREACH_SAFE(sg, &sc->segments, list, sg2) {
-		if (sg->nobj > 0)
-			break;
-		if (sg == sc->cur_seg)
-			continue;
-		VTAILQ_REMOVE(&sc->segments, sg, list);
-		LRU_Free(sg->lru);
-		FREE_OBJ(sg);
-	}
-	smp_save_seg(sc, &sc->seg1);
-	smp_save_seg(sc, &sc->seg2);
+	sc->flags |= SMP_SC_SYNC;
+	AZ(pthread_cond_signal(&sc->cond));
 }
 
 /*--------------------------------------------------------------------
@@ -126,7 +83,7 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	struct objcore *oc;
 	uint32_t no;
 	double t_now = TIM_real();
-	struct smp_signctx ctx[1];
+	unsigned count = 0;
 
 	ASSERT_SILO_THREAD(sc);
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
@@ -137,8 +94,8 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	AN(sg->p.offset);
 	if (sg->p.objlist == 0)
 		return;
-	smp_def_sign(sc, ctx, sg->p.offset, "SEGHEAD");
-	if (smp_chk_sign(ctx))
+	smp_def_sign(sc, &sg->ctx_head, sg->p.offset, 0, "SEGHEAD");
+	if (smp_chk_sign(&sg->ctx_head))
 		return;
 
 	/* test SEGTAIL */
@@ -162,8 +119,12 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 		AZ(sp->wrk->nobjcore);
 		EXP_Inject(oc, sg->lru, so->ttl);
 		sg->nobj++;
+		count++;
 	}
 	WRK_SumStat(sp->wrk);
+	Lck_Lock(&sg->sc->mtx);
+	sg->sc->stats->g_vampireobjects += count;
+	Lck_Unlock(&sg->sc->mtx);
 	sg->flags |= SMP_SEG_LOADED;
 }
 
@@ -174,60 +135,61 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 void
 smp_new_seg(struct smp_sc *sc)
 {
-	struct smp_seg *sg, *sg2;
+	struct smp_seg tmpsg;
+	struct smp_seg *sg;
 
+	AZ(sc->cur_seg);
 	Lck_AssertHeld(&sc->mtx);
-	ALLOC_OBJ(sg, SMP_SEG_MAGIC);
-	AN(sg);
-	sg->sc = sc;
-	sg->lru = LRU_Alloc();
-	CHECK_OBJ_NOTNULL(sg->lru, LRU_MAGIC);
+
+	if (sc->flags & SMP_SC_STOP) {
+		/* Housekeeping thread is stopping, don't allow new
+		 * segments as there is noone around to persist it */
+		return;
+	}
 
 	/* XXX: find where it goes in silo */
 
-	sg->p.offset = sc->free_offset;
-	// XXX: align */
-	assert(sg->p.offset >= sc->ident->stuff[SMP_SPC_STUFF]);
-	assert(sg->p.offset < sc->mediasize);
+	memset(&tmpsg, 0, sizeof tmpsg);
+	tmpsg.magic = SMP_SEG_MAGIC;
+	tmpsg.sc = sc;
+	tmpsg.p.offset = sc->free_offset;
+	/* XXX: align */
+	assert(tmpsg.p.offset >= sc->ident->stuff[SMP_SPC_STUFF]);
+	assert(tmpsg.p.offset < sc->mediasize);
 
-	sg->p.length = sc->aim_segl;
-	sg->p.length &= ~7;
+	tmpsg.p.length = sc->aim_segl;
+	tmpsg.p.length &= ~7;
 
-	if (smp_segend(sg) > sc->mediasize) {
-		sc->free_offset = sc->ident->stuff[SMP_SPC_STUFF];
-		sg->p.offset = sc->free_offset;
-		sg2 = VTAILQ_FIRST(&sc->segments);
-		if (smp_segend(sg) > sg2->p.offset) {
-			printf("Out of space in persistent silo\n");
-			printf("Committing suicide, restart will make space\n");
-			exit (0);
-		}
+	if (smp_segend(&tmpsg) > sc->mediasize)
+		tmpsg.p.offset = sc->ident->stuff[SMP_SPC_STUFF];
+
+	assert(smp_segend(&tmpsg) <= sc->mediasize);
+
+	sg = VTAILQ_FIRST(&sc->segments);
+	if (sg != NULL && sg->p.offset >= tmpsg.p.offset) {
+		if (smp_segend(&tmpsg) > sg->p.offset)
+			return;
+		assert(smp_segend(&tmpsg) <= sg->p.offset);
 	}
 
+	if (tmpsg.p.offset == sc->ident->stuff[SMP_SPC_STUFF])
+		printf("Wrapped silo\n");
 
-	assert(smp_segend(sg) <= sc->mediasize);
-
-	sg2 = VTAILQ_FIRST(&sc->segments);
-	if (sg2 != NULL && sg2->p.offset > sc->free_offset) {
-		if (smp_segend(sg) > sg2->p.offset) {
-			printf("Out of space in persistent silo\n");
-			printf("Committing suicide, restart will make space\n");
-			exit (0);
-		}
-		assert(smp_segend(sg) <= sg2->p.offset);
-	}
+	ALLOC_OBJ(sg, SMP_SEG_MAGIC);
+	AN(sg);
+	*sg = tmpsg;
+	sg->lru = LRU_Alloc();
+	sg->flags |= SMP_SEG_NEW;
+	CHECK_OBJ_NOTNULL(sg->lru, LRU_MAGIC);
 
 	sg->p.offset = IRNUP(sc, sg->p.offset);
 	sg->p.length = IRNDN(sc, sg->p.length);
 	sc->free_offset = sg->p.offset + sg->p.length;
 
 	VTAILQ_INSERT_TAIL(&sc->segments, sg, list);
-
-	/* Neuter the new segment in case there is an old one there */
-	AN(sg->p.offset);
-	smp_def_sign(sc, sg->ctx, sg->p.offset, "SEGHEAD");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
+	sc->stats->g_segments++;
+	sc->stats->g_free = smp_silospaceleft(sc);
+	smp_check_reserve(sc);
 
 	/* Set up our allocation points */
 	sc->cur_seg = sg;
@@ -237,6 +199,11 @@ smp_new_seg(struct smp_sc *sc)
 	IASSERTALIGN(sc, sc->next_bot);
 	IASSERTALIGN(sc, sc->next_top);
 	sg->objs = (void*)(sc->base + sc->next_top);
+
+	/* Neuter the new segment in case there is an old one there */
+	AN(sg->p.offset);
+	smp_def_sign(sc, &sg->ctx_head, sg->p.offset, 0, "SEGHEAD");
+	smp_reset_sign(&sg->ctx_head);
 }
 
 /*--------------------------------------------------------------------
@@ -251,14 +218,18 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 
 	Lck_AssertHeld(&sc->mtx);
 
+	CHECK_OBJ_NOTNULL(sg, SMP_SEG_MAGIC);
 	assert(sg == sc->cur_seg);
 	AN(sg->p.offset);
 	sc->cur_seg = NULL;
 
 	if (sg->nalloc == 0) {
-		/* XXX: if segment is empty, delete instead */
+		/* If segment is empty, delete instead */
+		sc->free_offset = sg->p.offset;
 		VTAILQ_REMOVE(&sc->segments, sg, list);
-		free(sg);
+		sg->sc->stats->g_segments--;
+		LRU_Free(sg->lru);
+		FREE_OBJ(sg);
 		return;
 	}
 
@@ -279,35 +250,66 @@ smp_close_seg(struct smp_sc *sc, struct smp_seg *sg)
 		sg->p.length = (sc->next_top - sg->p.offset)
 		     + len + IRNUP(sc, SMP_SIGN_SPACE);
 		(void)smp_spaceleft(sc, sg);	/* for the asserts */
-
 	}
+	sc->free_offset = smp_segend(sg);
 
 	/* Update the segment header */
 	sg->p.objlist = sc->next_top;
 
+	dst = sc->next_top - IRNUP(sc, SMP_SIGN_SPACE);
+	assert(dst >= sc->next_bot);
+
 	/* Write the (empty) OBJIDX signature */
-	sc->next_top -= IRNUP(sc, SMP_SIGN_SPACE);
-	assert(sc->next_top >= sc->next_bot);
-	smp_def_sign(sc, sg->ctx, sc->next_top, "OBJIDX");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
-
+	smp_def_sign(sc, &sg->ctx_obj, dst, 0, "OBJIDX");
+	smp_reset_sign(&sg->ctx_obj);
 	/* Write the (empty) SEGTAIL signature */
-	smp_def_sign(sc, sg->ctx,
-	    sg->p.offset + sg->p.length - IRNUP(sc, SMP_SIGN_SPACE), "SEGTAIL");
-	smp_reset_sign(sg->ctx);
-	smp_sync_sign(sg->ctx);
+	smp_def_sign(sc, &sg->ctx_tail,
+	    sg->p.offset + sg->p.length - IRNUP(sc, SMP_SIGN_SPACE), 0,
+	    "SEGTAIL");
+	smp_reset_sign(&sg->ctx_tail);
+	/* Ask smp_thread() to sync the signs */
+	sg->flags |= SMP_SEG_SYNCSIGNS;
 
-	/* Save segment list */
-	smp_save_segs(sc);
-	sc->free_offset = smp_segend(sg);
+	/* Remove the new flag and request sync of segment list */
+	VMB();			/* See comments in smp_oc_getobj() */
+	sg->flags &= ~SMP_SEG_NEW;
+	smp_sync_segs(sc);
 }
 
+uint64_t
+smp_silospaceleft(struct smp_sc *sc)
+{
+	struct smp_seg *sg;
+
+	Lck_AssertHeld(&sc->mtx);
+
+	sg = VTAILQ_FIRST(&sc->segments);
+	if (sg == NULL)
+		return (sc->mediasize - sc->free_offset);
+	if (sg->p.offset < sc->free_offset) {
+		return ((sc->mediasize - sc->free_offset) +
+			(sg->p.offset - sc->ident->stuff[SMP_SPC_STUFF]));
+	}
+	return (sg->p.offset - sc->free_offset);
+}
+
+void
+smp_check_reserve(struct smp_sc *sc)
+{
+	Lck_AssertHeld(&sc->mtx);
+
+	if (smp_silospaceleft(sc) + sc->free_pending < sc->free_reserve) {
+		sc->flags |= SMP_SC_LOW;
+		AZ(pthread_cond_signal(&sc->cond));
+	}
+}
 
 /*---------------------------------------------------------------------
+ * Find the struct smp_object in the segment's object list by
+ * it's objindex (oc->priv2)
  */
 
-static struct smp_object *
+struct smp_object *
 smp_find_so(const struct smp_seg *sg, unsigned priv2)
 {
 	struct smp_object *so;
@@ -324,7 +326,7 @@ smp_find_so(const struct smp_seg *sg, unsigned priv2)
 
 static int
 smp_loaded_st(const struct smp_sc *sc, const struct smp_seg *sg,
-    const struct storage *st)
+    struct storage *st)
 {
 	struct smp_seg *sg2;
 	const uint8_t *pst;
@@ -362,7 +364,14 @@ smp_loaded_st(const struct smp_sc *sc, const struct smp_seg *sg,
 	/*
 	 * XXX: We could patch up st->stevedore and st->priv here
 	 * XXX: but if things go right, we will never need them.
+	 * XXX: Setting them to NULL so that any reference will give
+	 * XXX: asserts.
 	 */
+	if (st->stevedore != NULL)
+		st->stevedore = NULL;
+	if (st->priv != NULL)
+		st->priv = NULL;
+
 	return (0);
 }
 
@@ -377,9 +386,11 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 	struct smp_seg *sg;
 	struct smp_object *so;
 	struct storage *st;
-	uint64_t l;
-	int bad;
+	uint64_t l, space;
+	int bad, count;
+	int has_lock;
 
+	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
 	/* Some calls are direct, but they should match anyway */
 	assert(oc->methods->getobj == smp_oc_getobj);
 
@@ -388,7 +399,23 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 		AZ(oc->flags & OC_F_NEEDFIXUP);
 
 	CAST_OBJ_NOTNULL(sg, oc->priv, SMP_SEG_MAGIC);
+	if (sg->flags & SMP_SEG_NEW) {
+		/* Segment is new and can be closed and compacted at
+		 * any time. We need to keep a lock during access to
+		 * the objlist. */
+		Lck_Lock(&sg->sc->mtx);
+		has_lock = 1;
+	} else {
+		/* Since the NEW flag is removed after the compacting
+		 * and a memory barrier, any compacting should have
+		 * been done with the changes visible to us if we
+		 * can't see the flag. Should be safe to proceed
+		 * without locks. */
+		has_lock = 0;
+	}
 	so = smp_find_so(sg, oc->priv2);
+	AN(so);
+	AN(so->ptr);
 
 	o = (void*)(sg->sc->base + so->ptr);
 	/*
@@ -404,37 +431,76 @@ smp_oc_getobj(struct worker *wrk, struct objcore *oc)
 	 * If this flag is not set, it will not be, and the lock is not
 	 * needed to test it.
 	 */
-	if (!(oc->flags & OC_F_NEEDFIXUP))
+	if (!(oc->flags & OC_F_NEEDFIXUP)) {
+		if (has_lock)
+			Lck_Unlock(&sg->sc->mtx);
 		return (o);
+	}
 
 	AN(wrk);
-	Lck_Lock(&sg->sc->mtx);
+	if (!has_lock) {
+		Lck_Lock(&sg->sc->mtx);
+		has_lock = 1;
+	}
 	/* Check again, we might have raced. */
 	if (oc->flags & OC_F_NEEDFIXUP) {
+		/*
+		 * XXX: We can't allow this to fail, as the calling
+		 * code needs an object back. Assert on failure so the
+		 * error is noticed.
+		 */
+		AZ(smp_loaded_st(sg->sc, sg, o->objstore));
+
 		/* We trust caller to have a refcnt for us */
 		o->objcore = oc;
 
-		bad = 0;
-		l = 0;
+		count = bad = 0;
+		space = l = 0;
 		VTAILQ_FOREACH(st, &o->store, list) {
 			bad |= smp_loaded_st(sg->sc, sg, st);
 			if (bad)
 				break;
 			l += st->len;
+			count++;
+			space += st->space;
 		}
 		if (l != o->len)
 			bad |= 0x100;
+		if (o->esidata != NULL) {
+			bad |= (smp_loaded_st(sg->sc, sg, o->esidata) << 3);
+			count++;
+			if (!bad)
+				space += o->esidata->space;
+		}
 
 		if(bad) {
 			EXP_Set_ttl(&o->exp, -1);
 			so->ttl = 0;
+			sg->sc->stats->c_resurrection_fail++;
+			count = space = 0;
+
+			/*
+			 * Remove all storage chunk references except
+			 * the object itself, so the freeobj
+			 * statistics update will not look at them
+			 */
+			VTAILQ_INIT(&o->store);
+			o->esidata = NULL;
 		}
+
+		/* Add the object and it's data store to the
+		 * statistics */
+		sg->sc->stats->g_alloc += 1 + count;
+		sg->sc->stats->c_bytes += o->objstore->space + space;
+		sg->sc->stats->g_bytes += o->objstore->space + space;
 
 		sg->nfixed++;
 		wrk->stats.n_object++;
 		wrk->stats.n_vampireobject--;
+		sg->sc->stats->g_vampireobjects--;
 		oc->flags &= ~OC_F_NEEDFIXUP;
 	}
+	AN(has_lock);
 	Lck_Unlock(&sg->sc->mtx);
 	EXP_Rearm(o);
 	return (o);
@@ -475,11 +541,34 @@ smp_oc_freeobj(struct objcore *oc)
 {
 	struct smp_seg *sg;
 	struct smp_object *so;
+	struct object *o;
+	const struct storage *st;
+	uint64_t st_count, st_space;
 
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
+	AZ(oc->flags & OC_F_NEEDFIXUP);
 
 	CAST_OBJ_NOTNULL(sg, oc->priv, SMP_SEG_MAGIC);
 	so = smp_find_so(sg, oc->priv2);
+	o = smp_oc_getobj(NULL, oc);
+
+	/* We can't and don't need to go the normal route of free'ing
+	 * all the storage chunks. Count the space usage for
+	 * statistics. */
+	st_count = st_space = 0;
+	if (o->objstore != NULL) {
+		st_count++;
+		st_space += o->objstore->space;
+	}
+	if (o->esidata != NULL) {
+		st_count++;
+		st_space += o->esidata->space;
+	}
+	VTAILQ_FOREACH(st, &o->store, list) {
+		CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+		st_count++;
+		st_space += st->space;
+	}
 
 	Lck_Lock(&sg->sc->mtx);
 	so->ttl = 0;
@@ -489,6 +578,16 @@ smp_oc_freeobj(struct objcore *oc)
 	assert(sg->nfixed > 0);
 	sg->nobj--;
 	sg->nfixed--;
+
+	if (sg->nobj == 0 && sg == VTAILQ_FIRST(&sg->sc->segments)) {
+		/* Sync segments to remove empty at start */
+		smp_sync_segs(sg->sc);
+	}
+
+	/* Update statistics */
+	sg->sc->stats->g_alloc -= st_count;
+	sg->sc->stats->c_freed += st_space;
+	sg->sc->stats->g_bytes -= st_space;
 
 	Lck_Unlock(&sg->sc->mtx);
 }

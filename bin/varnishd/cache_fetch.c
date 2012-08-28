@@ -166,8 +166,8 @@ vfp_nop_bytes(struct sess *sp, struct http_conn *htc, ssize_t bytes)
 		st->len += w;
 		sp->obj->len += w;
 		bytes -= w;
-		if (sp->wrk->do_stream)
-			RES_StreamPoll(sp);
+		if (sp->wrk->do_stream && RES_StreamPoll(sp))
+			return (-1);
 	}
 	return (1);
 }
@@ -226,6 +226,8 @@ FetchStorage(const struct sess *sp, ssize_t sz)
 		l = sz;
 	if (l == 0)
 		l = params->fetch_chunksize * 1024LL;
+	if (sp->wrk->do_stream && l > params->stream_maxchunksize * 1024LL)
+		l = params->stream_maxchunksize * 1024LL;
 	st = STV_alloc(sp, l);
 	if (st == NULL) {
 		(void)FetchError(sp, "Could not get storage");
@@ -609,14 +611,17 @@ FetchBody(struct sess *sp)
 
 	if (cls < 0) {
 		w->stats.fetch_failed++;
-		/* XXX: Wouldn't this store automatically be released ? */
-		while (!VTAILQ_EMPTY(&sp->obj->store)) {
-			st = VTAILQ_FIRST(&sp->obj->store);
-			VTAILQ_REMOVE(&sp->obj->store, st, list);
-			STV_free(st);
+		if (!sp->wrk->do_stream) {
+			/* XXX: Wouldn't this store automatically be
+			 * released ? */
+			while (!VTAILQ_EMPTY(&sp->obj->store)) {
+				st = VTAILQ_FIRST(&sp->obj->store);
+				VTAILQ_REMOVE(&sp->obj->store, st, list);
+				STV_free(st);
+			}
+			sp->obj->len = 0;
 		}
 		VDI_CloseFd(sp);
-		sp->obj->len = 0;
 		return (__LINE__);
 	}
 	AZ(w->fetch_failed);
@@ -641,9 +646,13 @@ FetchBody(struct sess *sp)
 	}
 
 	if (mklen > 0) {
+		if (sp->stream_busyobj != NULL)
+			Lck_Lock(&sp->stream_busyobj->mtx);
 		http_Unset(sp->obj->http, H_Content_Length);
 		http_PrintfHeader(w, sp->fd, sp->obj->http,
 		    "Content-Length: %jd", (intmax_t)sp->obj->len);
+		if (sp->stream_busyobj != NULL)
+			Lck_Unlock(&sp->stream_busyobj->mtx);
 	}
 
 	if (cls)

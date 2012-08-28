@@ -60,6 +60,7 @@ struct smp_signctx {
 	struct smp_sign		*ss;
 	struct SHA256Context	ctx;
 	uint32_t		unique;
+	uint64_t		extra;
 	const char		*id;
 };
 
@@ -80,6 +81,9 @@ struct smp_seg {
 	unsigned		flags;
 #define SMP_SEG_MUSTLOAD	(1 << 0)
 #define SMP_SEG_LOADED		(1 << 1)
+#define SMP_SEG_NEW		(1 << 2)
+#define SMP_SEG_SYNCSIGNS	(1 << 3)
+#define SMP_SEG_NUKED		(1 << 4)
 
 	uint32_t		nobj;		/* Number of objects */
 	uint32_t		nalloc;		/* Allocations */
@@ -87,7 +91,10 @@ struct smp_seg {
 
 	/* Only for open segment */
 	struct smp_object	*objs;		/* objdesc array */
-	struct smp_signctx	ctx[1];
+
+	struct smp_signctx	ctx_head;
+	struct smp_signctx	ctx_obj;
+	struct smp_signctx	ctx_tail;
 };
 
 VTAILQ_HEAD(smp_seghead, smp_seg);
@@ -99,8 +106,13 @@ struct smp_sc {
 
 	unsigned		flags;
 #define SMP_SC_LOADED		(1 << 0)
+#define SMP_SC_STOP		(1 << 1)
+#define SMP_SC_STOPPED		(1 << 2)
+#define SMP_SC_SYNC		(1 << 3)
+#define SMP_SC_LOW		(1 << 4)
 
 	const struct stevedore	*stevedore;
+	struct VSC_C_smp	*stats;
 	int			fd;
 	const char		*filename;
 	off_t			mediasize;
@@ -118,19 +130,23 @@ struct smp_sc {
 	uint64_t		next_top;	/* next alloc address top */
 
 	uint64_t		free_offset;
+	uint64_t		free_pending;
 
 	pthread_t		thread;
 
 	VTAILQ_ENTRY(smp_sc)	list;
 
 	struct smp_signctx	idn;
-	struct smp_signctx	ban1;
-	struct smp_signctx	ban2;
 	struct smp_signctx	seg1;
 	struct smp_signctx	seg2;
 
+	/* Bans */
+	struct smp_signctx	ban1;
+	struct smp_signctx	ban2;
 	struct ban		*tailban;
+	double			ban_t0;
 
+	pthread_cond_t		cond;
 	struct lock		mtx;
 
 	/* Cleaner metrics */
@@ -145,6 +161,12 @@ struct smp_sc {
 
 	uint64_t		free_reserve;
 };
+
+struct smp_ban_extra {
+	uint64_t		offset;
+};
+
+#define SMP_BAN_EXTRA		(sizeof(struct smp_ban_extra))
 
 /*--------------------------------------------------------------------*/
 
@@ -166,8 +188,12 @@ struct smp_sc {
 
 /*--------------------------------------------------------------------*/
 
-#define SIGN_DATA(ctx)	((void *)((ctx)->ss + 1))
+#define SIGN_START(ctx) ((void *)((ctx)->ss + 1))
+#define SIGN_EXTRA(ctx)	(SIGN_START(ctx))
+#define SIGN_DATA(ctx)	((void *)((int8_t *)SIGN_EXTRA(ctx) + (ctx)->ss->extra))
 #define SIGN_END(ctx)	((void *)((int8_t *)SIGN_DATA(ctx) + (ctx)->ss->length))
+#define SIGN_LEFT(ctx, len) \
+    (len - ((int8_t *)SIGN_END(ctx) - (int8_t *)SIGN_START(ctx)))
 
 /* storage_persistent_mgt.c */
 
@@ -180,18 +206,23 @@ void smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 void smp_new_seg(struct smp_sc *sc);
 void smp_close_seg(struct smp_sc *sc, struct smp_seg *sg);
 void smp_init_oc(struct objcore *oc, struct smp_seg *sg, unsigned objidx);
-void smp_save_segs(struct smp_sc *sc);
+struct smp_object * smp_find_so(const struct smp_seg *sg, unsigned priv2);
+void smp_sync_segs(struct smp_sc *sc);
 
 /* storage_persistent_subr.c */
 
 void smp_def_sign(const struct smp_sc *sc, struct smp_signctx *ctx,
-    uint64_t off, const char *id);
+    uint64_t off, uint64_t extra, const char *id);
 int smp_chk_sign(struct smp_signctx *ctx);
 void smp_append_sign(struct smp_signctx *ctx, const void *ptr, uint32_t len);
+void smp_reapply_sign(struct smp_signctx *ctx, uint32_t len);
 void smp_reset_sign(struct smp_signctx *ctx);
-void smp_sync_sign(const struct smp_signctx *ctx);
+void smp_sync_sign(const struct smp_sc *sc, const struct smp_signctx *ctx);
+void smp_copy_sign(struct smp_signctx *dst, const struct smp_signctx *src);
 void smp_newsilo(struct smp_sc *sc);
 int smp_valid_silo(struct smp_sc *sc);
+uint64_t smp_silospaceleft(struct smp_sc *sc);
+void smp_check_reserve(struct smp_sc *sc);
 
 /*--------------------------------------------------------------------
  * Caculate payload of some stuff

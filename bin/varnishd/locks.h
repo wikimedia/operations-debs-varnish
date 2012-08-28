@@ -49,4 +49,5 @@ LOCK(ban)
 LOCK(vbp)
 LOCK(vbe)
 LOCK(backend)
+LOCK(busyobj)
 /*lint -restore */

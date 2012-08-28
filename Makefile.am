@@ -25,7 +25,7 @@ install-data-local:
 
 distcheck-hook:
 	V="@PACKAGE_VERSION@" ; \
-	V="$${V%%-*}" ; \
+	V="$${V%-*}" ; \
 	if ! grep "^Version: $$V$$" $(top_distdir)/redhat/varnish.spec && \
 	  [ "@PACKAGE_VERSION@" != "trunk" ]; then \
 	  echo "$$V" ; \

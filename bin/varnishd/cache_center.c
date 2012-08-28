@@ -4,6 +4,7 @@
  * All rights reserved.
  *
  * Author: Poul-Henning Kamp <phk@phk.freebsd.dk>
+ * Author: Martin Blix Grydeland <martin@varnish-software.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -149,7 +150,7 @@ DOT     vcl_deliver -> errdeliver [label="error"]
 DOT     errdeliver [label="ERROR",shape=plaintext]
 DOT     vcl_deliver -> rstdeliver [label="restart",color=purple]
 DOT     rstdeliver [label="RESTART",shape=plaintext]
-DOT     vcl_deliver -> streambody [style=bold,color=cyan,label="deliver"]
+DOT     vcl_deliver -> streamdeliver [style=bold,color=cyan,label="deliver"]
 DOT }
  *
  */
@@ -162,12 +163,15 @@ cnt_prepresp(struct sess *sp)
 	CHECK_OBJ_NOTNULL(sp->obj, OBJECT_MAGIC);
 	CHECK_OBJ_NOTNULL(sp->vcl, VCL_CONF_MAGIC);
 
-	if (sp->wrk->do_stream)
-		AssertObjCorePassOrBusy(sp->obj->objcore);
-
 	sp->wrk->res_mode = 0;
 
-	if ((sp->wrk->h_content_length != NULL || !sp->wrk->do_stream) &&
+	if (sp->stream_busyobj != NULL) {
+		/* We have entered here from cnt_streambody */
+		sp->wrk->h_content_length =
+			sp->stream_busyobj->stream_h_content_length;
+	}
+
+	if ((sp->wrk->h_content_length != NULL || sp->stream_busyobj == NULL) &&
 	    !sp->wrk->do_gzip && !sp->wrk->do_gunzip)
 		sp->wrk->res_mode |= RES_LEN;
 
@@ -193,7 +197,7 @@ cnt_prepresp(struct sess *sp)
 	}
 
 	if (!(sp->wrk->res_mode & (RES_LEN|RES_CHUNKED|RES_EOF))) {
-		if (sp->obj->len == 0 && !sp->wrk->do_stream)
+		if (sp->obj->len == 0 && sp->stream_busyobj == NULL)
 			/*
 			 * If the object is empty, neither ESI nor GUNZIP
 			 * can make it any different size
@@ -217,7 +221,14 @@ cnt_prepresp(struct sess *sp)
 		sp->obj->last_use = sp->t_resp;	/* XXX: locking ? */
 	}
 	http_Setup(sp->wrk->resp, sp->wrk->ws);
-	RES_BuildHttp(sp);
+	if (sp->stream_busyobj != NULL) {
+		/* Lock during reading of obj headers, as fetching thread
+		   might update Content-Length */
+		Lck_Lock(&sp->stream_busyobj->mtx);
+		RES_BuildHttp(sp);
+		Lck_Unlock(&sp->stream_busyobj->mtx);
+	} else
+		RES_BuildHttp(sp);
 	VCL_deliver_method(sp);
 	switch (sp->handling) {
 	case VCL_RET_DELIVER:
@@ -225,9 +236,23 @@ cnt_prepresp(struct sess *sp)
 	case VCL_RET_RESTART:
 		if (sp->restarts >= params->max_restarts)
 			break;
-		if (sp->wrk->do_stream) {
-			VDI_CloseFd(sp);
-			HSH_Drop(sp);
+		if (sp->stream_busyobj != NULL) {
+			CHECK_OBJ_NOTNULL(sp->stream_busyobj, BUSYOBJ_MAGIC);
+			Lck_Lock(&sp->stream_busyobj->mtx);
+			assert(sp->stream_busyobj->stream_refcnt > 0);
+			sp->stream_busyobj->stream_refcnt--;
+			AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
+			Lck_Unlock(&sp->stream_busyobj->mtx);
+			if (sp->obj->objcore == NULL) {
+				/* If this is a pass, the fetching
+				 * thread holds the object for us, and
+				 * it will deref it when we are
+				 * finished */
+				sp->obj = NULL;
+			} else {
+				(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
+			}
+			sp->stream_busyobj = NULL;
 		} else {
 			(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
 		}
@@ -243,12 +268,10 @@ cnt_prepresp(struct sess *sp)
 	default:
 		WRONG("Illegal action in vcl_deliver{}");
 	}
-	if (sp->wrk->do_stream) {
-		AssertObjCorePassOrBusy(sp->obj->objcore);
-		sp->step = STP_STREAMBODY;
-	} else {
+	if (sp->stream_busyobj != NULL)
+		sp->step = STP_STREAMDELIVER;
+	else
 		sp->step = STP_DELIVER;
-	}
 	return (0);
 }
 
@@ -431,6 +454,8 @@ cnt_error(struct sess *sp)
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 
+	AZ(sp->stream_busyobj);
+
 	sp->wrk->do_esi = 0;
 	sp->wrk->is_gzip = 0;
 	sp->wrk->is_gunzip = 0;
@@ -594,6 +619,9 @@ cnt_fetch(struct sess *sp)
 			sp->wrk->exp.ttl = -1.;
 
 		AZ(sp->wrk->do_esi);
+		sp->wrk->stream_tokens = params->stream_tokens;
+		assert(sp->wrk->stream_tokens >= STREAM_TOKENS_MIN);
+		assert(sp->wrk->stream_tokens <= STREAM_TOKENS_MAX);
 
 		VCL_fetch_method(sp);
 
@@ -654,9 +682,14 @@ DOT	fetchbody2 [
 DOT		shape=ellipse
 DOT		label="fetch body\nfrom backend\n"
 DOT	]
+DOT	streambody [
+DOT		shape=ellipse
+DOT		label="streaming\nfetch"
+DOT	]
 DOT }
 DOT fetchbody -> fetchbody2 [label=no,style=bold,color=red]
 DOT fetchbody -> fetchbody2 [style=bold,color=blue]
+DOT fetchbody -> streambody [label=yes,style=bold,color=cyan]
 DOT fetchbody -> prepresp [label=yes,style=bold,color=cyan]
 DOT fetchbody2 -> prepresp [style=bold,color=red]
 DOT fetchbody2 -> prepresp [style=bold,color=blue]
@@ -838,20 +871,10 @@ cnt_fetchbody(struct sess *sp)
 
 	assert(WRW_IsReleased(sp->wrk));
 
-	/*
-	 * If we can deliver a 304 reply, we don't bother streaming.
-	 * Notice that vcl_deliver{} could still nuke the headers
-	 * that allow the 304, in which case we return 200 non-stream.
-	 */
-	if (sp->obj->response == 200 &&
-	    sp->http->conds &&
-	    RFC2616_Do_Cond(sp))
-		sp->wrk->do_stream = 0;
-
 	AssertObjCorePassOrBusy(sp->obj->objcore);
 
 	if (sp->wrk->do_stream) {
-		sp->step = STP_PREPRESP;
+		sp->step = STP_STREAMBODY;
 		return (0);
 	}
 
@@ -888,71 +911,217 @@ cnt_fetchbody(struct sess *sp)
 
 /*--------------------------------------------------------------------
  * Stream the body as we fetch it
-DOT subgraph xstreambody {
-DOT	streambody [
+DOT subgraph xstreamdeliver {
+DOT	streamdeliver [
 DOT		shape=ellipse
-DOT		label="streaming\nfetch/deliver"
+DOT		label="streaming\ndeliver"
 DOT	]
+DOT	streamdeliver -> DONE [style=bold,color=cyan]
 DOT }
-DOT streambody -> DONE [style=bold,color=cyan]
+ */
+
+static int
+cnt_streamdeliver(struct sess *sp)
+{
+	struct busyobj *bo;
+
+	bo = sp->stream_busyobj;
+	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
+
+	RES_StreamStart(sp);
+	sp->wrk->h_content_length = NULL;
+
+	if (sp->wantbody)
+		RES_StreamBody(sp);
+
+	RES_StreamEnd(sp);
+
+	/* Deref the busyobj and signal we are finished with it */
+	Lck_Lock(&bo->mtx);
+	assert(bo->stream_refcnt > 0);
+	bo->stream_refcnt--;
+	sp->stream_busyobj = NULL;
+	AZ(pthread_cond_signal(&bo->cond_data));
+	Lck_Unlock(&bo->mtx);
+
+	assert(WRW_IsReleased(sp->wrk));
+	assert(sp->wrk->wrw.ciov == sp->wrk->wrw.siov);
+	if (sp->obj->objcore == NULL) {
+		/* If this is a pass, the fetching thread holds the
+		 * object for us, and it will deref it when we are
+		 * finished */
+		sp->obj = NULL;
+	} else
+		(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
+	http_Setup(sp->wrk->resp, NULL);
+	sp->step = STP_DONE;
+	return (0);
+}
+
+/*--------------------------------------------------------------------
+ * Stream the body as we fetch it
  */
 
 static int
 cnt_streambody(struct sess *sp)
 {
-	int i;
-	struct stream_ctx sctx;
-	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
-	    params->gzip_stack_buffer : 1];
+	struct sess *sp_fetch;
+	struct busyobj *bo = NULL;
 
-	memset(&sctx, 0, sizeof sctx);
-	sctx.magic = STREAM_CTX_MAGIC;
-	AZ(sp->wrk->sctx);
-	sp->wrk->sctx = &sctx;
-
-	if (sp->wrk->res_mode & RES_GUNZIP) {
-		sctx.vgz = VGZ_NewUngzip(sp, "U S -");
-		sctx.obuf = obuf;
-		sctx.obuf_len = sizeof (obuf);
-	}
-
-	RES_StreamStart(sp);
-
+	CHECK_OBJ_NOTNULL(sp->obj, OBJECT_MAGIC);
 	AssertObjCorePassOrBusy(sp->obj->objcore);
 
-	i = FetchBody(sp);
+	/* Create a background step to do the fetching */
+	sp_fetch = SES_NewNonVCA();
+	assert(sp_fetch != sp);
+	if (sp_fetch == NULL) {
+		/* Can't allocate a new session, but we've already
+		   sent the client it's headers. Just drop the
+		   connection for now, later perhaps deal with
+		   allocating the session earlier and be able to
+		   go to STP_ERROR if we fail */
+		sp->wrk->stats.fetch_failed++;
+		VDI_CloseFd(sp);
+		HSH_Drop(sp);
+		AZ(sp->obj);
 
-	sp->wrk->h_content_length = NULL;
+		/* Clean up the worker */
+		sp->wrk->h_content_length = NULL;
+		http_Setup(sp->wrk->bereq, NULL);
+		http_Setup(sp->wrk->beresp, NULL);
+		assert(WRW_IsReleased(sp->wrk));
+		sp->wrk->vfp = NULL;
+		AZ(sp->vbc);
+		AN(sp->director);
 
-	http_Setup(sp->wrk->bereq, NULL);
-	http_Setup(sp->wrk->beresp, NULL);
-	sp->wrk->vfp = NULL;
-	AZ(sp->vbc);
-	AN(sp->director);
-
-	if (i)
-		sp->doclose = "Stream error";
-	else if (sp->obj->objcore != NULL) {
-		EXP_Insert(sp->obj);
-		AN(sp->obj->objcore);
-		AN(sp->obj->objcore->ban);
-		HSH_Unbusy(sp);
+		sp->doclose = "n_sess_sm overflow";
+		sp->step = STP_DONE;
+		return (1);
 	}
-	sp->wrk->acct_tmp.fetch++;
+	CHECK_OBJ_NOTNULL(sp_fetch, SESS_MAGIC);
+	sp_fetch->acct_ses.first = TIM_real();
+	/* Copy these */
+	sp_fetch->id = sp->id;
+	sp_fetch->xid = sp->xid;
+	/* Let the fetch session inherit these */
+	sp_fetch->director = sp->director;
 	sp->director = NULL;
-	sp->restarts = 0;
+	sp_fetch->vbc = sp->vbc;
+	sp->vbc = NULL;
 
-	RES_StreamEnd(sp);
-	if (sp->wrk->res_mode & RES_GUNZIP)
-		(void)VGZ_Destroy(&sctx.vgz);
+	/* Get a busyobj */
+	AZ(sp->stream_busyobj);
+	if (sp->obj->objcore != NULL) {
+		AssertObjCorePassOrBusy(sp->obj->objcore);
+		CHECK_OBJ_NOTNULL(sp->obj->objcore, OBJCORE_MAGIC);
+		bo = sp->obj->objcore->busyobj;
+		CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
 
-	sp->wrk->sctx = NULL;
-	assert(WRW_IsReleased(sp->wrk));
-	assert(sp->wrk->wrw.ciov == sp->wrk->wrw.siov);
-	(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
-	http_Setup(sp->wrk->resp, NULL);
-	sp->step = STP_DONE;
-	return (0);
+		/* Also grab an extra ref on the oc for the new
+		 * fetching sess */
+		HSH_Ref(sp->obj->objcore);
+		assert(sp->obj->objcore->refcnt == 2);
+		sp_fetch->obj = sp->obj;
+	} else {
+		/* It's a pass, use dummy busyobj */
+		HSH_Prealloc(sp);
+		CHECK_OBJ_NOTNULL(sp->wrk->nbusyobj, BUSYOBJ_MAGIC);
+		bo = sp->wrk->nbusyobj;
+		sp->wrk->nbusyobj = NULL;
+		sp_fetch->obj = sp->obj; /* No ref cnt, but we'll wait
+					  * for the other thread
+					  * before releasing */
+	}
+
+	/* Check that the busyobj is prestine */
+	AZ(bo->stream_stop);
+	AZ(bo->stream_error);
+	AZ(bo->stream_refcnt);
+
+	bo->vary = NULL;	/* Object has real vary here */
+	bo->stream_refcnt++; /* For the delivering session */
+	bo->stream_tokens = sp->wrk->stream_tokens;
+	assert(bo->stream_tokens >= STREAM_TOKENS_MIN);
+	assert(bo->stream_tokens <= STREAM_TOKENS_MAX);
+	sp->stream_busyobj = sp_fetch->stream_busyobj = bo;
+
+	/* Let the streaming contexts share in this worker's notion of
+	   h_content_length - safe because this worker will wait for
+	   any streaming threads before resetting workspaces. Also
+	   only let the clients in on that secret if we are not
+	   modifying the length through gzip/gunzip */
+	if (!sp->wrk->do_gzip && !sp->wrk->do_gunzip)
+		bo->stream_h_content_length = sp->wrk->h_content_length;
+
+	/* Requeue this session at STP_PREPRESP, fetch session continue
+	   on this worker */
+	sp->step = STP_PREPRESP;
+	sp_fetch->wrk = sp->wrk;
+	sp->wrk = NULL;
+	AN(WRK_QueueSessionFirst(sp)); /* Does not fail */
+	sp = NULL;
+
+	/* Continuing using new session */
+	if (sp_fetch->obj->objcore != NULL && 
+	    !(sp_fetch->obj->objcore->flags & OC_F_PASS)) {
+		bo->can_stream = 1;
+		HSH_Rush(sp_fetch->obj->objcore->objhead);
+	}
+
+	bo->stream_error = FetchBody(sp_fetch);
+	sp_fetch->wrk->stats.fetch_streamed++;
+
+	if (bo->stream_error)
+		sp_fetch->obj->exp.ttl = -1.;
+	else if (sp_fetch->obj->objcore != NULL) {
+		EXP_Insert(sp_fetch->obj);
+		AN(sp_fetch->obj->objcore);
+		AN(sp_fetch->obj->objcore->ban);
+	}
+	if (sp_fetch->obj->objcore != NULL) {
+		HSH_Unbusy(sp_fetch);
+		AZ(sp_fetch->obj->objcore->busyobj);
+	}
+
+	/* Wait for streaming sessions */
+	Lck_Lock(&bo->mtx);
+	bo->can_stream = 0;
+	bo->stream_stop = 1;
+	bo->stream_max = sp_fetch->obj->len;
+	pthread_cond_signal(&bo->cond_data);
+	while (bo->stream_refcnt > 0) {
+		Lck_CondWait(&bo->cond_data, &bo->mtx);
+	}
+	Lck_Unlock(&bo->mtx);
+
+	/* Finished with the busyobj, return it to the worker */
+	AZ(sp_fetch->wrk->nbusyobj);
+	HSH_Reset_Busyobj(bo);
+	sp_fetch->wrk->nbusyobj = bo;
+	sp_fetch->stream_busyobj = bo = NULL;
+
+	HSH_Deref(sp_fetch->wrk, NULL, &sp_fetch->obj);
+
+	/* Clean up the worker */
+	sp_fetch->wrk->h_content_length = NULL;
+	http_Setup(sp_fetch->wrk->bereq, NULL);
+	http_Setup(sp_fetch->wrk->beresp, NULL);
+	sp_fetch->wrk->vfp = NULL;
+	AZ(sp_fetch->vbc);
+	AN(sp_fetch->director);
+	sp_fetch->wrk->do_stream = 0;
+	sp_fetch->wrk->is_gzip = 0;
+	sp_fetch->wrk->do_gzip = 0;
+	sp_fetch->wrk->do_gunzip = 0;
+	sp_fetch->wrk->is_gunzip = 0;
+	SES_Charge(sp_fetch);
+
+	/* We are done with the session object */
+	sp_fetch->t_end = TIM_real();
+	sp_fetch->wrk = NULL;
+	SES_Delete(sp_fetch);
+
+	return (1);
 }
 
 /*--------------------------------------------------------------------
@@ -1030,6 +1199,13 @@ cnt_hit(struct sess *sp)
 	/* Drop our object, we won't need it */
 	(void)HSH_Deref(sp->wrk, NULL, &sp->obj);
 	sp->objcore = NULL;
+	if (sp->stream_busyobj != NULL) {
+		Lck_Lock(&sp->stream_busyobj->mtx);
+		sp->stream_busyobj->stream_refcnt--;
+		AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
+		Lck_Unlock(&sp->stream_busyobj->mtx);
+		sp->stream_busyobj = NULL;
+	}
 
 	switch(sp->handling) {
 	case VCL_RET_PASS:
@@ -1116,7 +1292,7 @@ cnt_lookup(struct sess *sp)
 	CHECK_OBJ_NOTNULL(oh, OBJHEAD_MAGIC);
 
 	/* If we inserted a new object it's a miss */
-	if (oc->flags & OC_F_BUSY) {
+	if (oc->flags & OC_F_BUSY && !oc->busyobj->can_stream) {
 		sp->wrk->stats.cache_miss++;
 
 		if (sp->vary_l != NULL) {
@@ -1370,6 +1546,7 @@ cnt_recv(struct sess *sp)
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	CHECK_OBJ_NOTNULL(sp->vcl, VCL_CONF_MAGIC);
 	AZ(sp->obj);
+	AZ(sp->stream_busyobj);
 	assert(sp->wrk->wrw.ciov == sp->wrk->wrw.siov);
 
 	/* By default we use the first backend */
@@ -1470,6 +1647,7 @@ cnt_start(struct sess *sp)
 	AZ(sp->restarts);
 	AZ(sp->obj);
 	AZ(sp->vcl);
+	AZ(sp->stream_busyobj);
 
 	/* Update stats of various sorts */
 	sp->wrk->stats.client_req++;
@@ -1574,7 +1752,8 @@ CNT_Session(struct sess *sp)
 	    sp->step == STP_FIRST ||
 	    sp->step == STP_START ||
 	    sp->step == STP_LOOKUP ||
-	    sp->step == STP_RECV);
+	    sp->step == STP_RECV ||
+	    sp->step == STP_PREPRESP);
 
 	AZ(w->do_stream);
 	AZ(w->is_gzip);

@@ -63,6 +63,7 @@ VSC_F(fetch_head,		uint64_t, 1, 'a', "Fetch head", "")
 VSC_F(fetch_length,		uint64_t, 1, 'a', "Fetch with Length", "")
 VSC_F(fetch_chunked,		uint64_t, 1, 'a', "Fetch chunked", "")
 VSC_F(fetch_eof,		uint64_t, 1, 'a', "Fetch EOF", "")
+VSC_F(fetch_streamed,		uint64_t, 1, 'a', "Fetch streamed", "")
 VSC_F(fetch_bad,		uint64_t, 1, 'a', "Fetch had bad headers", "")
 VSC_F(fetch_close,		uint64_t, 1, 'a', "Fetch wanted close", "")
 VSC_F(fetch_oldhttp,		uint64_t, 1, 'a', "Fetch pre HTTP/1.1 closed", "")
@@ -112,6 +113,7 @@ VSC_F(s_req,		uint64_t, 1, 'a', "Total Requests", "")
 VSC_F(s_pipe,		uint64_t, 1, 'a', "Total pipe", "")
 VSC_F(s_pass,		uint64_t, 1, 'a', "Total pass", "")
 VSC_F(s_fetch,		uint64_t, 1, 'a', "Total fetch", "")
+VSC_F(s_stream,		uint64_t, 1, 'a', "Total streamed requests", "")
 VSC_F(s_hdrbytes,		uint64_t, 1, 'a', "Total header bytes", "")
 VSC_F(s_bodybytes,		uint64_t, 1, 'a', "Total body bytes", "")
 
@@ -207,6 +209,67 @@ VSC_F(g_space,		uint64_t, 0, 'i', "Bytes available", "")
 VSC_F(g_smf,			uint64_t, 0, 'i', "N struct smf", "")
 VSC_F(g_smf_frag,		uint64_t, 0, 'i', "N small free smf", "")
 VSC_F(g_smf_large,		uint64_t, 0, 'i', "N large free smf", "")
+#endif
+
+/**********************************************************************/
+
+#ifdef VSC_DO_SMP
+#define VAMPIRE_NOTE "  Note: Does not include vampire objects"
+VSC_F(c_req,			uint64_t, 0, 'c',
+    "Allocater requests",
+        "Number of chunks allocated from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_fail,			uint64_t, 0, 'c',
+    "Allocater failures",
+        "Number of failed allocation attempts from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_bytes,			uint64_t, 0, 'c',
+    "Bytes allocated",
+        "Bytes allocated from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(c_freed,			uint64_t, 0, 'c',
+    "Bytes freed",
+        "Bytes freed from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_alloc,			uint64_t, 0, 'g',
+    "Allocations outstanding",
+        "Outstanding allocations from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_bytes,			uint64_t, 0, 'g',
+    "Bytes outstanding",
+        "Outstanding bytes from this silo."
+        VAMPIRE_NOTE
+)
+VSC_F(g_free,			uint64_t, 0, 'g',
+    "Free space",
+        "Free space in silo"
+)
+VSC_F(g_free_pending,		uint64_t, 0, 'g',
+    "Free space pending",
+        "Free space from nuked segments, pending release"
+)
+VSC_F(g_segments,		uint64_t, 0, 'g',
+    "In use segments",
+        "Number of segments currently in use in the silo."
+)
+VSC_F(c_segments_nuked,		uint64_t, 0, 'c',
+    "Number of nuked segments",
+	"Total number of segments nuked to make room"
+)
+VSC_F(g_vampireobjects,		uint64_t, 0, 'g',
+    "Vampire objects",
+        "Number of vampire objects in cache with storage in this silo."
+)
+VSC_F(c_resurrection_fail,	uint64_t, 0, 'c',
+    "Failed resurrections",
+        "Number of failed resurrections attempts of vampire objects"
+)
+#undef VAMPIRE_NOTE
 #endif
 
 /**********************************************************************/

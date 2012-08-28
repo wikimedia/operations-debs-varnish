@@ -4,6 +4,7 @@
  * All rights reserved.
  *
  * Author: Poul-Henning Kamp <phk@phk.freebsd.dk>
+ * Author: Martin Blix Grydeland <martin@varnish-software.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,6 +78,7 @@ HSH_Prealloc(const struct sess *sp)
 	struct objhead *oh;
 	struct objcore *oc;
 	struct waitinglist *wl;
+	struct busyobj *bo;
 
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	CHECK_OBJ_NOTNULL(sp->wrk, WORKER_MAGIC);
@@ -112,8 +114,13 @@ HSH_Prealloc(const struct sess *sp)
 	CHECK_OBJ_NOTNULL(w->nwaitinglist, WAITINGLIST_MAGIC);
 
 	if (w->nbusyobj == NULL) {
-		ALLOC_OBJ(w->nbusyobj, BUSYOBJ_MAGIC);
-		XXXAN(w->nbusyobj);
+		ALLOC_OBJ(bo, BUSYOBJ_MAGIC);
+		XXXAN(bo);
+		Lck_New(&bo->mtx, lck_busyobj);
+		AZ(pthread_cond_init(&bo->cond_tokens, NULL));
+		AZ(pthread_cond_init(&bo->cond_data, NULL));
+		HSH_Reset_Busyobj(bo);
+		w->nbusyobj = bo;
 	}
 
 	if (hash->prep != NULL)
@@ -145,6 +152,9 @@ HSH_Cleanup(struct worker *w)
 		w->nhashpriv = NULL;
 	}
 	if (w->nbusyobj != NULL) {
+		Lck_Delete(&w->nbusyobj->mtx);
+		pthread_cond_destroy(&w->nbusyobj->cond_tokens);
+		pthread_cond_destroy(&w->nbusyobj->cond_data);
 		FREE_OBJ(w->nbusyobj);
 		w->nbusyobj = NULL;
 	}
@@ -359,9 +369,12 @@ HSH_Lookup(struct sess *sp, struct objhead **poh)
 			    !VRY_Match(sp, oc->busyobj->vary))
 				continue;
 
-			busy_oc = oc;
-			continue;
-		}
+			if (!oc->busyobj->can_stream) {
+				busy_oc = oc;
+				continue;
+			}
+		} else
+			AZ(oc->busyobj);
 
 		o = oc_getobj(sp->wrk, oc);
 		CHECK_OBJ_NOTNULL(o, OBJECT_MAGIC);
@@ -412,6 +425,19 @@ HSH_Lookup(struct sess *sp, struct objhead **poh)
 		oc = grace_oc;
 	}
 	sp->objcore = NULL;
+
+	if (oc != NULL && oc->busyobj != NULL) {
+		CHECK_OBJ_NOTNULL(oc->busyobj, BUSYOBJ_MAGIC);
+		Lck_Lock(&oc->busyobj->mtx);
+		if (oc->busyobj->can_stream) {
+			sp->stream_busyobj = oc->busyobj;
+			oc->busyobj->stream_refcnt++;
+		} else {
+			/* Lost can_stream, probably to fetch failure */
+			oc = NULL;
+		}
+		Lck_Unlock(&oc->busyobj->mtx);
+	}
 
 	if (oc != NULL && !sp->hash_always_miss) {
 		o = oc_getobj(sp->wrk, oc);
@@ -517,6 +543,16 @@ hsh_rush(struct objhead *oh)
 		oh->waitinglist = NULL;
 		FREE_OBJ(wl);
 	}
+}
+
+void
+HSH_Rush(struct objhead *oh)
+{
+	CHECK_OBJ_NOTNULL(oh, OBJHEAD_MAGIC);
+	Lck_Lock(&oh->mtx);
+	if (oh->waitinglist != NULL)
+		hsh_rush(oh);
+	Lck_Unlock(&oh->mtx);
 }
 
 /*---------------------------------------------------------------------
@@ -632,8 +668,14 @@ HSH_Unbusy(const struct sess *sp)
 	VTAILQ_REMOVE(&oh->objcs, oc, list);
 	VTAILQ_INSERT_HEAD(&oh->objcs, oc, list);
 	oc->flags &= ~OC_F_BUSY;
-	AZ(sp->wrk->nbusyobj);
-	sp->wrk->nbusyobj = oc->busyobj;
+	if (sp->stream_busyobj == NULL) {
+		/* We are not streaming this object, return the
+		   busyobj to the worker */
+		AZ(sp->wrk->nbusyobj);
+		AZ(oc->busyobj->stream_refcnt);
+		sp->wrk->nbusyobj = oc->busyobj;
+		HSH_Reset_Busyobj(sp->wrk->nbusyobj);
+	}
 	oc->busyobj = NULL;
 	if (oh->waitinglist != NULL)
 		hsh_rush(oh);
@@ -654,6 +696,20 @@ HSH_Ref(struct objcore *oc)
 	assert(oc->refcnt > 0);
 	oc->refcnt++;
 	Lck_Unlock(&oh->mtx);
+}
+
+void
+HSH_Reset_Busyobj(struct busyobj *bo)
+{
+	bo->vary = NULL;
+	bo->can_stream = 0;
+	bo->stream_stop = 0;
+	bo->stream_error = 0;
+	bo->stream_refcnt = 0;
+	bo->stream_max = 0;
+	bo->stream_frontchunk = NULL;
+	bo->stream_tokens = 0;
+	bo->stream_h_content_length = NULL;
 }
 
 /*--------------------------------------------------------------------
@@ -724,10 +780,10 @@ HSH_Deref(struct worker *w, struct objcore *oc, struct object **oo)
 
 	if (oc->flags & OC_F_BUSY) {
 		CHECK_OBJ_NOTNULL(oc->busyobj, BUSYOBJ_MAGIC);
-		if (w->nbusyobj == NULL)
-			w->nbusyobj = oc->busyobj;
-		else
-			FREE_OBJ(oc->busyobj);
+		AZ(oc->busyobj->stream_refcnt);
+		AZ(w->nbusyobj);
+		w->nbusyobj = oc->busyobj;
+		HSH_Reset_Busyobj(w->nbusyobj);
 		oc->busyobj = NULL;
 	}
 	AZ(oc->busyobj);

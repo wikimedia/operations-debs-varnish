@@ -1,0 +1,30 @@
+varnishtest "Test stream vrt functions"
+
+server s1 {
+	rxreq
+	txresp -bodylen 10
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+		set beresp.stream_tokens = 5;
+		set beresp.http.test-1 = beresp.stream_tokens;
+		set beresp.stream_tokens = 0;
+		set beresp.http.test-2 = beresp.stream_tokens;
+		set beresp.stream_tokens = 0 - 1;
+		set beresp.http.test-3 = beresp.stream_tokens;
+		set beresp.stream_tokens = 10000;
+		set beresp.http.test-4 = beresp.stream_tokens;
+	}
+} -start
+
+client c1 {
+	txreq
+	rxresp
+	expect resp.bodylen == 10
+	expect resp.http.test-1 == 5
+	expect resp.http.test-2 == 1
+	expect resp.http.test-3 == 1
+	expect resp.http.test-4 == 1000
+} -run

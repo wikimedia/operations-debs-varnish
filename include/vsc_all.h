@@ -53,6 +53,12 @@ VSC_DO(SMF, smf, VSC_TYPE_SMF)
 #undef VSC_DO_SMF
 VSC_DONE(SMF, smf, VSC_TYPE_SMF)
 
+VSC_DO(SMP, smp, VSC_TYPE_SMP)
+#define VSC_DO_SMP
+#include "vsc_fields.h"
+#undef VSC_DO_SMP
+VSC_DONE(SMP, smp, VSC_TYPE_SMP)
+
 VSC_DO(VBE, vbe, VSC_TYPE_VBE)
 #define VSC_DO_VBE
 #include "vsc_fields.h"
