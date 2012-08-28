@@ -1,3 +1,12 @@
+varnish (3.0.3plus~rc1-wm1) precise; urgency=low
+
+  * New upstream version 3.0.3
+  * Including Martin Blix Grydeland's 3.0.3-plus-rc1 branch
+    - Persisten storage support
+    - HTTP object streaming support
+
+ -- Mark Bergsma <mark@wikimedia>  Tue, 28 Aug 2012 11:36:52 +0000
+
 varnish (3.0.3~rc1+persistent-wm1) precise; urgency=low
 
   * Update upstream to 3.0.3-rc1
