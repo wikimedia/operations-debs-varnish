@@ -1,7 +1,7 @@
-diff --git a/bin/varnishncsa/varnishncsa.c b/bin/varnishncsa/varnishncsa.c
-index ad9249d..908383b 100644
---- a/bin/varnishncsa/varnishncsa.c
-+++ b/bin/varnishncsa/varnishncsa.c
+Index: varnish/bin/varnishncsa/varnishncsa.c
+===================================================================
+--- varnish.orig/bin/varnishncsa/varnishncsa.c	2012-10-12 17:14:16.529579142 +1100
++++ varnish/bin/varnishncsa/varnishncsa.c	2012-10-12 17:15:13.310570391 +1100
 @@ -62,6 +62,7 @@
  #include <ctype.h>
  #include <signal.h>
@@ -24,7 +24,7 @@ index ad9249d..908383b 100644
  static volatile sig_atomic_t reopen;
  
  struct hdr {
-@@ -87,6 +95,11 @@ struct hdr {
+@@ -87,6 +95,11 @@
  	VTAILQ_ENTRY(hdr) list;
  };
  
@@ -36,7 +36,7 @@ index ad9249d..908383b 100644
  static struct logline {
  	char *df_H;			/* %H, Protocol version */
  	char *df_U;			/* %U, URL path */
-@@ -115,6 +128,8 @@ static int m_flag = 0;
+@@ -115,6 +128,8 @@
  
  static const char *format;
  
@@ -45,7 +45,7 @@ index ad9249d..908383b 100644
  static int
  isprefix(const char *str, const char *prefix, const char *end,
      const char **next)
-@@ -526,6 +541,31 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
+@@ -526,6 +541,31 @@
  	return (1);
  }
  
@@ -77,7 +77,7 @@ index ad9249d..908383b 100644
  static int
  h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
      unsigned len, unsigned spec, const char *ptr, uint64_t bitmap)
-@@ -534,7 +574,9 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -534,7 +574,9 @@
  	FILE *fo = priv;
  	char *q, tbuf[64];
  	const char *p;
@@ -87,7 +87,7 @@ index ad9249d..908383b 100644
  
  	if (fd >= nll) {
  		struct logline **newll = ll;
-@@ -582,7 +624,9 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -582,7 +624,9 @@
  
  	/* We have a complete data set - log a line */
  
@@ -98,7 +98,7 @@ index ad9249d..908383b 100644
  	os = VSB_new_auto();
  
  	for (p = format; *p != '\0'; p++) {
-@@ -610,12 +654,17 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -610,12 +654,17 @@
  				VSB_cat(os, lp->df_h ? lp->df_h : "-");
  			break;
  		case 'l':
@@ -117,7 +117,7 @@ index ad9249d..908383b 100644
  
  		case 'q':
  			VSB_cat(os, lp->df_q ? lp->df_q : "");
-@@ -648,7 +697,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -648,7 +697,7 @@
  
  		case 't':
  			/* %t */
@@ -126,7 +126,7 @@ index ad9249d..908383b 100644
  			VSB_cat(os, tbuf);
  			break;
  
-@@ -694,7 +743,13 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -694,7 +743,13 @@
  			switch (type) {
  			case 'i':
  				h = req_header(lp, fname);
@@ -141,22 +141,19 @@ index ad9249d..908383b 100644
  				p = tmp;
  				break;
  			case 'o':
-@@ -733,8 +788,13 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
+@@ -733,8 +788,10 @@
  
  	/* flush the stream */
  	VSB_finish(os);
 +	if (fo != stdout && __fpending(fo) + VSB_len(os) > opts->packet_len) {
-+		if (fflush(fo) != 0) {
-+			perror("fflush");
-+			exit(1);
-+		}
++		fflush(fo);
 +	}
  	fprintf(fo, "%s", VSB_data(os));
 -	fflush(fo);
  
  	/* clean up */
  	clean_logline(lp);
-@@ -753,15 +813,71 @@ sighup(int sig)
+@@ -753,15 +810,71 @@
  }
  
  static FILE *
@@ -181,14 +178,12 @@ index ad9249d..908383b 100644
 +	if (sockfd < 0) {
 +        	fprintf(stderr, "ERROR opening socket\n");
 +	}
- 
--	if ((of = fopen(ofn, append ? "a" : "w")) == NULL) {
--		perror(ofn);
++
 +   	server = gethostbyname(host);
 +
 +        if (server == NULL) {
 +		fprintf(stderr,"ERROR, no such host\n");
- 		exit(1);
++		exit(1);
 +        }
 +
 +	bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -205,13 +200,15 @@ index ad9249d..908383b 100644
 +			sizeof(unsigned char));
 +		setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, /* don't send to own interface */
 +			(char *)&loopch, sizeof(loopch));
- 	}
--	return (of);
-+
++	}
+
+-	if ((of = fopen(ofn, append ? "a" : "w")) == NULL) {
+-		perror(ofn);
 +	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
 +		perror("socket");
-+		exit(1);
-+	}
+ 		exit(1);
+ 	}
+-	return (of);
 +
 +	FILE *sf = fdopen(sockfd, "w");
 +
@@ -232,7 +229,7 @@ index ad9249d..908383b 100644
  }
  
  /*--------------------------------------------------------------------*/
-@@ -772,7 +888,7 @@ usage(void)
+@@ -772,7 +885,7 @@
  
  	fprintf(stderr,
  	    "usage: varnishncsa %s [-aDV] [-n varnish_name] "
@@ -241,7 +238,7 @@ index ad9249d..908383b 100644
  	exit(1);
  }
  
-@@ -783,14 +899,17 @@ main(int argc, char *argv[])
+@@ -783,14 +896,17 @@
  	int a_flag = 0, D_flag = 0, format_flag = 0;
  	const char *P_arg = NULL;
  	const char *w_arg = NULL;
@@ -262,7 +259,7 @@ index ad9249d..908383b 100644
  		switch (c) {
  		case 'a':
  			a_flag = 1;
-@@ -800,7 +919,7 @@ main(int argc, char *argv[])
+@@ -800,7 +916,7 @@
  				fprintf(stderr, "-f and -F can not be combined\n");
  				exit(1);
  			}
@@ -271,7 +268,7 @@ index ad9249d..908383b 100644
  			format_flag = 1;
  			break;
  		case 'F':
-@@ -823,6 +942,9 @@ main(int argc, char *argv[])
+@@ -823,6 +939,9 @@
  		case 'w':
  			w_arg = optarg;
  			break;
@@ -281,7 +278,7 @@ index ad9249d..908383b 100644
  		case 'b':
  			fprintf(stderr, "-b is not valid for varnishncsa\n");
  			exit(1);
-@@ -847,6 +969,11 @@ main(int argc, char *argv[])
+@@ -847,6 +966,11 @@
  		}
  	}
  
@@ -293,7 +290,7 @@ index ad9249d..908383b 100644
  	VSL_Arg(vd, 'c', optarg);
  
  	if (VSL_Open(vd, 1))
-@@ -867,22 +994,34 @@ main(int argc, char *argv[])
+@@ -867,22 +991,34 @@
  	if (pfh != NULL)
  		VPF_Write(pfh);
  
