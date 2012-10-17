@@ -285,7 +285,7 @@ struct stream_ctx {
 	ssize_t			stream_front;
 	struct storage		*stream_frontchunk;
 
-	/* Max byte we can stream */
+	/* Max byte count we can stream at a given moment */
 	ssize_t			stream_max;
 };
 
@@ -910,11 +910,11 @@ void WSL_Flush(struct worker *w, int overflow);
 /* cache_response.c */
 void RES_BuildHttp(const struct sess *sp);
 void RES_WriteObj(struct sess *sp);
-void RES_StreamStart(struct sess *sp);
+void RES_StreamStart(struct sess *sp, ssize_t *plow, ssize_t *phigh);
 void RES_StreamEnd(struct sess *sp);
 int RES_StreamPoll(const struct sess *sp);
 void RES_StreamWrite(const struct sess *sp);
-void RES_StreamBody(struct sess *sp);
+void RES_StreamBody(struct sess *sp, const ssize_t start, const ssize_t end);
 
 /* cache_vary.c */
 struct vsb *VRY_Create(const struct sess *sp, const struct http *hp);
