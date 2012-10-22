@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm2) precise; urgency=low
+
+  * Add Range support to Varnish in streaming mode
+
+ -- Mark Bergsma <mark@wikimedia.org>  Mon, 22 Oct 2012 09:14:03 +0000
+
 varnish (3.0.3plus~rc1-wm1) precise; urgency=low
 
   * New upstream version 3.0.3
