@@ -384,9 +384,11 @@ RES_StreamStart(struct sess *sp, ssize_t *plow, ssize_t *phigh)
 
 	if (!(sp->wrk->res_mode & RES_CHUNKED) &&
 	    sp->wrk->h_content_length != NULL &&
-		sp->wantbody && *phigh == -1)
+		sp->wantbody && *phigh == -1) {
+		http_Unset(sp->wrk->resp, H_Content_Length);
 		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Content-Length: %s", sp->wrk->h_content_length);
+	}
 
 	sp->wrk->acct_tmp.hdrbytes +=
 	    http_Write(sp->wrk, sp->wrk->resp, 1);
