@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm4) precise; urgency=low
+
+  * Filter the Age and Accept-Ranges HTTP headers before readding on deliver
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 23 Oct 2012 14:36:34 +0000
+
 varnish (3.0.3plus~rc1-wm3) precise; urgency=low
 
   [ Mark Bergsma ]
