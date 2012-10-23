@@ -1,3 +1,13 @@
+varnish (3.0.3plus~rc1-wm3) precise; urgency=low
+
+  [ Mark Bergsma ]
+  * Unset Content-Length header when starting streaming to avoid duplicates
+
+  [ Tim Starling ]
+  * Don't exit on fflush() error
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 23 Oct 2012 12:43:24 +0000
+
 varnish (3.0.3plus~rc1-wm2) precise; urgency=low
 
   * Add Range support to Varnish in streaming mode
