@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm5) precise; urgency=low
+
+  * Make std.collect work in vcl_deliver
+
+ -- Mark Bergsma <mark@wikimedia.org>  Wed, 24 Oct 2012 12:25:44 +0000
+
 varnish (3.0.3plus~rc1-wm4) precise; urgency=low
 
   * Filter the Age and Accept-Ranges HTTP headers before readding on deliver
