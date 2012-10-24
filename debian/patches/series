@@ -1,4 +1,5 @@
 0010-varnishd-cache_dir_chash.patch
 0010-varnishncsa-udplog.patch
 0010-varnishd-streaming-range.patch
+0010-libvmod_std-collect.patch
 0020-filter-headers.patch
