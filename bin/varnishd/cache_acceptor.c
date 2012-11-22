@@ -385,8 +385,13 @@ vca_return_session(struct sess *sp)
 	if (VTCP_nonblocking(sp->fd)) {
 		vca_close_session(sp, "remote closed");
 		SES_Delete(sp);
-	} else if (vca_act->pass == NULL)
-		assert(sizeof sp == write(vca_pipes[1], &sp, sizeof sp));
+	} else if (vca_act->pass == NULL) {
+		if (write(vca_pipes[1], &sp, sizeof sp) != sizeof sp) {
+			VSC_C_main->c_vca_pipe_overflow++;
+			vca_close_session(sp, "vca pipe full");
+			SES_Delete(sp);
+		}
+	}
 	else
 		vca_act->pass(sp);
 }

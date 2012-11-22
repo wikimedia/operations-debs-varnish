@@ -169,6 +169,8 @@ VSC_F(vmods,		uint64_t, 0, 'i', "Loaded VMODs", "")
 VSC_F(n_gzip,			uint64_t, 0, 'a', "Gzip operations", "")
 VSC_F(n_gunzip,			uint64_t, 0, 'a', "Gunzip operations", "")
 
+VSC_F(c_vca_pipe_overflow,	uint64_t, 0, 'a', "N VCA pipe overflowed (conn. closed)", "")
+
 #endif
 
 /**********************************************************************/
