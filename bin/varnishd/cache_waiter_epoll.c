@@ -100,30 +100,36 @@ vca_cond_modadd(int fd, void *data)
 }
 
 static void
+vca_read_ss() {
+	struct sess *ss[NEEV];
+	int i, j;
+	
+	while(1) {
+		i = read(vca_pipes[0], ss, sizeof ss);
+		if (i == -1 && errno == EAGAIN)
+			return;
+		j = 0;
+		while (i >= sizeof ss[0]) {
+			CHECK_OBJ_NOTNULL(ss[j], SESS_MAGIC);
+			assert(ss[j]->fd >= 0);
+			AZ(ss[j]->obj);
+			VTAILQ_INSERT_TAIL(&sesshead, ss[j], list);
+			vca_cond_modadd(ss[j]->fd, ss[j]);
+			j++;
+			i -= sizeof ss[0];
+		}
+		assert(i == 0);
+	}
+}
+
+static void
 vca_eev(const struct epoll_event *ep)
 {
-	struct sess *ss[NEEV], *sp;
-	int i, j;
+	struct sess *sp;
+	int i;
 
 	AN(ep->data.ptr);
-	if (ep->data.ptr == vca_pipes) {
-		if (ep->events & EPOLLIN || ep->events & EPOLLPRI) {
-			j = 0;
-			i = read(vca_pipes[0], ss, sizeof ss);
-			if (i == -1 && errno == EAGAIN)
-				return;
-			while (i >= sizeof ss[0]) {
-				CHECK_OBJ_NOTNULL(ss[j], SESS_MAGIC);
-				assert(ss[j]->fd >= 0);
-				AZ(ss[j]->obj);
-				VTAILQ_INSERT_TAIL(&sesshead, ss[j], list);
-				vca_cond_modadd(ss[j]->fd, ss[j]);
-				j++;
-				i -= sizeof ss[0];
-			}
-			assert(i == 0);
-		}
-	} else {
+	if (ep->data.ptr != vca_pipes) {
 		CAST_OBJ_NOTNULL(sp, ep->data.ptr, SESS_MAGIC);
 		if (ep->events & EPOLLIN || ep->events & EPOLLPRI) {
 			i = HTC_Rx(sp->htc);
@@ -172,6 +178,8 @@ vca_main(void *arg)
 	while (1) {
 		dotimer = 0;
 		n = epoll_wait(epfd, ev, NEEV, -1);
+		/* Read the ss pointers first to avoid blocking the worker threads */
+		vca_read_ss();
 		for (ep = ev, i = 0; i < n; i++, ep++) {
 			if (ep->data.ptr == dotimer_pipe &&
 			    (ep->events == EPOLLIN || ep->events == EPOLLPRI))
