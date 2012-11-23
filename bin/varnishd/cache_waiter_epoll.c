@@ -179,7 +179,13 @@ vca_main(void *arg)
 		dotimer = 0;
 		n = epoll_wait(epfd, ev, NEEV, -1);
 		/* Read the ss pointers first to avoid blocking the worker threads */
-		vca_read_ss();
+		for (ep = ev, i = 0; i < n; i++, ep++) {
+			if (ep->data.ptr == vca_pipes &&
+			    (ep->events == EPOLLIN || ep->events == EPOLLPRI)) {
+				vca_read_ss();
+				break;
+			}
+		}
 		for (ep = ev, i = 0; i < n; i++, ep++) {
 			if (ep->data.ptr == dotimer_pipe &&
 			    (ep->events == EPOLLIN || ep->events == EPOLLPRI))
