@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm6) precise; urgency=low
+
+  * Fix a deadlock of worker threads on the vca_pipe under load
+
+ -- Mark Bergsma <mark@wikimedia.org>  Fri, 23 Nov 2012 13:51:55 +0000
+
 varnish (3.0.3plus~rc1-wm5) precise; urgency=low
 
   * Make std.collect work in vcl_deliver
