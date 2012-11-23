@@ -1,0 +1,154 @@
+diff --git a/bin/varnishd/cache_acceptor.c b/bin/varnishd/cache_acceptor.c
+index c513e1a..aecf955 100644
+--- a/bin/varnishd/cache_acceptor.c
++++ b/bin/varnishd/cache_acceptor.c
+@@ -385,8 +385,13 @@ vca_return_session(struct sess *sp)
+ 	if (VTCP_nonblocking(sp->fd)) {
+ 		vca_close_session(sp, "remote closed");
+ 		SES_Delete(sp);
+-	} else if (vca_act->pass == NULL)
+-		assert(sizeof sp == write(vca_pipes[1], &sp, sizeof sp));
++	} else if (vca_act->pass == NULL) {
++		if (write(vca_pipes[1], &sp, sizeof sp) != sizeof sp) {
++			VSC_C_main->c_vca_pipe_overflow++;
++			vca_close_session(sp, "vca pipe full");
++			SES_Delete(sp);
++		}
++	}
+ 	else
+ 		vca_act->pass(sp);
+ }
+diff --git a/bin/varnishd/cache_waiter_epoll.c b/bin/varnishd/cache_waiter_epoll.c
+index fe64961..be48dc2 100644
+--- a/bin/varnishd/cache_waiter_epoll.c
++++ b/bin/varnishd/cache_waiter_epoll.c
+@@ -52,6 +52,7 @@
+ #include "cache_waiter.h"
+ 
+ #define NEEV	100
++#define NSS	8192	/* 8192 * 8 == 64 kiB buffer size on Linux */
+ 
+ static pthread_t vca_epoll_thread;
+ static pthread_t vca_epoll_timeout_thread;;
+@@ -100,30 +101,37 @@ vca_cond_modadd(int fd, void *data)
+ }
+ 
+ static void
++vca_read_ss() {
++	struct sess *ss[NSS];
++	int i, j, n = 0;
++
++	while (n < sizeof ss) {
++		n = read(vca_pipes[0], ss, sizeof ss);
++		if (n == -1 && errno == EAGAIN)
++			return;
++		i = n;
++		j = 0;
++		while (i >= sizeof ss[0]) {
++			CHECK_OBJ_NOTNULL(ss[j], SESS_MAGIC);
++			assert(ss[j]->fd >= 0);
++			AZ(ss[j]->obj);
++			VTAILQ_INSERT_TAIL(&sesshead, ss[j], list);
++			vca_cond_modadd(ss[j]->fd, ss[j]);
++			j++;
++			i -= sizeof ss[0];
++		}
++		assert(i == 0);
++	}
++}
++
++static void
+ vca_eev(const struct epoll_event *ep)
+ {
+-	struct sess *ss[NEEV], *sp;
+-	int i, j;
++	struct sess *sp;
++	int i;
+ 
+ 	AN(ep->data.ptr);
+-	if (ep->data.ptr == vca_pipes) {
+-		if (ep->events & EPOLLIN || ep->events & EPOLLPRI) {
+-			j = 0;
+-			i = read(vca_pipes[0], ss, sizeof ss);
+-			if (i == -1 && errno == EAGAIN)
+-				return;
+-			while (i >= sizeof ss[0]) {
+-				CHECK_OBJ_NOTNULL(ss[j], SESS_MAGIC);
+-				assert(ss[j]->fd >= 0);
+-				AZ(ss[j]->obj);
+-				VTAILQ_INSERT_TAIL(&sesshead, ss[j], list);
+-				vca_cond_modadd(ss[j]->fd, ss[j]);
+-				j++;
+-				i -= sizeof ss[0];
+-			}
+-			assert(i == 0);
+-		}
+-	} else {
++	if (ep->data.ptr != vca_pipes) {
+ 		CAST_OBJ_NOTNULL(sp, ep->data.ptr, SESS_MAGIC);
+ 		if (ep->events & EPOLLIN || ep->events & EPOLLPRI) {
+ 			i = HTC_Rx(sp->htc);
+@@ -172,6 +180,14 @@ vca_main(void *arg)
+ 	while (1) {
+ 		dotimer = 0;
+ 		n = epoll_wait(epfd, ev, NEEV, -1);
++		/* Read the ss pointers first to avoid blocking the worker threads */
++		for (ep = ev, i = 0; i < n; i++, ep++) {
++			if (ep->data.ptr == vca_pipes &&
++			    (ep->events == EPOLLIN || ep->events == EPOLLPRI)) {
++				vca_read_ss();
++				break;
++			}
++		}
+ 		for (ep = ev, i = 0; i < n; i++, ep++) {
+ 			if (ep->data.ptr == dotimer_pipe &&
+ 			    (ep->events == EPOLLIN || ep->events == EPOLLPRI))
+@@ -232,6 +248,15 @@ vca_epoll_init(void)
+ 	i = fcntl(vca_pipes[0], F_SETFL, i);
+ 	assert(i != -1);
+ 
++	/* Set the worker threads end of the pipe non-blocking,
++	 * as Varnish won't recover from a full pipe situation
++	 */
++	i = fcntl(vca_pipes[1], F_GETFL);
++	assert(i != -1);
++	i |= O_NONBLOCK;
++	i = fcntl(vca_pipes[1], F_SETFL, i);
++	assert(i != -1);
++
+ 	AZ(pipe(dotimer_pipe));
+ 	i = fcntl(dotimer_pipe[0], F_GETFL);
+ 	assert(i != -1);
+diff --git a/bin/varnishd/cache_waiter_kqueue.c b/bin/varnishd/cache_waiter_kqueue.c
+index ea0e2fc..498d50c 100644
+--- a/bin/varnishd/cache_waiter_kqueue.c
++++ b/bin/varnishd/cache_waiter_kqueue.c
+@@ -214,6 +214,15 @@ vca_kqueue_init(void)
+ 	i = fcntl(vca_pipes[0], F_SETFL, i);
+ 	assert(i != -1);
+ 
++	/* Set the worker threads end of the pipe non-blocking,
++	 * as Varnish won't recover from a full pipe situation
++	 */
++	i = fcntl(vca_pipes[1], F_GETFL);
++	assert(i != -1);
++	i |= O_NONBLOCK;
++	i = fcntl(vca_pipes[1], F_SETFL, i);
++	assert(i != -1);
++
+ 	AZ(pthread_create(&vca_kqueue_thread, NULL, vca_kqueue_main, NULL));
+ }
+ 
+diff --git a/include/vsc_fields.h b/include/vsc_fields.h
+index 1db06c7..5ecfaae 100644
+--- a/include/vsc_fields.h
++++ b/include/vsc_fields.h
+@@ -169,6 +169,8 @@ VSC_F(vmods,		uint64_t, 0, 'i', "Loaded VMODs", "")
+ VSC_F(n_gzip,			uint64_t, 0, 'a', "Gzip operations", "")
+ VSC_F(n_gunzip,			uint64_t, 0, 'a', "Gunzip operations", "")
+ 
++VSC_F(c_vca_pipe_overflow,	uint64_t, 0, 'a', "N VCA pipe overflowed (conn. closed)", "")
++
+ #endif
+ 
+ /**********************************************************************/
