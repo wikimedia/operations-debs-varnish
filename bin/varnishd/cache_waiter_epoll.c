@@ -52,6 +52,7 @@
 #include "cache_waiter.h"
 
 #define NEEV	100
+#define NSS	8192	/* 8192 * 8 == 64 kiB buffer size on Linux */
 
 static pthread_t vca_epoll_thread;
 static pthread_t vca_epoll_timeout_thread;;
@@ -101,13 +102,14 @@ vca_cond_modadd(int fd, void *data)
 
 static void
 vca_read_ss() {
-	struct sess *ss[NEEV];
-	int i, j;
-	
-	while(1) {
-		i = read(vca_pipes[0], ss, sizeof ss);
-		if (i == -1 && errno == EAGAIN)
+	struct sess *ss[NSS];
+	int i, j, n = 0;
+
+	while (n < sizeof ss) {
+		n = read(vca_pipes[0], ss, sizeof ss);
+		if (n == -1 && errno == EAGAIN)
 			return;
+		i = n;
 		j = 0;
 		while (i >= sizeof ss[0]) {
 			CHECK_OBJ_NOTNULL(ss[j], SESS_MAGIC);
