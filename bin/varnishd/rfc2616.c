@@ -328,12 +328,20 @@ RFC2616_Do_Cond(const struct sess *sp)
 		do_cond = 1;
 	}
 
+	if (sp->stream_busyobj != NULL)
+		/* If we are actively streaming, we need to lock the
+		   busyobj while looking at the objects headers */
+		Lck_Lock(&sp->stream_busyobj->mtx);
+
 	if (http_GetHdr(sp->http, H_If_None_Match, &p) &&
 	    http_GetHdr(sp->obj->http, H_ETag, &e)) {
 		if (strcmp(p,e) != 0)
 			return (0);
 		do_cond = 1;
 	}
+
+	if (sp->stream_busyobj != NULL)
+		Lck_Unlock(&sp->stream_busyobj->mtx);
 
 	return (do_cond);
 }
