@@ -43,7 +43,8 @@
 /*--------------------------------------------------------------------*/
 
 static void
-res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
+res_dorange(const struct sess *sp, const char *r, const ssize_t content_len,
+	    ssize_t *plow, ssize_t *phigh)
 {
 	ssize_t low, high, has_low;
 
@@ -63,7 +64,7 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
 		r++;
 	}
 
-	if (low >= sp->obj->len)
+	if (low >= content_len)
 		return;
 
 	if (*r != '-')
@@ -79,23 +80,23 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
 			r++;
 		}
 		if (!has_low) {
-			low = sp->obj->len - high;
-			high = sp->obj->len - 1;
+			low = content_len - high;
+			high = content_len - 1;
 		}
 	} else
-		high = sp->obj->len - 1;
+		high = content_len - 1;
 	if (*r != '\0')
 		return;
 
-	if (high >= sp->obj->len)
-		high = sp->obj->len - 1;
+	if (high >= content_len)
+		high = content_len - 1;
 
 	if (low > high)
 		return;
 
 	http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 	    "Content-Range: bytes %jd-%jd/%jd",
-	    (intmax_t)low, (intmax_t)high, (intmax_t)sp->obj->len);
+	    (intmax_t)low, (intmax_t)high, (intmax_t)content_len);
 	http_Unset(sp->wrk->resp, H_Content_Length);
 	assert(sp->wrk->res_mode & RES_LEN);
 	http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
@@ -285,7 +286,7 @@ RES_WriteObj(struct sess *sp)
 	    params->http_range_support &&
 	    sp->obj->response == 200 &&
 	    http_GetHdr(sp->http, H_Range, &r))
-		res_dorange(sp, r, &low, &high);
+		res_dorange(sp, r, sp->obj->len, &low, &high);
 
 	/*
 	 * Always remove C-E if client don't grok it
@@ -334,8 +335,11 @@ RES_WriteObj(struct sess *sp)
 /*--------------------------------------------------------------------*/
 
 void
-RES_StreamStart(struct sess *sp)
+RES_StreamStart(struct sess *sp, ssize_t *plow, ssize_t *phigh)
 {
+	char *r;
+	ssize_t content_len;
+
 	AZ(sp->wrk->res_mode & RES_ESI_CHILD);
 
 	WRW_Reserve(sp->wrk, &sp->fd);
@@ -350,6 +354,26 @@ RES_StreamStart(struct sess *sp)
 	}
 
 	/*
+	 * If nothing special planned, we can attempt Range support
+	 */
+	if (sp->wantbody &&
+	    (sp->wrk->res_mode & RES_LEN) &&
+	    !(sp->wrk->res_mode &
+	      (RES_ESI|RES_ESI_CHILD|RES_GUNZIP|RES_CHUNKED)) &&
+	    params->http_range_support &&
+	    sp->obj->response == 200 &&
+	    sp->wrk->h_content_length != NULL &&
+	    http_GetHdr(sp->http, H_Range, &r)) {
+		/* We don't have sp->obj->len in streaming mode, so
+		 * we'll have to parse the response's Content-Length
+		 * header
+		 */
+		content_len = strtol(sp->wrk->h_content_length, NULL, 10);
+		if (content_len >= 0 && content_len != LONG_MAX)
+			res_dorange(sp, r, content_len, plow, phigh);
+	}
+
+	/*
 	 * Always remove C-E if client don't grok it
 	 */
 	if (sp->wrk->res_mode & RES_GUNZIP)
@@ -359,7 +383,9 @@ RES_StreamStart(struct sess *sp)
 		sp->wrk->res_mode &= ~RES_CHUNKED;
 
 	if (!(sp->wrk->res_mode & RES_CHUNKED) &&
-	    sp->wrk->h_content_length != NULL && sp->wantbody)
+	    sp->wrk->h_content_length != NULL &&
+	    sp->wantbody &&
+	    *phigh == -1)
 		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Content-Length: %s", sp->wrk->h_content_length);
 
@@ -524,13 +550,14 @@ RES_StreamEnd(struct sess *sp)
  */
 
 void
-RES_StreamBody(struct sess *sp)
+RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high)
 {
 	struct stream_ctx sctx;
 	struct busyobj *bo;
 	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
 		     params->gzip_stack_buffer : 1];
-	int fast_writer;
+	int fast_writer, signal_data;
+	ssize_t start, end;
 
 	bo = sp->stream_busyobj;
 	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
@@ -543,16 +570,34 @@ RES_StreamBody(struct sess *sp)
 	AZ(sp->wrk->sctx);
 	sp->wrk->sctx = &sctx;
 
+	start = low;
+	if (high == -1)
+		end = SSIZE_MAX;
+	else
+		end = high + 1;
+	assert(end - start > 0);
+	sctx.stream_next = start;
+
 	if (sp->wrk->res_mode & RES_GUNZIP) {
 		sctx.vgz = VGZ_NewUngzip(sp, "U S -");
 		sctx.obuf = obuf;
 		sctx.obuf_len = sizeof (obuf);
 	}
 
-	fast_writer = 0;
+	/* Invariant:
+	 *	sctx.stream_next <= sctx.stream_max ||
+	 *		bo->stream_max < sctx.stream_next
+	 *	sctx.stream_max <= end
+	 *	sctx.stream_max <= bo->stream_max
+	 *	0 <= start < end <= SSIZE_MAX
+	 */
+
+	fast_writer = signal_data = 0;
 	Lck_Lock(&bo->mtx);
-	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
+	while ((!bo->stream_stop || sctx.stream_next < bo->stream_max) &&
+	  sctx.stream_next < end) {
 		if (fast_writer) {
+			/* Grab token */
 			if (bo->stream_tokens == 0) {
 				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
 				continue;
@@ -561,36 +606,54 @@ RES_StreamBody(struct sess *sp)
 			bo->stream_tokens--;
 			if (bo->stream_tokens > 0)
 				AZ(pthread_cond_signal(&bo->cond_tokens));
-			/* We escaped waiting for data, which means others
-			   would probably be able to do more work as well */
-			AZ(pthread_cond_signal(&bo->cond_data));
 		}
-		sctx.stream_max = bo->stream_max;
-		assert(sctx.stream_max >= sctx.stream_next);
-		Lck_Unlock(&bo->mtx);
-		RES_StreamWrite(sp);
-		Lck_Lock(&bo->mtx);
+		if (signal_data) {
+			/* Propagate the data signal */
+			AZ(pthread_cond_signal(&bo->cond_data));
+			signal_data = 0;
+		}
+		sctx.stream_max = (bo->stream_max < end ? bo->stream_max : end);
+		assert(sctx.stream_next <= sctx.stream_max ||
+		       bo->stream_max <= start);
+		if (sctx.stream_next < sctx.stream_max) {
+			Lck_Unlock(&bo->mtx);
+			RES_StreamWrite(sp);
+			Lck_Lock(&bo->mtx);
+		}
 		if (fast_writer) {
+			/* Release token */
 			bo->stream_tokens++;
 			AZ(pthread_cond_signal(&bo->cond_tokens));
 			Lck_Unlock(&bo->mtx);
-			/* Release to give others a shot at the tokens */
+			/* Release/lock cycle to give others a shot at
+			 * the tokens */
 			Lck_Lock(&bo->mtx);
 			fast_writer = 0;
 		}
 		while (!bo->stream_stop &&
-		       sctx.stream_next == bo->stream_max) {
-			/* Wait for more data */
+		  sctx.stream_max == bo->stream_max &&
+		  sctx.stream_next >= sctx.stream_max) {
+			/* Wait for more data. Signals are sent as
+			 * single-shots, so we have to resend the
+			 * signal to the next in queue (after
+			 * acquiring token if necessary) to keep it
+			 * flowing. If we are signaled and there isn't
+			 * more data available, we were the last in
+			 * queue and we loop here. */
 			Lck_CondWait(&bo->cond_data, &bo->mtx);
-			fast_writer = 1;
+			signal_data = 1;
+			if (sctx.stream_next > start)
+				fast_writer = 1;
 		}
 		if (WRW_Error(sp->wrk))
 			break;
 	}
 	if (bo->stream_error)
 		sp->doclose = "Stream error";
-	if (fast_writer)
+	if (signal_data) {
 		AZ(pthread_cond_signal(&bo->cond_data));
+		signal_data = 0;
+	}
 	Lck_Unlock(&bo->mtx);
 
 	if (sp->wrk->res_mode & RES_GUNZIP) {

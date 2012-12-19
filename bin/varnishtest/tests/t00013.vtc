@@ -1,0 +1,53 @@
+varnishtest "Test multiple streaming recepients using range"
+
+server s1 {
+	rxreq
+	txresp -nolen -hdr "Content-Length: 52"
+	delay 1
+	send "abcdefghijklmnopqrstuvwxyz"
+	sema r1 sync 4
+	send "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+} -start
+
+varnish v1 -vcl+backend {
+	sub vcl_fetch {
+		set beresp.do_stream = true;
+	}
+} -start
+
+client c1 {
+	txreq -hdr "Range: bytes=20-31"
+	rxresp -no_obj
+	rxbytes 6
+	sema r1 sync 4
+	rxbytes 6
+	expect resp.status == 206
+	expect resp.bodylen == 12
+	expect resp.body == "uvwxyzABCDEF"
+} -start
+
+client c2 {
+	txreq -hdr "Range: bytes=20-31"
+	rxresp -no_obj
+	rxbytes 6
+	sema r1 sync 4
+	rxbytes 6
+	expect resp.status == 206
+	expect resp.bodylen == 12
+	expect resp.body == "uvwxyzABCDEF"
+} -start
+	
+client c3 {
+	txreq -hdr "Range: bytes=20-31"
+	rxresp -no_obj
+	rxbytes 6
+	sema r1 sync 4
+	rxbytes 6
+	expect resp.status == 206
+	expect resp.bodylen == 12
+	expect resp.body == "uvwxyzABCDEF"
+} -start
+
+client c1 -wait
+client c2 -wait
+client c3 -wait

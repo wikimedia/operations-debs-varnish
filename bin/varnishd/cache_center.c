@@ -923,16 +923,19 @@ DOT }
 static int
 cnt_streamdeliver(struct sess *sp)
 {
+	ssize_t low, high;
 	struct busyobj *bo;
 
 	bo = sp->stream_busyobj;
 	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
 
-	RES_StreamStart(sp);
+	low = 0;
+	high = -1;
+	RES_StreamStart(sp, &low, &high);
 	sp->wrk->h_content_length = NULL;
 
 	if (sp->wantbody)
-		RES_StreamBody(sp);
+		RES_StreamBody(sp, low, high);
 
 	RES_StreamEnd(sp);
 

@@ -910,11 +910,11 @@ void WSL_Flush(struct worker *w, int overflow);
 /* cache_response.c */
 void RES_BuildHttp(const struct sess *sp);
 void RES_WriteObj(struct sess *sp);
-void RES_StreamStart(struct sess *sp);
+void RES_StreamStart(struct sess *sp, ssize_t *plow, ssize_t *phigh);
 void RES_StreamEnd(struct sess *sp);
 int RES_StreamPoll(const struct sess *sp);
 void RES_StreamWrite(const struct sess *sp);
-void RES_StreamBody(struct sess *sp);
+void RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high);
 
 /* cache_vary.c */
 struct vsb *VRY_Create(const struct sess *sp, const struct http *hp);
