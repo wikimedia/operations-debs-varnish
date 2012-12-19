@@ -806,6 +806,30 @@ cmd_http_rxbody(CMD_ARGS)
 }
 
 static void
+cmd_http_rxbytes(CMD_ARGS)
+{
+	struct http *hp;
+	unsigned len;
+	int l, ll;
+
+	(void)cmd;
+	(void)vl;
+	CAST_OBJ_NOTNULL(hp, priv, HTTP_MAGIC);
+	ONLY_CLIENT(hp, av);
+	assert(!strcmp(av[0], "rxbytes"));
+	av++;
+
+	len = atoi(av[0]);
+	l = hp->prxbuf;
+	(void)http_rxchar(hp, len, 0);
+	vtc_dump(hp->vl, 4, "rxbytes", hp->rxbuf + l, len);
+	ll = hp->rxbuf + hp->prxbuf - hp->body;
+	hp->bodyl = ll;
+	sprintf(hp->bodylen, "%d", ll);
+	vtc_log(hp->vl, 4, "bodylen = %s", hp->bodylen);
+}
+
+static void
 cmd_http_rxchunk(CMD_ARGS)
 {
 	struct http *hp;
@@ -1168,6 +1192,7 @@ static const struct cmds http_cmds[] = {
 	{ "rxhdrs",		cmd_http_rxhdrs },
 	{ "rxchunk",		cmd_http_rxchunk },
 	{ "rxbody",		cmd_http_rxbody },
+	{ "rxbytes",		cmd_http_rxbytes },
 
 	{ "txresp",		cmd_http_txresp },
 	{ "rxresp",		cmd_http_rxresp },
