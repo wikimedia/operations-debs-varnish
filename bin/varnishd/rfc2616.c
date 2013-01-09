@@ -335,8 +335,11 @@ RFC2616_Do_Cond(const struct sess *sp)
 
 	if (http_GetHdr(sp->http, H_If_None_Match, &p) &&
 	    http_GetHdr(sp->obj->http, H_ETag, &e)) {
-		if (strcmp(p,e) != 0)
+		if (strcmp(p,e) != 0) {
+			if (sp->stream_busyobj != NULL)
+				Lck_Unlock(&sp->stream_busyobj->mtx);
 			return (0);
+		}
 		do_cond = 1;
 	}
 
