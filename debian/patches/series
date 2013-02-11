@@ -3,5 +3,6 @@
 0010-varnishd-streaming-range.patch
 0010-varnishd-optimize-epoll-thread.patch
 0010-libvmod_std-collect.patch
+0010-varnishtest-rxbytes.patch
 0020-filter-headers.patch
 

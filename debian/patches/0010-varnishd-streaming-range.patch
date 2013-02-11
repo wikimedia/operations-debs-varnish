@@ -1,16 +1,23 @@
+From 8dea335b22760784b545d93eaa663b27d6ccef85 Mon Sep 17 00:00:00 2001
+From: Martin Blix Grydeland <martin@varnish-software.com>
+Date: Wed, 19 Dec 2012 13:20:22 +0100
+Subject: [PATCH 2/2] Add Range support to Varnish in streaming mode.
+
+This patch is largely based on work by Mark Bergsma of WikiMedia.
+---
+ bin/varnishd/cache.h             |    4 +-
+ bin/varnishd/cache_center.c      |    7 ++-
+ bin/varnishd/cache_response.c    |  117 +++++++++++++++++++++++++++++---------
+ bin/varnishtest/tests/t00013.vtc |   53 +++++++++++++++++
+ bin/varnishtest/tests/t00014.vtc |   30 ++++++++++
+ 5 files changed, 180 insertions(+), 31 deletions(-)
+ create mode 100644 bin/varnishtest/tests/t00013.vtc
+ create mode 100644 bin/varnishtest/tests/t00014.vtc
+
 diff --git a/bin/varnishd/cache.h b/bin/varnishd/cache.h
-index 0ad00d8..0ed2f96 100644
+index 0ad00d8..d7e617a 100644
 --- a/bin/varnishd/cache.h
 +++ b/bin/varnishd/cache.h
-@@ -285,7 +285,7 @@ struct stream_ctx {
- 	ssize_t			stream_front;
- 	struct storage		*stream_frontchunk;
- 
--	/* Max byte we can stream */
-+	/* Max byte count we can stream at a given moment */
- 	ssize_t			stream_max;
- };
- 
 @@ -910,11 +910,11 @@ void WSL_Flush(struct worker *w, int overflow);
  /* cache_response.c */
  void RES_BuildHttp(const struct sess *sp);
@@ -21,15 +28,15 @@ index 0ad00d8..0ed2f96 100644
  int RES_StreamPoll(const struct sess *sp);
  void RES_StreamWrite(const struct sess *sp);
 -void RES_StreamBody(struct sess *sp);
-+void RES_StreamBody(struct sess *sp, const ssize_t start, const ssize_t end);
++void RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high);
  
  /* cache_vary.c */
  struct vsb *VRY_Create(const struct sess *sp, const struct http *hp);
 diff --git a/bin/varnishd/cache_center.c b/bin/varnishd/cache_center.c
-index 61d3fb4..27038b7 100644
+index 61d3fb4..a3c4036 100644
 --- a/bin/varnishd/cache_center.c
 +++ b/bin/varnishd/cache_center.c
-@@ -923,16 +923,17 @@ DOT }
+@@ -923,16 +923,19 @@ DOT }
  static int
  cnt_streamdeliver(struct sess *sp)
  {
@@ -40,29 +47,32 @@ index 61d3fb4..27038b7 100644
  	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
  
 -	RES_StreamStart(sp);
++	low = 0;
++	high = -1;
 +	RES_StreamStart(sp, &low, &high);
  	sp->wrk->h_content_length = NULL;
  
  	if (sp->wantbody)
 -		RES_StreamBody(sp);
-+		RES_StreamBody(sp, low, (high == -1 ? SSIZE_MAX : high + 1));
++		RES_StreamBody(sp, low, high);
  
  	RES_StreamEnd(sp);
  
 diff --git a/bin/varnishd/cache_response.c b/bin/varnishd/cache_response.c
-index bdd967c..481c28e 100644
+index bdd967c..acf4a62 100644
 --- a/bin/varnishd/cache_response.c
 +++ b/bin/varnishd/cache_response.c
-@@ -43,7 +43,7 @@
+@@ -43,7 +43,8 @@
  /*--------------------------------------------------------------------*/
  
  static void
 -res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
-+res_dorange(const struct sess *sp, const char *r, const ssize_t content_len, ssize_t *plow, ssize_t *phigh)
++res_dorange(const struct sess *sp, const char *r, const ssize_t content_len,
++	    ssize_t *plow, ssize_t *phigh)
  {
  	ssize_t low, high, has_low;
  
-@@ -63,7 +63,7 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
+@@ -63,7 +64,7 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
  		r++;
  	}
  
@@ -71,7 +81,7 @@ index bdd967c..481c28e 100644
  		return;
  
  	if (*r != '-')
-@@ -79,23 +79,23 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
+@@ -79,23 +80,23 @@ res_dorange(const struct sess *sp, const char *r, ssize_t *plow, ssize_t *phigh)
  			r++;
  		}
  		if (!has_low) {
@@ -101,7 +111,7 @@ index bdd967c..481c28e 100644
  	http_Unset(sp->wrk->resp, H_Content_Length);
  	assert(sp->wrk->res_mode & RES_LEN);
  	http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
-@@ -285,7 +285,7 @@ RES_WriteObj(struct sess *sp)
+@@ -285,7 +286,7 @@ RES_WriteObj(struct sess *sp)
  	    params->http_range_support &&
  	    sp->obj->response == 200 &&
  	    http_GetHdr(sp->http, H_Range, &r))
@@ -110,7 +120,7 @@ index bdd967c..481c28e 100644
  
  	/*
  	 * Always remove C-E if client don't grok it
-@@ -334,8 +334,11 @@ RES_WriteObj(struct sess *sp)
+@@ -334,8 +335,11 @@ RES_WriteObj(struct sess *sp)
  /*--------------------------------------------------------------------*/
  
  void
@@ -123,69 +133,71 @@ index bdd967c..481c28e 100644
  	AZ(sp->wrk->res_mode & RES_ESI_CHILD);
  
  	WRW_Reserve(sp->wrk, &sp->fd);
-@@ -350,6 +353,27 @@ RES_StreamStart(struct sess *sp)
+@@ -350,6 +354,26 @@ RES_StreamStart(struct sess *sp)
  	}
  
  	/*
 +	 * If nothing special planned, we can attempt Range support
 +	 */
-+	*plow = 0;
-+	*phigh = -1;
-+	if (
-+		sp->wantbody &&
-+		(sp->wrk->res_mode & RES_LEN) &&
-+		!(sp->wrk->res_mode & (RES_ESI|RES_ESI_CHILD|RES_GUNZIP|RES_CHUNKED)) &&
-+		params->http_range_support &&
-+		sp->obj->response == 200 &&
-+		sp->wrk->h_content_length != NULL &&
-+		http_GetHdr(sp->http, H_Range, &r)) {
-+			/* We don't have sp->obj->len in streaming mode, so we'll have
-+			 * to parse the response's Content-Length header
-+			 */
-+			content_len = strtol(sp->wrk->h_content_length, NULL, 10);
-+			if (content_len >= 0 && content_len != LONG_MAX)
-+				res_dorange(sp, r, content_len, plow, phigh);
++	if (sp->wantbody &&
++	    (sp->wrk->res_mode & RES_LEN) &&
++	    !(sp->wrk->res_mode &
++	      (RES_ESI|RES_ESI_CHILD|RES_GUNZIP|RES_CHUNKED)) &&
++	    params->http_range_support &&
++	    sp->obj->response == 200 &&
++	    sp->wrk->h_content_length != NULL &&
++	    http_GetHdr(sp->http, H_Range, &r)) {
++		/* We don't have sp->obj->len in streaming mode, so
++		 * we'll have to parse the response's Content-Length
++		 * header
++		 */
++		content_len = strtol(sp->wrk->h_content_length, NULL, 10);
++		if (content_len >= 0 && content_len != LONG_MAX)
++			res_dorange(sp, r, content_len, plow, phigh);
 +	}
 +
 +	/*
  	 * Always remove C-E if client don't grok it
  	 */
  	if (sp->wrk->res_mode & RES_GUNZIP)
-@@ -359,9 +383,12 @@ RES_StreamStart(struct sess *sp)
+@@ -359,7 +383,9 @@ RES_StreamStart(struct sess *sp)
  		sp->wrk->res_mode &= ~RES_CHUNKED;
  
  	if (!(sp->wrk->res_mode & RES_CHUNKED) &&
 -	    sp->wrk->h_content_length != NULL && sp->wantbody)
 +	    sp->wrk->h_content_length != NULL &&
-+		sp->wantbody && *phigh == -1) {
-+		http_Unset(sp->wrk->resp, H_Content_Length);
++	    sp->wantbody &&
++	    *phigh == -1)
  		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
  		    "Content-Length: %s", sp->wrk->h_content_length);
-+	}
  
- 	sp->wrk->acct_tmp.hdrbytes +=
- 	    http_Write(sp->wrk, sp->wrk->resp, 1);
-@@ -521,10 +548,13 @@ RES_StreamEnd(struct sess *sp)
-  * iov's, thus returning from writev quickly. Releases token giving
-  * the other fast writers a go, and clears the fast writer flag. If
-  * still a fast writer will hit end-of-data again setting it again.
-+ *
-+ * When streaming, a thread hitting end of data will only be marked
-+ * as a fast writer once the low end of the data range is available.
+@@ -524,13 +550,14 @@ RES_StreamEnd(struct sess *sp)
   */
  
  void
 -RES_StreamBody(struct sess *sp)
-+RES_StreamBody(struct sess *sp, const ssize_t start, const ssize_t end)
++RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high)
  {
  	struct stream_ctx sctx;
  	struct busyobj *bo;
-@@ -543,15 +573,26 @@ RES_StreamBody(struct sess *sp)
+ 	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
+ 		     params->gzip_stack_buffer : 1];
+-	int fast_writer;
++	int fast_writer, signal_data;
++	ssize_t start, end;
+ 
+ 	bo = sp->stream_busyobj;
+ 	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
+@@ -543,16 +570,34 @@ RES_StreamBody(struct sess *sp)
  	AZ(sp->wrk->sctx);
  	sp->wrk->sctx = &sctx;
  
-+	/* We may not send a full object if it's a Range request
-+	 * end == SSIZE_MAX for a normal, non-Range request */
++	start = low;
++	if (high == -1)
++		end = SSIZE_MAX;
++	else
++		end = high + 1;
++	assert(end - start > 0);
 +	sctx.stream_next = start;
 +
  	if (sp->wrk->res_mode & RES_GUNZIP) {
@@ -194,58 +206,187 @@ index bdd967c..481c28e 100644
  		sctx.obuf_len = sizeof (obuf);
  	}
  
+-	fast_writer = 0;
 +	/* Invariant:
-+	 *      sctx.stream_next <= sctx.stream_max || bo->stream_max < sctx.stream_next
-+	 *      sctx.stream_max <= end
-+	 *      sctx.stream_max <= bo->stream_max
-+	 *      0 <= start < end <= SSIZE_MAX
++	 *	sctx.stream_next <= sctx.stream_max ||
++	 *		bo->stream_max < sctx.stream_next
++	 *	sctx.stream_max <= end
++	 *	sctx.stream_max <= bo->stream_max
++	 *	0 <= start < end <= SSIZE_MAX
 +	 */
 +
- 	fast_writer = 0;
++	fast_writer = signal_data = 0;
  	Lck_Lock(&bo->mtx);
 -	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
-+	while (sctx.stream_next < end && (!bo->stream_stop || sctx.stream_next < bo->stream_max)) {
++	while ((!bo->stream_stop || sctx.stream_next < bo->stream_max) &&
++	  sctx.stream_next < end) {
  		if (fast_writer) {
++			/* Grab token */
  			if (bo->stream_tokens == 0) {
  				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
-@@ -565,24 +606,28 @@ RES_StreamBody(struct sess *sp)
- 			   would probably be able to do more work as well */
+ 				continue;
+@@ -561,36 +606,54 @@ RES_StreamBody(struct sess *sp)
+ 			bo->stream_tokens--;
+ 			if (bo->stream_tokens > 0)
+ 				AZ(pthread_cond_signal(&bo->cond_tokens));
+-			/* We escaped waiting for data, which means others
+-			   would probably be able to do more work as well */
++		}
++		if (signal_data) {
++			/* Propagate the data signal */
  			AZ(pthread_cond_signal(&bo->cond_data));
++			signal_data = 0;
++		}
++		sctx.stream_max = (bo->stream_max < end ? bo->stream_max : end);
++		assert(sctx.stream_next <= sctx.stream_max ||
++		       bo->stream_max <= start);
++		if (sctx.stream_next < sctx.stream_max) {
++			Lck_Unlock(&bo->mtx);
++			RES_StreamWrite(sp);
++			Lck_Lock(&bo->mtx);
  		}
 -		sctx.stream_max = bo->stream_max;
 -		assert(sctx.stream_max >= sctx.stream_next);
 -		Lck_Unlock(&bo->mtx);
 -		RES_StreamWrite(sp);
 -		Lck_Lock(&bo->mtx);
--		if (fast_writer) {
--			bo->stream_tokens++;
--			AZ(pthread_cond_signal(&bo->cond_tokens));
-+		sctx.stream_max = (bo->stream_max < end ? bo->stream_max : end);
-+		assert(sctx.stream_max >= sctx.stream_next || bo->stream_max <= start);
-+		if (sctx.stream_next < sctx.stream_max) {
+ 		if (fast_writer) {
++			/* Release token */
+ 			bo->stream_tokens++;
+ 			AZ(pthread_cond_signal(&bo->cond_tokens));
  			Lck_Unlock(&bo->mtx);
 -			/* Release to give others a shot at the tokens */
-+			RES_StreamWrite(sp);
++			/* Release/lock cycle to give others a shot at
++			 * the tokens */
  			Lck_Lock(&bo->mtx);
--			fast_writer = 0;
-+			if (fast_writer) {
-+				bo->stream_tokens++;
-+				AZ(pthread_cond_signal(&bo->cond_tokens));
-+				Lck_Unlock(&bo->mtx);
-+				/* Release to give others a shot at the tokens */
-+				Lck_Lock(&bo->mtx);
-+				fast_writer = 0;
-+			}
+ 			fast_writer = 0;
  		}
  		while (!bo->stream_stop &&
 -		       sctx.stream_next == bo->stream_max) {
-+			   sctx.stream_next < end &&
-+			   sctx.stream_next >= bo->stream_max) {
- 			/* Wait for more data */
+-			/* Wait for more data */
++		  sctx.stream_max == bo->stream_max &&
++		  sctx.stream_next >= sctx.stream_max) {
++			/* Wait for more data. Signals are sent as
++			 * single-shots, so we have to resend the
++			 * signal to the next in queue (after
++			 * acquiring token if necessary) to keep it
++			 * flowing. If we are signaled and there isn't
++			 * more data available, we were the last in
++			 * queue and we loop here. */
  			Lck_CondWait(&bo->cond_data, &bo->mtx);
 -			fast_writer = 1;
++			signal_data = 1;
 +			if (sctx.stream_next > start)
 +				fast_writer = 1;
  		}
  		if (WRW_Error(sp->wrk))
  			break;
+ 	}
+ 	if (bo->stream_error)
+ 		sp->doclose = "Stream error";
+-	if (fast_writer)
++	if (signal_data) {
+ 		AZ(pthread_cond_signal(&bo->cond_data));
++		signal_data = 0;
++	}
+ 	Lck_Unlock(&bo->mtx);
+ 
+ 	if (sp->wrk->res_mode & RES_GUNZIP) {
+diff --git a/bin/varnishtest/tests/t00013.vtc b/bin/varnishtest/tests/t00013.vtc
+new file mode 100644
+index 0000000..b8e31e7
+--- /dev/null
++++ b/bin/varnishtest/tests/t00013.vtc
+@@ -0,0 +1,53 @@
++varnishtest "Test multiple streaming recepients using range"
++
++server s1 {
++	rxreq
++	txresp -nolen -hdr "Content-Length: 52"
++	delay 1
++	send "abcdefghijklmnopqrstuvwxyz"
++	sema r1 sync 4
++	send "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
++} -start
++
++varnish v1 -vcl+backend {
++	sub vcl_fetch {
++		set beresp.do_stream = true;
++	}
++} -start
++
++client c1 {
++	txreq -hdr "Range: bytes=20-31"
++	rxresp -no_obj
++	rxbytes 6
++	sema r1 sync 4
++	rxbytes 6
++	expect resp.status == 206
++	expect resp.bodylen == 12
++	expect resp.body == "uvwxyzABCDEF"
++} -start
++
++client c2 {
++	txreq -hdr "Range: bytes=20-31"
++	rxresp -no_obj
++	rxbytes 6
++	sema r1 sync 4
++	rxbytes 6
++	expect resp.status == 206
++	expect resp.bodylen == 12
++	expect resp.body == "uvwxyzABCDEF"
++} -start
++	
++client c3 {
++	txreq -hdr "Range: bytes=20-31"
++	rxresp -no_obj
++	rxbytes 6
++	sema r1 sync 4
++	rxbytes 6
++	expect resp.status == 206
++	expect resp.bodylen == 12
++	expect resp.body == "uvwxyzABCDEF"
++} -start
++
++client c1 -wait
++client c2 -wait
++client c3 -wait
+diff --git a/bin/varnishtest/tests/t00014.vtc b/bin/varnishtest/tests/t00014.vtc
+new file mode 100644
+index 0000000..4f84224
+--- /dev/null
++++ b/bin/varnishtest/tests/t00014.vtc
+@@ -0,0 +1,30 @@
++varnishtest "Test streaming recipient using range on pass"
++
++server s1 {
++	rxreq
++	txresp -nolen -hdr "Content-Length: 52"
++	delay 1
++	send "abcdefghijklmnopqrstuvwxyz"
++	sema r1 sync 2
++	send "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
++} -start
++
++varnish v1 -vcl+backend {
++	sub vcl_recv {
++		return (pass);
++	}
++	sub vcl_fetch {
++		set beresp.do_stream = true;
++	}
++} -start
++
++client c1 {
++	txreq -hdr "Range: bytes=20-31"
++	rxresp -no_obj
++	rxbytes 6
++	sema r1 sync 2
++	rxbytes 6
++	expect resp.status == 206
++	expect resp.bodylen == 12
++	expect resp.body == "uvwxyzABCDEF"
++} -run
+-- 
+1.7.10.4
+
