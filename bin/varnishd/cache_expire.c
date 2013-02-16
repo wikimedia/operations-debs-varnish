@@ -66,6 +66,43 @@ static pthread_t exp_thread;
 static struct binheap *exp_heap;
 static struct lock exp_mtx;
 
+static VTAILQ_HEAD(,exp_callback) exp_cb_list;
+static pthread_rwlock_t exp_cb_mtx;
+
+static void
+exp_insert_cb(struct object *o)
+{
+	struct exp_callback *cb;
+
+	if (VTAILQ_EMPTY(&exp_cb_list))
+		return;
+
+	AZ(pthread_rwlock_rdlock(&exp_cb_mtx));
+	VTAILQ_FOREACH(cb, &exp_cb_list, list) {
+		CHECK_OBJ_NOTNULL(cb, EXP_CALLBACK_MAGIC);
+		if (cb->cb_insert)
+			cb->cb_insert(o, cb->priv);
+	}
+	AZ(pthread_rwlock_unlock(&exp_cb_mtx));
+}
+
+static void
+exp_remove_cb(struct object *o)
+{
+	struct exp_callback *cb;
+
+	if (VTAILQ_EMPTY(&exp_cb_list))
+		return;
+
+	AZ(pthread_rwlock_rdlock(&exp_cb_mtx));
+	VTAILQ_FOREACH(cb, &exp_cb_list, list) {
+		CHECK_OBJ_NOTNULL(cb, EXP_CALLBACK_MAGIC);
+		if (cb->cb_remove)
+			cb->cb_remove(o, cb->priv);
+	}
+	AZ(pthread_rwlock_unlock(&exp_cb_mtx));
+}
+
 /*--------------------------------------------------------------------
  * struct exp manipulations
  *
@@ -229,6 +266,8 @@ EXP_Insert(struct object *o)
 	CHECK_OBJ_NOTNULL(oc, OBJCORE_MAGIC);
 	AssertObjBusy(o);
 	HSH_Ref(oc);
+
+	exp_insert_cb(o);
 
 	assert(o->exp.entered != 0 && !isnan(o->exp.entered));
 	o->last_lru = o->exp.entered;
@@ -412,6 +451,7 @@ exp_timer(struct sess *sp, void *priv)
 		o = oc_getobj(sp->wrk, oc);
 		WSL(sp->wrk, SLT_ExpKill, 0, "%u %.0f",
 		    o->xid, EXP_Ttl(NULL, o) - t);
+		exp_remove_cb(o);
 		(void)HSH_Deref(sp->wrk, oc, NULL);
 	}
 	NEEDLESS_RETURN(NULL);
@@ -459,8 +499,37 @@ EXP_NukeOne(struct worker *w, struct lru *lru)
 	/* XXX: bad idea for -spersistent */
 	o = oc_getobj(w, oc);
 	WSL(w, SLT_ExpKill, 0, "%u LRU", o->xid);
+	exp_remove_cb(o);
 	(void)HSH_Deref(w, NULL, &o);
+
 	return (1);
+}
+
+void
+EXP_Reg_Callback(struct exp_callback *cb)
+{
+	CHECK_OBJ_NOTNULL(cb, EXP_CALLBACK_MAGIC);
+	AZ(pthread_rwlock_wrlock(&exp_cb_mtx));
+	VTAILQ_INSERT_TAIL(&exp_cb_list, cb, list);
+	AZ(pthread_rwlock_unlock(&exp_cb_mtx));
+}
+
+void
+EXP_Dereg_Callback(struct exp_callback *cb)
+{
+	struct exp_callback *cb2;
+
+	CHECK_OBJ_NOTNULL(cb, EXP_CALLBACK_MAGIC);
+	AZ(pthread_rwlock_wrlock(&exp_cb_mtx));
+	VTAILQ_FOREACH(cb2, &exp_cb_list, list) {
+		CHECK_OBJ_NOTNULL(cb, EXP_CALLBACK_MAGIC);
+		if (cb2 == cb) {
+			VTAILQ_REMOVE(&exp_cb_list, cb2, list);
+			break;
+		}
+	}
+	AN(cb2);
+	AZ(pthread_rwlock_unlock(&exp_cb_mtx));
 }
 
 /*--------------------------------------------------------------------
@@ -553,6 +622,8 @@ EXP_Init(void)
 {
 
 	Lck_New(&exp_mtx, lck_exp);
+	AZ(pthread_rwlock_init(&exp_cb_mtx, NULL));
+	VTAILQ_INIT(&exp_cb_list);
 	exp_heap = binheap_new(NULL, object_cmp, object_update);
 	XXXAN(exp_heap);
 	WRK_BgThread(&exp_thread, "cache-timeout", exp_timer, NULL);

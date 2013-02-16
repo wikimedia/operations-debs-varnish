@@ -254,6 +254,16 @@ struct exp {
 	double			entered;
 };
 
+typedef void exp_callback_f(struct object *obj, void *priv);
+struct exp_callback {
+	unsigned			magic;
+#define EXP_CALLBACK_MAGIC		0xAB956EB1
+	exp_callback_f			*cb_insert;
+	exp_callback_f			*cb_remove;
+	void				*priv;
+	VTAILQ_ENTRY(exp_callback)	list;
+};
+
 /*--------------------------------------------------------------------*/
 
 struct wrw {
@@ -723,6 +733,8 @@ void EXP_Rearm(const struct object *o);
 int EXP_Touch(struct objcore *oc);
 int EXP_NukeOne(struct worker *w, struct lru *lru);
 void EXP_NukeLRU(struct worker *wrk, struct lru *lru);
+void EXP_Reg_Callback(struct exp_callback *cb);
+void EXP_Dereg_Callback(struct exp_callback *cb);
 
 /* cache_fetch.c */
 struct storage *FetchStorage(const struct sess *sp, ssize_t sz);
