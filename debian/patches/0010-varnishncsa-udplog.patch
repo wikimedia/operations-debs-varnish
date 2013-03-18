@@ -1,7 +1,7 @@
-Index: varnish/bin/varnishncsa/varnishncsa.c
-===================================================================
---- varnish.orig/bin/varnishncsa/varnishncsa.c	2012-10-12 17:14:16.529579142 +1100
-+++ varnish/bin/varnishncsa/varnishncsa.c	2012-10-12 17:15:13.310570391 +1100
+diff --git a/bin/varnishncsa/varnishncsa.c b/bin/varnishncsa/varnishncsa.c
+index ff07ed5..66edc6d 100644
+--- a/bin/varnishncsa/varnishncsa.c
++++ b/bin/varnishncsa/varnishncsa.c
 @@ -62,6 +62,7 @@
  #include <ctype.h>
  #include <signal.h>
@@ -24,7 +24,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  static volatile sig_atomic_t reopen;
  
  struct hdr {
-@@ -87,6 +95,11 @@
+@@ -87,6 +95,11 @@ struct hdr {
  	VTAILQ_ENTRY(hdr) list;
  };
  
@@ -36,7 +36,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  static struct logline {
  	char *df_H;			/* %H, Protocol version */
  	char *df_U;			/* %U, URL path */
-@@ -115,6 +128,8 @@
+@@ -116,6 +129,8 @@ static int m_flag = 0;
  
  static const char *format;
  
@@ -45,7 +45,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  static int
  isprefix(const char *str, const char *prefix, const char *end,
      const char **next)
-@@ -526,6 +541,31 @@
+@@ -565,6 +580,31 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
  	return (1);
  }
  
@@ -77,7 +77,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  static int
  h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
      unsigned len, unsigned spec, const char *ptr, uint64_t bitmap)
-@@ -534,7 +574,9 @@
+@@ -573,7 +613,9 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  	FILE *fo = priv;
  	char *q, tbuf[64];
  	const char *p;
@@ -87,7 +87,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  
  	if (fd >= nll) {
  		struct logline **newll = ll;
-@@ -582,7 +624,9 @@
+@@ -621,7 +663,9 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  
  	/* We have a complete data set - log a line */
  
@@ -98,7 +98,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  	os = VSB_new_auto();
  
  	for (p = format; *p != '\0'; p++) {
-@@ -610,12 +654,17 @@
+@@ -657,12 +701,17 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  				VSB_cat(os, lp->df_h ? lp->df_h : "-");
  			break;
  		case 'l':
@@ -117,7 +117,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  
  		case 'q':
  			VSB_cat(os, lp->df_q ? lp->df_q : "");
-@@ -648,7 +697,7 @@
+@@ -695,7 +744,7 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  
  		case 't':
  			/* %t */
@@ -126,7 +126,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  			VSB_cat(os, tbuf);
  			break;
  
-@@ -694,7 +743,13 @@
+@@ -741,7 +790,13 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  			switch (type) {
  			case 'i':
  				h = req_header(lp, fname);
@@ -141,7 +141,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  				p = tmp;
  				break;
  			case 'o':
-@@ -733,8 +788,10 @@
+@@ -793,8 +848,10 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
  
  	/* flush the stream */
  	VSB_finish(os);
@@ -153,7 +153,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  
  	/* clean up */
  	clean_logline(lp);
-@@ -753,15 +810,71 @@
+@@ -813,15 +870,71 @@ sighup(int sig)
  }
  
  static FILE *
@@ -180,10 +180,12 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
 +	}
 +
 +   	server = gethostbyname(host);
-+
+ 
+-	if ((of = fopen(ofn, append ? "a" : "w")) == NULL) {
+-		perror(ofn);
 +        if (server == NULL) {
 +		fprintf(stderr,"ERROR, no such host\n");
-+		exit(1);
+ 		exit(1);
 +        }
 +
 +	bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -200,15 +202,13 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
 +			sizeof(unsigned char));
 +		setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, /* don't send to own interface */
 +			(char *)&loopch, sizeof(loopch));
-+	}
-
--	if ((of = fopen(ofn, append ? "a" : "w")) == NULL) {
--		perror(ofn);
-+	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-+		perror("socket");
- 		exit(1);
  	}
 -	return (of);
++
++	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
++		perror("socket");
++		exit(1);
++	}
 +
 +	FILE *sf = fdopen(sockfd, "w");
 +
@@ -229,7 +229,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  }
  
  /*--------------------------------------------------------------------*/
-@@ -772,7 +885,7 @@
+@@ -832,7 +945,7 @@ usage(void)
  
  	fprintf(stderr,
  	    "usage: varnishncsa %s [-aDV] [-n varnish_name] "
@@ -238,7 +238,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  	exit(1);
  }
  
-@@ -783,14 +896,17 @@
+@@ -843,14 +956,17 @@ main(int argc, char *argv[])
  	int a_flag = 0, D_flag = 0, format_flag = 0;
  	const char *P_arg = NULL;
  	const char *w_arg = NULL;
@@ -259,7 +259,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  		switch (c) {
  		case 'a':
  			a_flag = 1;
-@@ -800,7 +916,7 @@
+@@ -860,7 +976,7 @@ main(int argc, char *argv[])
  				fprintf(stderr, "-f and -F can not be combined\n");
  				exit(1);
  			}
@@ -268,7 +268,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  			format_flag = 1;
  			break;
  		case 'F':
-@@ -823,6 +939,9 @@
+@@ -883,6 +999,9 @@ main(int argc, char *argv[])
  		case 'w':
  			w_arg = optarg;
  			break;
@@ -278,7 +278,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  		case 'b':
  			fprintf(stderr, "-b is not valid for varnishncsa\n");
  			exit(1);
-@@ -847,6 +966,11 @@
+@@ -907,6 +1026,11 @@ main(int argc, char *argv[])
  		}
  	}
  
@@ -290,7 +290,7 @@ Index: varnish/bin/varnishncsa/varnishncsa.c
  	VSL_Arg(vd, 'c', optarg);
  
  	if (VSL_Open(vd, 1))
-@@ -867,22 +991,34 @@
+@@ -927,22 +1051,34 @@ main(int argc, char *argv[])
  	if (pfh != NULL)
  		VPF_Write(pfh);
  
