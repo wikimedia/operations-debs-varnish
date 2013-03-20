@@ -1,3 +1,11 @@
+varnish (3.0.3plus~rc1-wm8) precise; urgency=low
+
+  * Refresh the varnishncsa udplog patch against 3.0.3plus-rc1
+  * Remove escaping of spaces in header lines
+  * Purge buffered data when fflush() doesn't work
+
+ -- Mark Bergsma <mark@wikimedia.org>  Wed, 20 Mar 2013 12:26:12 +0000
+
 varnish (3.0.3plus~rc1-wm7) precise; urgency=low
 
   * Update streaming range patch to M.B.Grydeland's updated version
