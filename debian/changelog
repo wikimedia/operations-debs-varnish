@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm9) precise; urgency=low
+
+  * Log a message when EXP_NukeLRU can't destroy an object
+
+ -- Mark Bergsma <mark@wikimedia.org>  Wed, 27 Mar 2013 14:16:55 +0000
+
 varnish (3.0.3plus~rc1-wm8) precise; urgency=low
 
   * Refresh the varnishncsa udplog patch against 3.0.3plus-rc1
