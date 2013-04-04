@@ -100,6 +100,7 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 
 	/* test SEGTAIL */
 	/* test OBJIDX */
+	sg->flags |= SMP_SEG_LOADED;
 	so = (void*)(sc->base + sg->p.objlist);
 	sg->objs = so;
 	no = sg->p.lobjlist;
@@ -125,7 +126,6 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
 	Lck_Lock(&sg->sc->mtx);
 	sg->sc->stats->g_vampireobjects += count;
 	Lck_Unlock(&sg->sc->mtx);
-	sg->flags |= SMP_SEG_LOADED;
 }
 
 /*--------------------------------------------------------------------
