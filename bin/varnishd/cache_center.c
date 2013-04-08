@@ -241,7 +241,6 @@ cnt_prepresp(struct sess *sp)
 			Lck_Lock(&sp->stream_busyobj->mtx);
 			assert(sp->stream_busyobj->stream_refcnt > 0);
 			sp->stream_busyobj->stream_refcnt--;
-			AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
 			Lck_Unlock(&sp->stream_busyobj->mtx);
 			if (sp->obj->objcore == NULL) {
 				/* If this is a pass, the fetching
@@ -939,12 +938,11 @@ cnt_streamdeliver(struct sess *sp)
 
 	RES_StreamEnd(sp);
 
-	/* Deref the busyobj and signal we are finished with it */
+	/* Deref the busyobj */
 	Lck_Lock(&bo->mtx);
 	assert(bo->stream_refcnt > 0);
 	bo->stream_refcnt--;
 	sp->stream_busyobj = NULL;
-	AZ(pthread_cond_signal(&bo->cond_data));
 	Lck_Unlock(&bo->mtx);
 
 	assert(WRW_IsReleased(sp->wrk));
@@ -1043,9 +1041,9 @@ cnt_streambody(struct sess *sp)
 
 	bo->vary = NULL;	/* Object has real vary here */
 	bo->stream_refcnt++; /* For the delivering session */
-	bo->stream_tokens = sp->wrk->stream_tokens;
-	assert(bo->stream_tokens >= STREAM_TOKENS_MIN);
-	assert(bo->stream_tokens <= STREAM_TOKENS_MAX);
+	bo->stream_tokens = bo->stream_tokens_quota = sp->wrk->stream_tokens;
+	assert(bo->stream_tokens_quota >= STREAM_TOKENS_MIN);
+	assert(bo->stream_tokens_quota <= STREAM_TOKENS_MAX);
 	sp->stream_busyobj = sp_fetch->stream_busyobj = bo;
 
 	/* Let the streaming contexts share in this worker's notion of
@@ -1091,9 +1089,14 @@ cnt_streambody(struct sess *sp)
 	bo->can_stream = 0;
 	bo->stream_stop = 1;
 	bo->stream_max = sp_fetch->obj->len;
-	pthread_cond_signal(&bo->cond_data);
+	AZ(pthread_cond_broadcast(&bo->cond_data));
 	while (bo->stream_refcnt > 0) {
-		Lck_CondWait(&bo->cond_data, &bo->mtx);
+		/* Wake a queued streaming client to make sure no thread
+		   is left behind */
+		AZ(pthread_cond_signal(&bo->cond_queue));
+		Lck_Unlock(&bo->mtx);
+		TIM_sleep(0.1);
+		Lck_Lock(&bo->mtx);
 	}
 	Lck_Unlock(&bo->mtx);
 
@@ -1205,7 +1208,6 @@ cnt_hit(struct sess *sp)
 	if (sp->stream_busyobj != NULL) {
 		Lck_Lock(&sp->stream_busyobj->mtx);
 		sp->stream_busyobj->stream_refcnt--;
-		AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
 		Lck_Unlock(&sp->stream_busyobj->mtx);
 		sp->stream_busyobj = NULL;
 	}

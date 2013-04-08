@@ -117,7 +117,7 @@ HSH_Prealloc(const struct sess *sp)
 		ALLOC_OBJ(bo, BUSYOBJ_MAGIC);
 		XXXAN(bo);
 		Lck_New(&bo->mtx, lck_busyobj);
-		AZ(pthread_cond_init(&bo->cond_tokens, NULL));
+		AZ(pthread_cond_init(&bo->cond_queue, NULL));
 		AZ(pthread_cond_init(&bo->cond_data, NULL));
 		HSH_Reset_Busyobj(bo);
 		w->nbusyobj = bo;
@@ -153,7 +153,7 @@ HSH_Cleanup(struct worker *w)
 	}
 	if (w->nbusyobj != NULL) {
 		Lck_Delete(&w->nbusyobj->mtx);
-		pthread_cond_destroy(&w->nbusyobj->cond_tokens);
+		pthread_cond_destroy(&w->nbusyobj->cond_queue);
 		pthread_cond_destroy(&w->nbusyobj->cond_data);
 		FREE_OBJ(w->nbusyobj);
 		w->nbusyobj = NULL;
@@ -709,6 +709,7 @@ HSH_Reset_Busyobj(struct busyobj *bo)
 	bo->stream_max = 0;
 	bo->stream_frontchunk = NULL;
 	bo->stream_tokens = 0;
+	bo->stream_tokens_quota = 0;
 	bo->stream_h_content_length = NULL;
 }
 

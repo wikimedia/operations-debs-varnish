@@ -417,6 +417,7 @@ RES_StreamPoll(const struct sess *sp)
 	Lck_Lock(&bo->mtx);
 	assert(sp->obj->len >= bo->stream_max);
 	bo->stream_max = sp->obj->len;
+	bo->stream_tokens = bo->stream_tokens_quota;
 	if ((sp->obj->objcore == NULL ||
 	     (sp->obj->objcore->flags & OC_F_PASS)) &&
 	    bo->stream_refcnt == 0) {
@@ -425,7 +426,7 @@ RES_StreamPoll(const struct sess *sp)
 		bo->can_stream = 0;
 		r = 1;
 	}
-	pthread_cond_signal(&bo->cond_data);
+	pthread_cond_broadcast(&bo->cond_data);
 	Lck_Unlock(&bo->mtx);
 
 	if (bo->stream_frontchunk == NULL)
@@ -449,15 +450,25 @@ RES_StreamWrite(const struct sess *sp)
 {
 	struct stream_ctx *sctx;
 	struct storage *st;
-	ssize_t l, l2, stlen;
+	ssize_t l, l2, stlen, max;
 	void *ptr;
 
 	sctx = sp->wrk->sctx;
 	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
 
-	if (sctx->stream_max == sctx->stream_next)
+	max = sctx->stream_max;
+	if (max > sctx->stream_end)
+		max = sctx->stream_end; /* Limit to range boundries */
+	if (sctx->stream_next < sctx->stream_start) {
+		/* Limit to range boundries */
+		if (max < sctx->stream_start)
+			sctx->stream_next = max;
+		else
+			sctx->stream_next = sctx->stream_start;
+	}
+	if (sctx->stream_next == max)
 		return;
-	assert(sctx->stream_max > sctx->stream_next);
+	assert(sctx->stream_next < max);
 
 	l = sctx->stream_front;
 	st = sctx->stream_frontchunk;
@@ -469,9 +480,8 @@ RES_StreamWrite(const struct sess *sp)
 		sctx->stream_frontchunk = st;
 		if (VTAILQ_NEXT(st, list) == NULL) {
 			/* Last element, do not trust st->len. This
-			 * element must contain byte number
-			 * stream_max. */
-			stlen = sctx->stream_max - l;
+			 * element must contain byte number max. */
+			stlen = max - l;
 			assert(stlen <= st->len);
 		} else
 			stlen = st->len;
@@ -481,8 +491,8 @@ RES_StreamWrite(const struct sess *sp)
 		}
 		assert(l + stlen > sctx->stream_next);
 		l2 = l + stlen - sctx->stream_next;
-		if (sctx->stream_next + l2 > sctx->stream_max)
-			l2 = sctx->stream_max - sctx->stream_next;
+		if (sctx->stream_next + l2 > max)
+			l2 = max - sctx->stream_next;
 		assert(l2 > 0);
 		ptr = st->ptr + (sctx->stream_next - l);
 		if (sp->wrk->res_mode & RES_GUNZIP) {
@@ -493,9 +503,9 @@ RES_StreamWrite(const struct sess *sp)
 			sp->wrk->acct_tmp.bodybytes += l2;
 		}
 		sctx->stream_next += l2;
-		if (sctx->stream_next == sctx->stream_max)
+		if (sctx->stream_next == max)
 			break;
-		assert(sctx->stream_next < sctx->stream_max);
+		assert(sctx->stream_next < max);
 		AN(VTAILQ_NEXT(st, list));
 		l += stlen;
 	}
@@ -524,29 +534,17 @@ RES_StreamEnd(struct sess *sp)
 		vca_close_session(sp, "remote closed");
 }
 
-/* Token strategy: Any thread hitting end of data will be marked as a
- * fast writer. It will then have to get a token before calling
- * RES_StreamWrite, thus n_tokens limits the number of thundering
- * threads run whenever new data arrives. The fast writer flag is
- * cleared on each pass through the loop, and reset if it hits the end
- * of data and waits.
+/* Token strategy: There is a quota of tokens issued each time new data
+ * arrives on the boject. Any thread needing to wait for more data will,
+ * if they can grab a token, wait for broadcast on bo->cond_data. This
+ * limits the number of threads actively waiting for the broadcast to the
+ * token quota.
  *
- * Receivers slower than backend: Will gather a large number of iov's
- * for the received data and flush them. Will then be stuck in writev
- * for a long period while the system writes the data with one
- * syscall. Returns from writev in a random distribution thus not
- * creating a thundering horde.
- *
- * Receivers faster than backend: Initial arrival at the streaming
- * object will be in a random distribution, so initially not being
- * marked as a fast writer will not create thundering horde. Will at
- * some point hit the end of data, and be stuck on cond_data, and
- * setting the fast writer flag. When data arrives, will have to
- * compete for n_tokens, so only n_tokens number of fast writers runs
- * at once limiting the thundering horde. Gathers a small number of
- * iov's, thus returning from writev quickly. Releases token giving
- * the other fast writers a go, and clears the fast writer flag. If
- * still a fast writer will hit end-of-data again setting it again.
+ * Threads not getting a token, will wait for a signal on
+ * bo->cond_queue. Any thread that at any point was waiting for data, will
+ * do a signal on this cond after the next write. This will ensure a
+ * trickle of wakes also for threads on the queue_cond, while still
+ * preventing a horde of threads on each new piece of data.
  */
 
 void
@@ -556,8 +554,7 @@ RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high)
 	struct busyobj *bo;
 	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
 		     params->gzip_stack_buffer : 1];
-	int fast_writer, signal_data;
-	ssize_t start, end;
+	int do_signal = 0;
 
 	bo = sp->stream_busyobj;
 	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
@@ -570,13 +567,12 @@ RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high)
 	AZ(sp->wrk->sctx);
 	sp->wrk->sctx = &sctx;
 
-	start = low;
+	sctx.stream_start = low;
 	if (high == -1)
-		end = SSIZE_MAX;
+		sctx.stream_end = SSIZE_MAX;
 	else
-		end = high + 1;
-	assert(end - start > 0);
-	sctx.stream_next = start;
+		sctx.stream_end = high + 1;
+	assert(sctx.stream_end - sctx.stream_start > 0);
 
 	if (sp->wrk->res_mode & RES_GUNZIP) {
 		sctx.vgz = VGZ_NewUngzip(sp, "U S -");
@@ -585,75 +581,48 @@ RES_StreamBody(struct sess *sp, const ssize_t low, const ssize_t high)
 	}
 
 	/* Invariant:
-	 *	sctx.stream_next <= sctx.stream_max ||
-	 *		bo->stream_max < sctx.stream_next
-	 *	sctx.stream_max <= end
 	 *	sctx.stream_max <= bo->stream_max
-	 *	0 <= start < end <= SSIZE_MAX
+	 *	sctx.stream_next <= sctx.stream_max
+	 *	0 <= stream_start < stream_end <= SSIZE_MAX
 	 */
 
-	fast_writer = signal_data = 0;
 	Lck_Lock(&bo->mtx);
-	while ((!bo->stream_stop || sctx.stream_next < bo->stream_max) &&
-	  sctx.stream_next < end) {
-		if (fast_writer) {
-			/* Grab token */
-			if (bo->stream_tokens == 0) {
-				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
-				continue;
-			}
-			AN(bo->stream_tokens);
-			bo->stream_tokens--;
-			if (bo->stream_tokens > 0)
-				AZ(pthread_cond_signal(&bo->cond_tokens));
-		}
-		if (signal_data) {
-			/* Propagate the data signal */
-			AZ(pthread_cond_signal(&bo->cond_data));
-			signal_data = 0;
-		}
-		sctx.stream_max = (bo->stream_max < end ? bo->stream_max : end);
-		assert(sctx.stream_next <= sctx.stream_max ||
-		       bo->stream_max <= start);
-		if (sctx.stream_next < sctx.stream_max) {
-			Lck_Unlock(&bo->mtx);
-			RES_StreamWrite(sp);
-			Lck_Lock(&bo->mtx);
-		}
-		if (fast_writer) {
-			/* Release token */
-			bo->stream_tokens++;
-			AZ(pthread_cond_signal(&bo->cond_tokens));
-			Lck_Unlock(&bo->mtx);
-			/* Release/lock cycle to give others a shot at
-			 * the tokens */
-			Lck_Lock(&bo->mtx);
-			fast_writer = 0;
-		}
-		while (!bo->stream_stop &&
-		  sctx.stream_max == bo->stream_max &&
-		  sctx.stream_next >= sctx.stream_max) {
-			/* Wait for more data. Signals are sent as
-			 * single-shots, so we have to resend the
-			 * signal to the next in queue (after
-			 * acquiring token if necessary) to keep it
-			 * flowing. If we are signaled and there isn't
-			 * more data available, we were the last in
-			 * queue and we loop here. */
-			Lck_CondWait(&bo->cond_data, &bo->mtx);
-			signal_data = 1;
-			if (sctx.stream_next > start)
-				fast_writer = 1;
-		}
+	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
 		if (WRW_Error(sp->wrk))
 			break;
+		if (sctx.stream_next == sctx.stream_end)
+			break;
+
+		assert(sctx.stream_max <= bo->stream_max);
+		sctx.stream_max = bo->stream_max;
+		assert(sctx.stream_next <= sctx.stream_max);
+
+		Lck_Unlock(&bo->mtx);
+		RES_StreamWrite(sp);
+		Lck_Lock(&bo->mtx);
+
+		if (do_signal) {
+			AZ(pthread_cond_signal(&bo->cond_queue));
+			do_signal = 0;
+		}
+
+		while (!bo->stream_stop && sctx.stream_max == bo->stream_max) {
+			do_signal = 1;
+			if (bo->stream_tokens > 0) {
+				/* Tokens available, take one and wait for
+				   broadcast on cond_data */
+				bo->stream_tokens--;
+				Lck_CondWait(&bo->cond_data, &bo->mtx);
+			} else {
+				/* No token available, wait on queue */
+				Lck_CondWait(&bo->cond_queue, &bo->mtx);
+			}
+		}
 	}
 	if (bo->stream_error)
 		sp->doclose = "Stream error";
-	if (signal_data) {
-		AZ(pthread_cond_signal(&bo->cond_data));
-		signal_data = 0;
-	}
+	if (do_signal)
+		AZ(pthread_cond_signal(&bo->cond_queue));
 	Lck_Unlock(&bo->mtx);
 
 	if (sp->wrk->res_mode & RES_GUNZIP) {

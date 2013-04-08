@@ -287,6 +287,9 @@ struct stream_ctx {
 
 	/* Max byte we can stream */
 	ssize_t			stream_max;
+
+	/* Range of bytes to write */
+	ssize_t			stream_start, stream_end;
 };
 
 /*--------------------------------------------------------------------*/
@@ -486,10 +489,11 @@ struct busyobj {
 	int			stream_refcnt;
 	ssize_t			stream_max;
 	struct storage		*stream_frontchunk;
+	unsigned		stream_tokens_quota;
 	unsigned		stream_tokens;
 	char			*stream_h_content_length;
 	struct lock		mtx;
-	pthread_cond_t		cond_tokens;
+	pthread_cond_t		cond_queue;
 	pthread_cond_t		cond_data;
 };
 
