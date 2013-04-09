@@ -1,3 +1,10 @@
+varnish (3.0.3plus~rc1-wm10) precise; urgency=medium
+
+  * Update streaming range patch with Martin's token deadlock fixes
+  * Fix race in persistent storage loading of segments
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 09 Apr 2013 09:40:08 +0000
+
 varnish (3.0.3plus~rc1-wm9) precise; urgency=low
 
   * Log a message when EXP_NukeLRU can't destroy an object
