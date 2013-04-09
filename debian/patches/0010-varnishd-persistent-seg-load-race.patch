@@ -1,0 +1,20 @@
+diff --git a/bin/varnishd/storage_persistent_silo.c b/bin/varnishd/storage_persistent_silo.c
+index d9fd67d..a760bd9 100644
+--- a/bin/varnishd/storage_persistent_silo.c
++++ b/bin/varnishd/storage_persistent_silo.c
+@@ -105,6 +105,7 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
+ 	no = sg->p.lobjlist;
+ 	/* Clear the bogus "hold" count */
+ 	sg->nobj = 0;
++	sg->flags |= SMP_SEG_LOADED;
+ 	for (;no > 0; so++,no--) {
+ 		if (so->ttl == 0 || so->ttl < t_now)
+ 			continue;
+@@ -125,7 +126,6 @@ smp_load_seg(const struct sess *sp, const struct smp_sc *sc,
+ 	Lck_Lock(&sg->sc->mtx);
+ 	sg->sc->stats->g_vampireobjects += count;
+ 	Lck_Unlock(&sg->sc->mtx);
+-	sg->flags |= SMP_SEG_LOADED;
+ }
+ 
+ /*--------------------------------------------------------------------
