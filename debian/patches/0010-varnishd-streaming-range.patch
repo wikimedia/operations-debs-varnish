@@ -1,24 +1,31 @@
-From 8dea335b22760784b545d93eaa663b27d6ccef85 Mon Sep 17 00:00:00 2001
-From: Martin Blix Grydeland <martin@varnish-software.com>
-Date: Wed, 19 Dec 2012 13:20:22 +0100
-Subject: [PATCH 2/2] Add Range support to Varnish in streaming mode.
-
-This patch is largely based on work by Mark Bergsma of WikiMedia.
----
- bin/varnishd/cache.h             |    4 +-
- bin/varnishd/cache_center.c      |    7 ++-
- bin/varnishd/cache_response.c    |  117 +++++++++++++++++++++++++++++---------
- bin/varnishtest/tests/t00013.vtc |   53 +++++++++++++++++
- bin/varnishtest/tests/t00014.vtc |   30 ++++++++++
- 5 files changed, 180 insertions(+), 31 deletions(-)
- create mode 100644 bin/varnishtest/tests/t00013.vtc
- create mode 100644 bin/varnishtest/tests/t00014.vtc
-
 diff --git a/bin/varnishd/cache.h b/bin/varnishd/cache.h
-index 0ad00d8..d7e617a 100644
+index 0ad00d8..41ee009 100644
 --- a/bin/varnishd/cache.h
 +++ b/bin/varnishd/cache.h
-@@ -910,11 +910,11 @@ void WSL_Flush(struct worker *w, int overflow);
+@@ -287,6 +287,9 @@ struct stream_ctx {
+ 
+ 	/* Max byte we can stream */
+ 	ssize_t			stream_max;
++
++	/* Range of bytes to write */
++	ssize_t			stream_start, stream_end;
+ };
+ 
+ /*--------------------------------------------------------------------*/
+@@ -486,10 +489,11 @@ struct busyobj {
+ 	int			stream_refcnt;
+ 	ssize_t			stream_max;
+ 	struct storage		*stream_frontchunk;
++	unsigned		stream_tokens_quota;
+ 	unsigned		stream_tokens;
+ 	char			*stream_h_content_length;
+ 	struct lock		mtx;
+-	pthread_cond_t		cond_tokens;
++	pthread_cond_t		cond_queue;
+ 	pthread_cond_t		cond_data;
+ };
+ 
+@@ -910,11 +914,11 @@ void WSL_Flush(struct worker *w, int overflow);
  /* cache_response.c */
  void RES_BuildHttp(const struct sess *sp);
  void RES_WriteObj(struct sess *sp);
@@ -33,10 +40,18 @@ index 0ad00d8..d7e617a 100644
  /* cache_vary.c */
  struct vsb *VRY_Create(const struct sess *sp, const struct http *hp);
 diff --git a/bin/varnishd/cache_center.c b/bin/varnishd/cache_center.c
-index 61d3fb4..a3c4036 100644
+index 61d3fb4..2bacab9 100644
 --- a/bin/varnishd/cache_center.c
 +++ b/bin/varnishd/cache_center.c
-@@ -923,16 +923,19 @@ DOT }
+@@ -241,7 +241,6 @@ cnt_prepresp(struct sess *sp)
+ 			Lck_Lock(&sp->stream_busyobj->mtx);
+ 			assert(sp->stream_busyobj->stream_refcnt > 0);
+ 			sp->stream_busyobj->stream_refcnt--;
+-			AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
+ 			Lck_Unlock(&sp->stream_busyobj->mtx);
+ 			if (sp->obj->objcore == NULL) {
+ 				/* If this is a pass, the fetching
+@@ -923,25 +922,27 @@ DOT }
  static int
  cnt_streamdeliver(struct sess *sp)
  {
@@ -58,8 +73,86 @@ index 61d3fb4..a3c4036 100644
  
  	RES_StreamEnd(sp);
  
+-	/* Deref the busyobj and signal we are finished with it */
++	/* Deref the busyobj */
+ 	Lck_Lock(&bo->mtx);
+ 	assert(bo->stream_refcnt > 0);
+ 	bo->stream_refcnt--;
+ 	sp->stream_busyobj = NULL;
+-	AZ(pthread_cond_signal(&bo->cond_data));
+ 	Lck_Unlock(&bo->mtx);
+ 
+ 	assert(WRW_IsReleased(sp->wrk));
+@@ -1040,9 +1041,9 @@ cnt_streambody(struct sess *sp)
+ 
+ 	bo->vary = NULL;	/* Object has real vary here */
+ 	bo->stream_refcnt++; /* For the delivering session */
+-	bo->stream_tokens = sp->wrk->stream_tokens;
+-	assert(bo->stream_tokens >= STREAM_TOKENS_MIN);
+-	assert(bo->stream_tokens <= STREAM_TOKENS_MAX);
++	bo->stream_tokens = bo->stream_tokens_quota = sp->wrk->stream_tokens;
++	assert(bo->stream_tokens_quota >= STREAM_TOKENS_MIN);
++	assert(bo->stream_tokens_quota <= STREAM_TOKENS_MAX);
+ 	sp->stream_busyobj = sp_fetch->stream_busyobj = bo;
+ 
+ 	/* Let the streaming contexts share in this worker's notion of
+@@ -1088,9 +1089,14 @@ cnt_streambody(struct sess *sp)
+ 	bo->can_stream = 0;
+ 	bo->stream_stop = 1;
+ 	bo->stream_max = sp_fetch->obj->len;
+-	pthread_cond_signal(&bo->cond_data);
++	AZ(pthread_cond_broadcast(&bo->cond_data));
+ 	while (bo->stream_refcnt > 0) {
+-		Lck_CondWait(&bo->cond_data, &bo->mtx);
++		/* Wake a queued streaming client to make sure no thread
++		   is left behind */
++		AZ(pthread_cond_signal(&bo->cond_queue));
++		Lck_Unlock(&bo->mtx);
++		TIM_sleep(0.1);
++		Lck_Lock(&bo->mtx);
+ 	}
+ 	Lck_Unlock(&bo->mtx);
+ 
+@@ -1202,7 +1208,6 @@ cnt_hit(struct sess *sp)
+ 	if (sp->stream_busyobj != NULL) {
+ 		Lck_Lock(&sp->stream_busyobj->mtx);
+ 		sp->stream_busyobj->stream_refcnt--;
+-		AZ(pthread_cond_signal(&sp->stream_busyobj->cond_data));
+ 		Lck_Unlock(&sp->stream_busyobj->mtx);
+ 		sp->stream_busyobj = NULL;
+ 	}
+diff --git a/bin/varnishd/cache_hash.c b/bin/varnishd/cache_hash.c
+index 996a6b0..6daed62 100644
+--- a/bin/varnishd/cache_hash.c
++++ b/bin/varnishd/cache_hash.c
+@@ -117,7 +117,7 @@ HSH_Prealloc(const struct sess *sp)
+ 		ALLOC_OBJ(bo, BUSYOBJ_MAGIC);
+ 		XXXAN(bo);
+ 		Lck_New(&bo->mtx, lck_busyobj);
+-		AZ(pthread_cond_init(&bo->cond_tokens, NULL));
++		AZ(pthread_cond_init(&bo->cond_queue, NULL));
+ 		AZ(pthread_cond_init(&bo->cond_data, NULL));
+ 		HSH_Reset_Busyobj(bo);
+ 		w->nbusyobj = bo;
+@@ -153,7 +153,7 @@ HSH_Cleanup(struct worker *w)
+ 	}
+ 	if (w->nbusyobj != NULL) {
+ 		Lck_Delete(&w->nbusyobj->mtx);
+-		pthread_cond_destroy(&w->nbusyobj->cond_tokens);
++		pthread_cond_destroy(&w->nbusyobj->cond_queue);
+ 		pthread_cond_destroy(&w->nbusyobj->cond_data);
+ 		FREE_OBJ(w->nbusyobj);
+ 		w->nbusyobj = NULL;
+@@ -709,6 +709,7 @@ HSH_Reset_Busyobj(struct busyobj *bo)
+ 	bo->stream_max = 0;
+ 	bo->stream_frontchunk = NULL;
+ 	bo->stream_tokens = 0;
++	bo->stream_tokens_quota = 0;
+ 	bo->stream_h_content_length = NULL;
+ }
+ 
 diff --git a/bin/varnishd/cache_response.c b/bin/varnishd/cache_response.c
-index bdd967c..acf4a62 100644
+index bdd967c..82a69a7 100644
 --- a/bin/varnishd/cache_response.c
 +++ b/bin/varnishd/cache_response.c
 @@ -43,7 +43,8 @@
@@ -171,7 +264,124 @@ index bdd967c..acf4a62 100644
  		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
  		    "Content-Length: %s", sp->wrk->h_content_length);
  
-@@ -524,13 +550,14 @@ RES_StreamEnd(struct sess *sp)
+@@ -391,6 +417,7 @@ RES_StreamPoll(const struct sess *sp)
+ 	Lck_Lock(&bo->mtx);
+ 	assert(sp->obj->len >= bo->stream_max);
+ 	bo->stream_max = sp->obj->len;
++	bo->stream_tokens = bo->stream_tokens_quota;
+ 	if ((sp->obj->objcore == NULL ||
+ 	     (sp->obj->objcore->flags & OC_F_PASS)) &&
+ 	    bo->stream_refcnt == 0) {
+@@ -399,7 +426,7 @@ RES_StreamPoll(const struct sess *sp)
+ 		bo->can_stream = 0;
+ 		r = 1;
+ 	}
+-	pthread_cond_signal(&bo->cond_data);
++	pthread_cond_broadcast(&bo->cond_data);
+ 	Lck_Unlock(&bo->mtx);
+ 
+ 	if (bo->stream_frontchunk == NULL)
+@@ -423,15 +450,25 @@ RES_StreamWrite(const struct sess *sp)
+ {
+ 	struct stream_ctx *sctx;
+ 	struct storage *st;
+-	ssize_t l, l2, stlen;
++	ssize_t l, l2, stlen, max;
+ 	void *ptr;
+ 
+ 	sctx = sp->wrk->sctx;
+ 	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
+ 
+-	if (sctx->stream_max == sctx->stream_next)
++	max = sctx->stream_max;
++	if (max > sctx->stream_end)
++		max = sctx->stream_end; /* Limit to range boundries */
++	if (sctx->stream_next < sctx->stream_start) {
++		/* Limit to range boundries */
++		if (max < sctx->stream_start)
++			sctx->stream_next = max;
++		else
++			sctx->stream_next = sctx->stream_start;
++	}
++	if (sctx->stream_next == max)
+ 		return;
+-	assert(sctx->stream_max > sctx->stream_next);
++	assert(sctx->stream_next < max);
+ 
+ 	l = sctx->stream_front;
+ 	st = sctx->stream_frontchunk;
+@@ -443,9 +480,8 @@ RES_StreamWrite(const struct sess *sp)
+ 		sctx->stream_frontchunk = st;
+ 		if (VTAILQ_NEXT(st, list) == NULL) {
+ 			/* Last element, do not trust st->len. This
+-			 * element must contain byte number
+-			 * stream_max. */
+-			stlen = sctx->stream_max - l;
++			 * element must contain byte number max. */
++			stlen = max - l;
+ 			assert(stlen <= st->len);
+ 		} else
+ 			stlen = st->len;
+@@ -455,8 +491,8 @@ RES_StreamWrite(const struct sess *sp)
+ 		}
+ 		assert(l + stlen > sctx->stream_next);
+ 		l2 = l + stlen - sctx->stream_next;
+-		if (sctx->stream_next + l2 > sctx->stream_max)
+-			l2 = sctx->stream_max - sctx->stream_next;
++		if (sctx->stream_next + l2 > max)
++			l2 = max - sctx->stream_next;
+ 		assert(l2 > 0);
+ 		ptr = st->ptr + (sctx->stream_next - l);
+ 		if (sp->wrk->res_mode & RES_GUNZIP) {
+@@ -467,9 +503,9 @@ RES_StreamWrite(const struct sess *sp)
+ 			sp->wrk->acct_tmp.bodybytes += l2;
+ 		}
+ 		sctx->stream_next += l2;
+-		if (sctx->stream_next == sctx->stream_max)
++		if (sctx->stream_next == max)
+ 			break;
+-		assert(sctx->stream_next < sctx->stream_max);
++		assert(sctx->stream_next < max);
+ 		AN(VTAILQ_NEXT(st, list));
+ 		l += stlen;
+ 	}
+@@ -498,39 +534,27 @@ RES_StreamEnd(struct sess *sp)
+ 		vca_close_session(sp, "remote closed");
+ }
+ 
+-/* Token strategy: Any thread hitting end of data will be marked as a
+- * fast writer. It will then have to get a token before calling
+- * RES_StreamWrite, thus n_tokens limits the number of thundering
+- * threads run whenever new data arrives. The fast writer flag is
+- * cleared on each pass through the loop, and reset if it hits the end
+- * of data and waits.
+- *
+- * Receivers slower than backend: Will gather a large number of iov's
+- * for the received data and flush them. Will then be stuck in writev
+- * for a long period while the system writes the data with one
+- * syscall. Returns from writev in a random distribution thus not
+- * creating a thundering horde.
++/* Token strategy: There is a quota of tokens issued each time new data
++ * arrives on the boject. Any thread needing to wait for more data will,
++ * if they can grab a token, wait for broadcast on bo->cond_data. This
++ * limits the number of threads actively waiting for the broadcast to the
++ * token quota.
+  *
+- * Receivers faster than backend: Initial arrival at the streaming
+- * object will be in a random distribution, so initially not being
+- * marked as a fast writer will not create thundering horde. Will at
+- * some point hit the end of data, and be stuck on cond_data, and
+- * setting the fast writer flag. When data arrives, will have to
+- * compete for n_tokens, so only n_tokens number of fast writers runs
+- * at once limiting the thundering horde. Gathers a small number of
+- * iov's, thus returning from writev quickly. Releases token giving
+- * the other fast writers a go, and clears the fast writer flag. If
+- * still a fast writer will hit end-of-data again setting it again.
++ * Threads not getting a token, will wait for a signal on
++ * bo->cond_queue. Any thread that at any point was waiting for data, will
++ * do a signal on this cond after the next write. This will ensure a
++ * trickle of wakes also for threads on the queue_cond, while still
++ * preventing a horde of threads on each new piece of data.
   */
  
  void
@@ -183,22 +393,20 @@ index bdd967c..acf4a62 100644
  	uint8_t obuf[sp->wrk->res_mode & RES_GUNZIP ?
  		     params->gzip_stack_buffer : 1];
 -	int fast_writer;
-+	int fast_writer, signal_data;
-+	ssize_t start, end;
++	int do_signal = 0;
  
  	bo = sp->stream_busyobj;
  	CHECK_OBJ_NOTNULL(bo, BUSYOBJ_MAGIC);
-@@ -543,16 +570,34 @@ RES_StreamBody(struct sess *sp)
+@@ -543,54 +567,62 @@ RES_StreamBody(struct sess *sp)
  	AZ(sp->wrk->sctx);
  	sp->wrk->sctx = &sctx;
  
-+	start = low;
++	sctx.stream_start = low;
 +	if (high == -1)
-+		end = SSIZE_MAX;
++		sctx.stream_end = SSIZE_MAX;
 +	else
-+		end = high + 1;
-+	assert(end - start > 0);
-+	sctx.stream_next = start;
++		sctx.stream_end = high + 1;
++	assert(sctx.stream_end - sctx.stream_start > 0);
 +
  	if (sp->wrk->res_mode & RES_GUNZIP) {
  		sctx.vgz = VGZ_NewUngzip(sp, "U S -");
@@ -208,185 +416,78 @@ index bdd967c..acf4a62 100644
  
 -	fast_writer = 0;
 +	/* Invariant:
-+	 *	sctx.stream_next <= sctx.stream_max ||
-+	 *		bo->stream_max < sctx.stream_next
-+	 *	sctx.stream_max <= end
 +	 *	sctx.stream_max <= bo->stream_max
-+	 *	0 <= start < end <= SSIZE_MAX
++	 *	sctx.stream_next <= sctx.stream_max
++	 *	0 <= stream_start < stream_end <= SSIZE_MAX
 +	 */
 +
-+	fast_writer = signal_data = 0;
  	Lck_Lock(&bo->mtx);
--	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
-+	while ((!bo->stream_stop || sctx.stream_next < bo->stream_max) &&
-+	  sctx.stream_next < end) {
- 		if (fast_writer) {
-+			/* Grab token */
- 			if (bo->stream_tokens == 0) {
- 				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
- 				continue;
-@@ -561,36 +606,54 @@ RES_StreamBody(struct sess *sp)
- 			bo->stream_tokens--;
- 			if (bo->stream_tokens > 0)
- 				AZ(pthread_cond_signal(&bo->cond_tokens));
+ 	while (!bo->stream_stop || sctx.stream_next < bo->stream_max) {
+-		if (fast_writer) {
+-			if (bo->stream_tokens == 0) {
+-				Lck_CondWait(&bo->cond_tokens, &bo->mtx);
+-				continue;
+-			}
+-			AN(bo->stream_tokens);
+-			bo->stream_tokens--;
+-			if (bo->stream_tokens > 0)
+-				AZ(pthread_cond_signal(&bo->cond_tokens));
 -			/* We escaped waiting for data, which means others
 -			   would probably be able to do more work as well */
-+		}
-+		if (signal_data) {
-+			/* Propagate the data signal */
- 			AZ(pthread_cond_signal(&bo->cond_data));
-+			signal_data = 0;
-+		}
-+		sctx.stream_max = (bo->stream_max < end ? bo->stream_max : end);
-+		assert(sctx.stream_next <= sctx.stream_max ||
-+		       bo->stream_max <= start);
-+		if (sctx.stream_next < sctx.stream_max) {
-+			Lck_Unlock(&bo->mtx);
-+			RES_StreamWrite(sp);
-+			Lck_Lock(&bo->mtx);
- 		}
--		sctx.stream_max = bo->stream_max;
+-			AZ(pthread_cond_signal(&bo->cond_data));
+-		}
++		if (WRW_Error(sp->wrk))
++			break;
++		if (sctx.stream_next == sctx.stream_end)
++			break;
++
++		assert(sctx.stream_max <= bo->stream_max);
+ 		sctx.stream_max = bo->stream_max;
 -		assert(sctx.stream_max >= sctx.stream_next);
--		Lck_Unlock(&bo->mtx);
--		RES_StreamWrite(sp);
--		Lck_Lock(&bo->mtx);
- 		if (fast_writer) {
-+			/* Release token */
- 			bo->stream_tokens++;
- 			AZ(pthread_cond_signal(&bo->cond_tokens));
- 			Lck_Unlock(&bo->mtx);
++		assert(sctx.stream_next <= sctx.stream_max);
++
+ 		Lck_Unlock(&bo->mtx);
+ 		RES_StreamWrite(sp);
+ 		Lck_Lock(&bo->mtx);
+-		if (fast_writer) {
+-			bo->stream_tokens++;
+-			AZ(pthread_cond_signal(&bo->cond_tokens));
+-			Lck_Unlock(&bo->mtx);
 -			/* Release to give others a shot at the tokens */
-+			/* Release/lock cycle to give others a shot at
-+			 * the tokens */
- 			Lck_Lock(&bo->mtx);
- 			fast_writer = 0;
+-			Lck_Lock(&bo->mtx);
+-			fast_writer = 0;
++
++		if (do_signal) {
++			AZ(pthread_cond_signal(&bo->cond_queue));
++			do_signal = 0;
  		}
- 		while (!bo->stream_stop &&
+-		while (!bo->stream_stop &&
 -		       sctx.stream_next == bo->stream_max) {
 -			/* Wait for more data */
-+		  sctx.stream_max == bo->stream_max &&
-+		  sctx.stream_next >= sctx.stream_max) {
-+			/* Wait for more data. Signals are sent as
-+			 * single-shots, so we have to resend the
-+			 * signal to the next in queue (after
-+			 * acquiring token if necessary) to keep it
-+			 * flowing. If we are signaled and there isn't
-+			 * more data available, we were the last in
-+			 * queue and we loop here. */
- 			Lck_CondWait(&bo->cond_data, &bo->mtx);
+-			Lck_CondWait(&bo->cond_data, &bo->mtx);
 -			fast_writer = 1;
-+			signal_data = 1;
-+			if (sctx.stream_next > start)
-+				fast_writer = 1;
++
++		while (!bo->stream_stop && sctx.stream_max == bo->stream_max) {
++			do_signal = 1;
++			if (bo->stream_tokens > 0) {
++				/* Tokens available, take one and wait for
++				   broadcast on cond_data */
++				bo->stream_tokens--;
++				Lck_CondWait(&bo->cond_data, &bo->mtx);
++			} else {
++				/* No token available, wait on queue */
++				Lck_CondWait(&bo->cond_queue, &bo->mtx);
++			}
  		}
- 		if (WRW_Error(sp->wrk))
- 			break;
+-		if (WRW_Error(sp->wrk))
+-			break;
  	}
  	if (bo->stream_error)
  		sp->doclose = "Stream error";
 -	if (fast_writer)
-+	if (signal_data) {
- 		AZ(pthread_cond_signal(&bo->cond_data));
-+		signal_data = 0;
-+	}
+-		AZ(pthread_cond_signal(&bo->cond_data));
++	if (do_signal)
++		AZ(pthread_cond_signal(&bo->cond_queue));
  	Lck_Unlock(&bo->mtx);
  
  	if (sp->wrk->res_mode & RES_GUNZIP) {
-diff --git a/bin/varnishtest/tests/t00013.vtc b/bin/varnishtest/tests/t00013.vtc
-new file mode 100644
-index 0000000..b8e31e7
---- /dev/null
-+++ b/bin/varnishtest/tests/t00013.vtc
-@@ -0,0 +1,53 @@
-+varnishtest "Test multiple streaming recepients using range"
-+
-+server s1 {
-+	rxreq
-+	txresp -nolen -hdr "Content-Length: 52"
-+	delay 1
-+	send "abcdefghijklmnopqrstuvwxyz"
-+	sema r1 sync 4
-+	send "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-+} -start
-+
-+varnish v1 -vcl+backend {
-+	sub vcl_fetch {
-+		set beresp.do_stream = true;
-+	}
-+} -start
-+
-+client c1 {
-+	txreq -hdr "Range: bytes=20-31"
-+	rxresp -no_obj
-+	rxbytes 6
-+	sema r1 sync 4
-+	rxbytes 6
-+	expect resp.status == 206
-+	expect resp.bodylen == 12
-+	expect resp.body == "uvwxyzABCDEF"
-+} -start
-+
-+client c2 {
-+	txreq -hdr "Range: bytes=20-31"
-+	rxresp -no_obj
-+	rxbytes 6
-+	sema r1 sync 4
-+	rxbytes 6
-+	expect resp.status == 206
-+	expect resp.bodylen == 12
-+	expect resp.body == "uvwxyzABCDEF"
-+} -start
-+	
-+client c3 {
-+	txreq -hdr "Range: bytes=20-31"
-+	rxresp -no_obj
-+	rxbytes 6
-+	sema r1 sync 4
-+	rxbytes 6
-+	expect resp.status == 206
-+	expect resp.bodylen == 12
-+	expect resp.body == "uvwxyzABCDEF"
-+} -start
-+
-+client c1 -wait
-+client c2 -wait
-+client c3 -wait
-diff --git a/bin/varnishtest/tests/t00014.vtc b/bin/varnishtest/tests/t00014.vtc
-new file mode 100644
-index 0000000..4f84224
---- /dev/null
-+++ b/bin/varnishtest/tests/t00014.vtc
-@@ -0,0 +1,30 @@
-+varnishtest "Test streaming recipient using range on pass"
-+
-+server s1 {
-+	rxreq
-+	txresp -nolen -hdr "Content-Length: 52"
-+	delay 1
-+	send "abcdefghijklmnopqrstuvwxyz"
-+	sema r1 sync 2
-+	send "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-+} -start
-+
-+varnish v1 -vcl+backend {
-+	sub vcl_recv {
-+		return (pass);
-+	}
-+	sub vcl_fetch {
-+		set beresp.do_stream = true;
-+	}
-+} -start
-+
-+client c1 {
-+	txreq -hdr "Range: bytes=20-31"
-+	rxresp -no_obj
-+	rxbytes 6
-+	sema r1 sync 2
-+	rxbytes 6
-+	expect resp.status == 206
-+	expect resp.bodylen == 12
-+	expect resp.body == "uvwxyzABCDEF"
-+} -run
--- 
-1.7.10.4
-
