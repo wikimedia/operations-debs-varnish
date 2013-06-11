@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm11) precise; urgency=high
+
+  * Add patch for CVE-2013-4090
+
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 11 Jun 2013 14:59:27 +0000
+
 varnish (3.0.3plus~rc1-wm10) precise; urgency=medium
 
   * Update streaming range patch with Martin's token deadlock fixes
