@@ -450,65 +450,66 @@ RES_StreamWrite(const struct sess *sp)
 {
 	struct stream_ctx *sctx;
 	struct storage *st;
-	ssize_t l, l2, stlen, max;
+	ssize_t l, l2, stlen;
 	void *ptr;
 
 	sctx = sp->wrk->sctx;
 	CHECK_OBJ_NOTNULL(sctx, STREAM_CTX_MAGIC);
 
-	max = sctx->stream_max;
-	if (max > sctx->stream_end)
-		max = sctx->stream_end; /* Limit to range boundries */
-	if (sctx->stream_next < sctx->stream_start) {
-		/* Limit to range boundries */
-		if (max < sctx->stream_start)
-			sctx->stream_next = max;
-		else
-			sctx->stream_next = sctx->stream_start;
-	}
-	if (sctx->stream_next == max)
+	if (sctx->stream_next == sctx->stream_max)
 		return;
-	assert(sctx->stream_next < max);
 
 	l = sctx->stream_front;
 	st = sctx->stream_frontchunk;
 	if (st == NULL)
 		st = VTAILQ_FIRST(&sp->obj->store);
-	for (; st != NULL; st = VTAILQ_NEXT(st, list)) {
-		CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
-		sctx->stream_front = l;
-		sctx->stream_frontchunk = st;
-		if (VTAILQ_NEXT(st, list) == NULL) {
-			/* Last element, do not trust st->len. This
-			 * element must contain byte number max. */
-			stlen = max - l;
-			assert(stlen <= st->len);
-		} else
-			stlen = st->len;
-		if (l + stlen <= sctx->stream_next) {
+	CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+
+	while (sctx->stream_next < sctx->stream_max) {
+		stlen = (*(volatile unsigned *)&st->len);
+		if (l + stlen == sctx->stream_next) {
 			l += stlen;
-			continue;
+			st = VTAILQ_NEXT(st, list);
+			CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
 		}
 		assert(l + stlen > sctx->stream_next);
+
 		l2 = l + stlen - sctx->stream_next;
-		if (sctx->stream_next + l2 > max)
-			l2 = max - sctx->stream_next;
+		if (sctx->stream_next + l2 > sctx->stream_max)
+			l2 = sctx->stream_max - sctx->stream_next;
+		if (sctx->stream_next < sctx->stream_start &&
+		    sctx->stream_next + l2 > sctx->stream_start)
+			/* Align on range start */
+			l2 = sctx->stream_start - sctx->stream_next;
+		else if (sctx->stream_next < sctx->stream_end &&
+		    sctx->stream_next + l2 > sctx->stream_end)
+			/* Align on range end */
+			l2 = sctx->stream_end - sctx->stream_next;
 		assert(l2 > 0);
-		ptr = st->ptr + (sctx->stream_next - l);
-		if (sp->wrk->res_mode & RES_GUNZIP) {
-			(void)VGZ_WrwGunzip(sp, sctx->vgz, ptr, l2,
-			    sctx->obuf, sctx->obuf_len, &sctx->obuf_ptr);
-		} else {
-			(void)WRW_Write(sp->wrk, ptr, l2);
-			sp->wrk->acct_tmp.bodybytes += l2;
+		assert(l2 <= stlen);
+		assert(sctx->stream_next + l2 <= sctx->stream_max);
+
+		if (sctx->stream_next >= sctx->stream_start &&
+		    sctx->stream_next < sctx->stream_end) {
+			/* In range - write data */
+			assert(sctx->stream_next + l2 <= sctx->stream_end);
+			ptr = st->ptr + (sctx->stream_next - l);
+			if (sp->wrk->res_mode & RES_GUNZIP)
+				(void)VGZ_WrwGunzip(sp, sctx->vgz, ptr, l2,
+				    sctx->obuf, sctx->obuf_len,
+				    &sctx->obuf_ptr);
+			else {
+				(void)WRW_Write(sp->wrk, ptr, l2);
+				sp->wrk->acct_tmp.bodybytes += l2;
+			}
 		}
 		sctx->stream_next += l2;
-		if (sctx->stream_next == max)
+		if (sctx->stream_next == sctx->stream_end)
 			break;
-		assert(sctx->stream_next < max);
-		AN(VTAILQ_NEXT(st, list));
-		l += stlen;
 	}
+	sctx->stream_front = l;
+	sctx->stream_frontchunk = st;
+
 	if (!(sp->wrk->res_mode & RES_GUNZIP))
 		(void)WRW_Flush(sp->wrk);
 
