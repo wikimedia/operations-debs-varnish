@@ -471,7 +471,9 @@ RES_StreamWrite(const struct sess *sp)
 			l += stlen;
 			st = VTAILQ_NEXT(st, list);
 			CHECK_OBJ_NOTNULL(st, STORAGE_MAGIC);
+			stlen = (*(volatile unsigned *)&st->len);
 		}
+		assert(l <= sctx->stream_next);
 		assert(l + stlen > sctx->stream_next);
 
 		l2 = l + stlen - sctx->stream_next;
