@@ -5,6 +5,7 @@
 0010-varnishd-optimize-epoll-thread.patch
 0010-varnishd-nukelru.patch
 0010-varnishd-persistent-seg-load-race.patch
+0010-varnishd-vcl_error-allow-keepalive.patch
 0010-libvmod_std-collect.patch
 0010-varnishtest-rxbytes.patch
 0020-filter-headers.patch
