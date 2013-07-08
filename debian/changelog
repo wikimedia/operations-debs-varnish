@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm12) precise; urgency=low
+
+  * Allow persistent connections with vcl_error
+
+ -- Mark Bergsma <mark@wikimedia.org>  Mon, 08 Jul 2013 14:54:16 +0000
+
 varnish (3.0.3plus~rc1-wm11) precise; urgency=high
 
   * Add patch for CVE-2013-4090
