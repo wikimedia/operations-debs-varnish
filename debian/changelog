@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm13) precise; urgency=low
+
+  * Detect and exit when persistent storage can't mmap a file at the required address
+
+ -- Mark Bergsma <mark@wikimedia.org>  Thu, 11 Jul 2013 08:50:59 +0000
+
 varnish (3.0.3plus~rc1-wm12) precise; urgency=low
 
   * Allow persistent connections with vcl_error
