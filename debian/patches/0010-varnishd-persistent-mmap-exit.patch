@@ -1,0 +1,17 @@
+diff --git a/bin/varnishd/storage_persistent_mgt.c b/bin/varnishd/storage_persistent_mgt.c
+index ff10973..549ced3 100644
+--- a/bin/varnishd/storage_persistent_mgt.c
++++ b/bin/varnishd/storage_persistent_mgt.c
+@@ -175,6 +175,12 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+ 		ARGV_ERR("(-spersistent) failed to mmap (%s)\n",
+ 		    strerror(errno));
+ 
++	if (target != NULL && sc->base != target) {
++		fprintf(stderr, "Could not mmap SILO (%s) at target %u, was mapped at %u instead\n",
++			sc->filename, target, sc->base);
++		exit(75); /* EX_TEMPFAIL */
++	}
++
+ 	smp_def_sign(sc, &sc->idn, 0, 0, "SILO");
+ 	sc->ident = SIGN_DATA(&sc->idn);
+ 
