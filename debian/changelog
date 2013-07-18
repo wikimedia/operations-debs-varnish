@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm14) precise; urgency=low
+
+  * Don't increase cache_hit/cache_miss counters for PURGE requests
+
+ -- Mark Bergsma <mark@wikimedia.org>  Thu, 18 Jul 2013 11:39:47 +0000
+
 varnish (3.0.3plus~rc1-wm13) precise; urgency=low
 
   * Detect and exit when persistent storage can't mmap a file at the required address
