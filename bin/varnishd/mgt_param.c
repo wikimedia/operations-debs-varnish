@@ -391,6 +391,7 @@ tweak_listen_address(struct cli *cli, const struct parspec *par,
 			ls->addr = ta[j];
 			ls->name = strdup(av[i]);
 			AN(ls->name);
+			ls->proxy_port = 0;
 			VTAILQ_INSERT_TAIL(&lsh, ls, list);
 		}
 		free(ta);
@@ -990,6 +991,19 @@ static const struct parspec input_parspec[] = {
 		"content.\n",
 		EXPERIMENTAL,
 		"256", "kilobytes" },
+	{ "proxy_protocol_port", tweak_uint, &master.proxy_protocol_port,
+		0, 65535,
+		"TCP listen ports which should process the PROXY protocol. "
+		"On these TCP ports, Varnish requires the PROXY protocol "
+		"header to be sent before the first HTTP request.\n",
+		MUST_RESTART,
+		"0", "" },
+	{ "proxy_protocol_timeout", tweak_uint,
+		&master.proxy_protocol_timeout, 0, UINT_MAX,
+		"The timeout for the workerthread waiting for the PROXY"
+		"protocol header to be received.\n",
+		0,
+		"500", "ms" },
 	{ NULL, NULL, NULL }
 };
 

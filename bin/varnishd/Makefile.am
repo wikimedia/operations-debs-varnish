@@ -61,6 +61,7 @@ varnishd_SOURCES = \
 	mgt_sandbox_solaris.c \
 	mgt_shmem.c \
 	mgt_vcc.c \
+	proxy_proto.c \
 	rfc2616.c \
 	stevedore.c \
 	storage_file.c \

@@ -429,7 +429,7 @@ ccf_listen_address(struct cli *cli, const char * const *av, void *priv)
 		if (ls->sock < 0)
 			continue;
 		VTCP_myname(ls->sock, h, sizeof h, p, sizeof p);
-		VCLI_Out(cli, "%s %s\n", h, p);
+		VCLI_Out(cli, "%s %s %d\n", h, p, ls->proxy_port);
 	}
 }
 

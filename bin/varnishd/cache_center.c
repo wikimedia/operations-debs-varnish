@@ -1130,7 +1130,6 @@ cnt_streambody(struct sess *sp)
 static int
 cnt_first(struct sess *sp)
 {
-
 	/*
 	 * XXX: If we don't have acceptfilters we are somewhat subject
 	 * XXX: to DoS'ing here.  One remedy would be to set a shorter
@@ -1140,7 +1139,23 @@ cnt_first(struct sess *sp)
 
 	assert(sp->xid == 0);
 	assert(sp->restarts == 0);
+
 	VCA_Prep(sp);
+
+	/* Process the PROXY protocol */
+	if (sp->mylsock->proxy_port) {
+		AZ(sp->ps);
+		if (Proxy_Init(sp) == NULL
+			|| Proxy_Read(sp) < 0
+			|| Proxy_Parse(sp) < 0) {
+			vca_close_session(sp, "PROXY protocol error");
+			sp->step = STP_DONE;
+			if (sp->ps != NULL)
+				Proxy_Finish(sp);
+			return (0);
+		}
+		Proxy_Finish(sp);
+	}
 
 	/* Record the session watermark */
 	sp->ws_ses = WS_Snapshot(sp->ws);

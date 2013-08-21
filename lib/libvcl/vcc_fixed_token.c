@@ -155,7 +155,7 @@ void
 vcl_output_lang_h(struct vsb *sb)
 {
 
-	/* ../include/vcl.h */
+	/* ../../include/vcl.h */
 
 	VSB_cat(sb, "/*\n * NB:  This file is machine generated, DO "
 	    "NOT EDIT!\n *\n * Edit and run generate.py instead\n"
@@ -189,7 +189,7 @@ vcl_output_lang_h(struct vsb *sb)
 	    "\tvcl_func_f\t*error_func;\n\tvcl_func_f\t*init_func;\n"
 	    "\tvcl_func_f\t*fini_func;\n\n};\n"	);
 
-	/* ../include/vrt.h */
+	/* ../../include/vrt.h */
 
 	VSB_cat(sb, "/*-\n * Copyright (c) 2006 Verdens Gang AS\n"
 	    " * Copyright (c) 2006-2010 Varnish Software AS\n * All rights "
@@ -303,7 +303,7 @@ vcl_output_lang_h(struct vsb *sb)
 	    "ing(const struct sess *sp, const char *p, ...);\n"
 	);
 
-	/* ../include/vrt_obj.h */
+	/* ../../include/vrt_obj.h */
 
 	VSB_cat(sb, "/*\n * NB:  This file is machine generated, DO "
 	    "NOT EDIT!\n *\n * Edit and run generate.py instead\n"
@@ -334,7 +334,12 @@ vcl_output_lang_h(struct vsb *sb)
 	    "gnore_busy(struct sess *);\nvoid VRT_l_req_hash_ignore_busy(stru"
 	    "ct sess *, unsigned);\nunsigned VRT_r_req_hash_always_miss(struc"
 	    "t sess *);\nvoid VRT_l_req_hash_always_miss(struct sess *, "
-	    "unsigned);\nconst char * VRT_r_bereq_request(const struct "
+	    "unsigned);\nunsigned VRT_r_req_proxy(const struct sess *);\n"
+	    "struct sockaddr_storage * VRT_r_req_proxy_client_ip(const "
+	    "struct sess *);\nint VRT_r_req_proxy_client_port(const struct "
+	    "sess *);\nstruct sockaddr_storage * VRT_r_req_proxy_server_ip(co"
+	    "nst struct sess *);\nint VRT_r_req_proxy_server_port(const "
+	    "struct sess *);\nconst char * VRT_r_bereq_request(const struct "
 	    "sess *);\nvoid VRT_l_bereq_request(const struct sess *, const "
 	    "char *, ...);\nconst char * VRT_r_bereq_url(const struct sess "
 	    "*);\nvoid VRT_l_bereq_url(const struct sess *, const char "

@@ -235,6 +235,36 @@ sp_variables = (
 		( 'recv',),
 		'struct sess *'
 	),
+	('req.proxy',
+		'BOOL',
+		( 'proc',),
+		( ),
+		'const struct sess *'
+	),
+	('req.proxy.client.ip',
+		'IP',
+		( 'proc',),
+		( ),
+		'const struct sess *'
+	),
+	('req.proxy.client.port',
+		'INT',
+		( 'proc',),
+		( ),
+		'const struct sess *'
+	),
+	('req.proxy.server.ip',
+		'IP',
+		( 'proc',),
+		( ),
+		'const struct sess *'
+	),
+	('req.proxy.server.port',
+		'INT',
+		( 'proc',),
+		( ),
+		'const struct sess *'
+	),
 	('bereq.request',
 		'STRING',
 		( 'pipe', 'pass', 'miss', 'fetch',),

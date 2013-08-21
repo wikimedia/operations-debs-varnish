@@ -307,3 +307,8 @@ VSS_open(const char *str, double tmo)
 	free(vaddr);
 	return (retval);
 }
+
+const struct sockaddr_storage *
+VSS_sockaddr(const struct vss_addr *va) {
+	return (&va->va_addr);
+}

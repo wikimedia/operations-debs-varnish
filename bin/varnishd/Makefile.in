@@ -92,8 +92,8 @@ am_varnishd_OBJECTS = varnishd-cache_acceptor.$(OBJEXT) \
 	varnishd-mgt_sandbox.$(OBJEXT) \
 	varnishd-mgt_sandbox_solaris.$(OBJEXT) \
 	varnishd-mgt_shmem.$(OBJEXT) varnishd-mgt_vcc.$(OBJEXT) \
-	varnishd-rfc2616.$(OBJEXT) varnishd-stevedore.$(OBJEXT) \
-	varnishd-storage_file.$(OBJEXT) \
+	varnishd-proxy_proto.$(OBJEXT) varnishd-rfc2616.$(OBJEXT) \
+	varnishd-stevedore.$(OBJEXT) varnishd-storage_file.$(OBJEXT) \
 	varnishd-storage_malloc.$(OBJEXT) \
 	varnishd-storage_persistent.$(OBJEXT) \
 	varnishd-storage_persistent_mgt.$(OBJEXT) \
@@ -366,6 +366,7 @@ varnishd_SOURCES = \
 	mgt_sandbox_solaris.c \
 	mgt_shmem.c \
 	mgt_vcc.c \
+	proxy_proto.c \
 	rfc2616.c \
 	stevedore.c \
 	storage_file.c \
@@ -556,6 +557,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-mgt_sandbox_solaris.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-mgt_shmem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-mgt_vcc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-proxy_proto.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-rfc2616.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-stevedore.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/varnishd-stevedore_utils.Po@am__quote@
@@ -1304,6 +1306,20 @@ varnishd-mgt_vcc.obj: mgt_vcc.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mgt_vcc.c' object='varnishd-mgt_vcc.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-mgt_vcc.obj `if test -f 'mgt_vcc.c'; then $(CYGPATH_W) 'mgt_vcc.c'; else $(CYGPATH_W) '$(srcdir)/mgt_vcc.c'; fi`
+
+varnishd-proxy_proto.o: proxy_proto.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-proxy_proto.o -MD -MP -MF $(DEPDIR)/varnishd-proxy_proto.Tpo -c -o varnishd-proxy_proto.o `test -f 'proxy_proto.c' || echo '$(srcdir)/'`proxy_proto.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/varnishd-proxy_proto.Tpo $(DEPDIR)/varnishd-proxy_proto.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='proxy_proto.c' object='varnishd-proxy_proto.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-proxy_proto.o `test -f 'proxy_proto.c' || echo '$(srcdir)/'`proxy_proto.c
+
+varnishd-proxy_proto.obj: proxy_proto.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-proxy_proto.obj -MD -MP -MF $(DEPDIR)/varnishd-proxy_proto.Tpo -c -o varnishd-proxy_proto.obj `if test -f 'proxy_proto.c'; then $(CYGPATH_W) 'proxy_proto.c'; else $(CYGPATH_W) '$(srcdir)/proxy_proto.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/varnishd-proxy_proto.Tpo $(DEPDIR)/varnishd-proxy_proto.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='proxy_proto.c' object='varnishd-proxy_proto.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -c -o varnishd-proxy_proto.obj `if test -f 'proxy_proto.c'; then $(CYGPATH_W) 'proxy_proto.c'; else $(CYGPATH_W) '$(srcdir)/proxy_proto.c'; fi`
 
 varnishd-rfc2616.o: rfc2616.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(varnishd_CFLAGS) $(CFLAGS) -MT varnishd-rfc2616.o -MD -MP -MF $(DEPDIR)/varnishd-rfc2616.Tpo -c -o varnishd-rfc2616.o `test -f 'rfc2616.c' || echo '$(srcdir)/'`rfc2616.c

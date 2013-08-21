@@ -39,6 +39,7 @@ struct listen_sock {
 	int				sock;
 	char				*name;
 	struct vss_addr			*addr;
+	int				proxy_port;
 };
 
 VTAILQ_HEAD(listen_sock_head, listen_sock);
@@ -136,6 +137,10 @@ struct params {
 
 	/* Listen depth */
 	unsigned		listen_depth;
+
+	/* PROXY protocol */
+	unsigned		proxy_protocol_port;
+	unsigned		proxy_protocol_timeout;
 
 	/* CLI related */
 	unsigned		cli_timeout;

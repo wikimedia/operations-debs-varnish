@@ -35,3 +35,4 @@ int VSS_bind(const struct vss_addr *addr);
 int VSS_listen(const struct vss_addr *addr, int depth);
 int VSS_connect(const struct vss_addr *addr, int nonblock);
 int VSS_open(const char *str, double tmo);
+const struct sockaddr_storage* VSS_sockaddr(const struct vss_addr *va);

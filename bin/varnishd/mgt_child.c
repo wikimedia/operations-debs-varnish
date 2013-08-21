@@ -236,6 +236,9 @@ open_sockets(void)
 
 		mgt_child_inherit(ls->sock, "sock");
 
+		if (VTCP_port(VSS_sockaddr(ls->addr)) == params->proxy_protocol_port)
+			ls->proxy_port = 1;
+
 		/*
 		 * Set nonblocking mode to avoid a race where a client
 		 * closes before we call accept(2) and nobody else are in

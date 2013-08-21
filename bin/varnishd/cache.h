@@ -563,6 +563,9 @@ struct sess {
 	char			*port;
 	char			*client_identity;
 
+	/* PROXY data */
+	struct proxy_state *ps;
+
 	/* HTTP request */
 	const char		*doclose;
 	struct http		*http;
@@ -968,6 +971,19 @@ void SMS_Finish(struct object *obj);
 /* storage_persistent.c */
 void SMP_Init(void);
 void SMP_Ready(void);
+
+/* proxy_proto.c */
+struct proxy_state;
+
+struct proxy_state *Proxy_Init(struct sess *sp);
+void Proxy_Finish(struct sess *sp);
+int Proxy_Read(const struct sess *sp);
+int Proxy_Parse(struct sess *sp);
+unsigned Proxy_Valid(const struct sess *sp);
+struct sockaddr_storage *Proxy_Client_Address(const struct sess *sp);
+struct sockaddr_storage *Proxy_Server_Address(const struct sess *sp);
+int Proxy_Client_Port(const struct sess *sp);
+int Proxy_Server_Port(const struct sess *sp);
 
 /*
  * A normal pointer difference is signed, but we never want a negative value

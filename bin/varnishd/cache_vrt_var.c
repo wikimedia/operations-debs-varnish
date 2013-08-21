@@ -377,6 +377,41 @@ VRT_r_req_restarts(const struct sess *sp)
 	return (sp->restarts);
 }
 
+unsigned
+VRT_r_req_proxy(const struct sess *sp)
+{
+
+	return (Proxy_Valid(sp));
+}
+
+struct sockaddr_storage *
+VRT_r_req_proxy_client_ip(const struct sess *sp)
+{
+
+	return (Proxy_Client_Address(sp));
+}
+
+int
+VRT_r_req_proxy_client_port(const struct sess *sp)
+{
+
+	return (Proxy_Client_Port(sp));
+}
+
+struct sockaddr_storage *
+VRT_r_req_proxy_server_ip(const struct sess *sp)
+{
+
+	return (Proxy_Server_Address(sp));
+}
+
+int
+VRT_r_req_proxy_server_port(const struct sess *sp)
+{
+
+	return (Proxy_Server_Port(sp));
+}
+
 /*--------------------------------------------------------------------
  * NB: TTL is relative to when object was created, whereas grace and
  * keep are relative to ttl.

@@ -219,6 +219,51 @@ const struct var vcc_vars[] = {
 	    VCL_MET_RECV,
 	    0,
 	},
+	{ "req.proxy", BOOL, 9,
+	    "VRT_r_req_proxy(sp)",
+	    VCL_MET_RECV | VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_HASH
+	     | VCL_MET_MISS | VCL_MET_HIT | VCL_MET_FETCH | VCL_MET_DELIVER
+	     | VCL_MET_ERROR,
+	    NULL,	/* No writes allowed */
+	    0,
+	    0,
+	},
+	{ "req.proxy.client.ip", IP, 19,
+	    "VRT_r_req_proxy_client_ip(sp)",
+	    VCL_MET_RECV | VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_HASH
+	     | VCL_MET_MISS | VCL_MET_HIT | VCL_MET_FETCH | VCL_MET_DELIVER
+	     | VCL_MET_ERROR,
+	    NULL,	/* No writes allowed */
+	    0,
+	    0,
+	},
+	{ "req.proxy.client.port", INT, 21,
+	    "VRT_r_req_proxy_client_port(sp)",
+	    VCL_MET_RECV | VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_HASH
+	     | VCL_MET_MISS | VCL_MET_HIT | VCL_MET_FETCH | VCL_MET_DELIVER
+	     | VCL_MET_ERROR,
+	    NULL,	/* No writes allowed */
+	    0,
+	    0,
+	},
+	{ "req.proxy.server.ip", IP, 19,
+	    "VRT_r_req_proxy_server_ip(sp)",
+	    VCL_MET_RECV | VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_HASH
+	     | VCL_MET_MISS | VCL_MET_HIT | VCL_MET_FETCH | VCL_MET_DELIVER
+	     | VCL_MET_ERROR,
+	    NULL,	/* No writes allowed */
+	    0,
+	    0,
+	},
+	{ "req.proxy.server.port", INT, 21,
+	    "VRT_r_req_proxy_server_port(sp)",
+	    VCL_MET_RECV | VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_HASH
+	     | VCL_MET_MISS | VCL_MET_HIT | VCL_MET_FETCH | VCL_MET_DELIVER
+	     | VCL_MET_ERROR,
+	    NULL,	/* No writes allowed */
+	    0,
+	    0,
+	},
 	{ "bereq.request", STRING, 13,
 	    "VRT_r_bereq_request(sp)",
 	    VCL_MET_PIPE | VCL_MET_PASS | VCL_MET_MISS | VCL_MET_FETCH,
