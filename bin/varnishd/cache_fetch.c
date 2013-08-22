@@ -195,7 +195,9 @@ vfp_nop_end(struct sess *sp)
 		STV_free(st);
 		return (0);
 	}
-	if (st->len < st->space)
+	/* Don't do trim when streaming, as that opens a race if the
+	   storage was to move (which would happen in e.g. -smalloc) */
+	if (sp->stream_busyobj == NULL && st->len < st->space)
 		STV_trim(st, st->len);
 	return (0);
 }
