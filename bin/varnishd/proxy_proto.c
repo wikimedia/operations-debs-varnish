@@ -125,7 +125,7 @@ Proxy_Read(const struct sess *sp) {
 	}
 
 	/* Read the PROXY header */
-	if (recv(sp->fd, phdr, sizeof *phdr, MSG_PEEK) == sizeof *phdr
+	if (recv(sp->fd, phdr, sizeof *phdr, MSG_PEEK) >= sizeof (phdr->hdr)
 		&& memcmp(phdr->hdr.sig, v2sig, sizeof v2sig) == 0
 		&& phdr->hdr.len <= sizeof phdr->addr) {
 		msgsize = sizeof phdr->hdr + phdr->hdr.len;
