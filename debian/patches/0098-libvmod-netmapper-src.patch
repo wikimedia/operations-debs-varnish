@@ -1,0 +1,2714 @@
+diff --git a/lib/libvmod_netmapper/.gitignore b/lib/libvmod_netmapper/.gitignore
+new file mode 100644
+index 0000000..34eb8bd
+--- /dev/null
++++ b/lib/libvmod_netmapper/.gitignore
+@@ -0,0 +1,36 @@
++# Autotools junk at top level
++/autom4te.cache/
++/aclocal.m4
++/config.h
++/config.h.in
++/config.log
++/config.status
++/configure
++/libtool
++/stamp-h1
++
++# Various tool outputs in all dirs
++Makefile
++Makefile.in
++.dirstamp
++.deps
++.libs
++*.o
++*.so
++*.lo
++*.la
++*.gcov
++*.trucov
++*.info
++*.gcda
++*.gcno
++*.tmp
++*.log
++*.trs
++*~
++
++# Generated manpages
++*.[0-9]
++
++# built binary
++vnm_validate
+diff --git a/lib/libvmod_netmapper/COPYING b/lib/libvmod_netmapper/COPYING
+new file mode 100644
+index 0000000..94a9ed0
+--- /dev/null
++++ b/lib/libvmod_netmapper/COPYING
+@@ -0,0 +1,674 @@
++                    GNU GENERAL PUBLIC LICENSE
++                       Version 3, 29 June 2007
++
++ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
++ Everyone is permitted to copy and distribute verbatim copies
++ of this license document, but changing it is not allowed.
++
++                            Preamble
++
++  The GNU General Public License is a free, copyleft license for
++software and other kinds of works.
++
++  The licenses for most software and other practical works are designed
++to take away your freedom to share and change the works.  By contrast,
++the GNU General Public License is intended to guarantee your freedom to
++share and change all versions of a program--to make sure it remains free
++software for all its users.  We, the Free Software Foundation, use the
++GNU General Public License for most of our software; it applies also to
++any other work released this way by its authors.  You can apply it to
++your programs, too.
++
++  When we speak of free software, we are referring to freedom, not
++price.  Our General Public Licenses are designed to make sure that you
++have the freedom to distribute copies of free software (and charge for
++them if you wish), that you receive source code or can get it if you
++want it, that you can change the software or use pieces of it in new
++free programs, and that you know you can do these things.
++
++  To protect your rights, we need to prevent others from denying you
++these rights or asking you to surrender the rights.  Therefore, you have
++certain responsibilities if you distribute copies of the software, or if
++you modify it: responsibilities to respect the freedom of others.
++
++  For example, if you distribute copies of such a program, whether
++gratis or for a fee, you must pass on to the recipients the same
++freedoms that you received.  You must make sure that they, too, receive
++or can get the source code.  And you must show them these terms so they
++know their rights.
++
++  Developers that use the GNU GPL protect your rights with two steps:
++(1) assert copyright on the software, and (2) offer you this License
++giving you legal permission to copy, distribute and/or modify it.
++
++  For the developers' and authors' protection, the GPL clearly explains
++that there is no warranty for this free software.  For both users' and
++authors' sake, the GPL requires that modified versions be marked as
++changed, so that their problems will not be attributed erroneously to
++authors of previous versions.
++
++  Some devices are designed to deny users access to install or run
++modified versions of the software inside them, although the manufacturer
++can do so.  This is fundamentally incompatible with the aim of
++protecting users' freedom to change the software.  The systematic
++pattern of such abuse occurs in the area of products for individuals to
++use, which is precisely where it is most unacceptable.  Therefore, we
++have designed this version of the GPL to prohibit the practice for those
++products.  If such problems arise substantially in other domains, we
++stand ready to extend this provision to those domains in future versions
++of the GPL, as needed to protect the freedom of users.
++
++  Finally, every program is threatened constantly by software patents.
++States should not allow patents to restrict development and use of
++software on general-purpose computers, but in those that do, we wish to
++avoid the special danger that patents applied to a free program could
++make it effectively proprietary.  To prevent this, the GPL assures that
++patents cannot be used to render the program non-free.
++
++  The precise terms and conditions for copying, distribution and
++modification follow.
++
++                       TERMS AND CONDITIONS
++
++  0. Definitions.
++
++  "This License" refers to version 3 of the GNU General Public License.
++
++  "Copyright" also means copyright-like laws that apply to other kinds of
++works, such as semiconductor masks.
++
++  "The Program" refers to any copyrightable work licensed under this
++License.  Each licensee is addressed as "you".  "Licensees" and
++"recipients" may be individuals or organizations.
++
++  To "modify" a work means to copy from or adapt all or part of the work
++in a fashion requiring copyright permission, other than the making of an
++exact copy.  The resulting work is called a "modified version" of the
++earlier work or a work "based on" the earlier work.
++
++  A "covered work" means either the unmodified Program or a work based
++on the Program.
++
++  To "propagate" a work means to do anything with it that, without
++permission, would make you directly or secondarily liable for
++infringement under applicable copyright law, except executing it on a
++computer or modifying a private copy.  Propagation includes copying,
++distribution (with or without modification), making available to the
++public, and in some countries other activities as well.
++
++  To "convey" a work means any kind of propagation that enables other
++parties to make or receive copies.  Mere interaction with a user through
++a computer network, with no transfer of a copy, is not conveying.
++
++  An interactive user interface displays "Appropriate Legal Notices"
++to the extent that it includes a convenient and prominently visible
++feature that (1) displays an appropriate copyright notice, and (2)
++tells the user that there is no warranty for the work (except to the
++extent that warranties are provided), that licensees may convey the
++work under this License, and how to view a copy of this License.  If
++the interface presents a list of user commands or options, such as a
++menu, a prominent item in the list meets this criterion.
++
++  1. Source Code.
++
++  The "source code" for a work means the preferred form of the work
++for making modifications to it.  "Object code" means any non-source
++form of a work.
++
++  A "Standard Interface" means an interface that either is an official
++standard defined by a recognized standards body, or, in the case of
++interfaces specified for a particular programming language, one that
++is widely used among developers working in that language.
++
++  The "System Libraries" of an executable work include anything, other
++than the work as a whole, that (a) is included in the normal form of
++packaging a Major Component, but which is not part of that Major
++Component, and (b) serves only to enable use of the work with that
++Major Component, or to implement a Standard Interface for which an
++implementation is available to the public in source code form.  A
++"Major Component", in this context, means a major essential component
++(kernel, window system, and so on) of the specific operating system
++(if any) on which the executable work runs, or a compiler used to
++produce the work, or an object code interpreter used to run it.
++
++  The "Corresponding Source" for a work in object code form means all
++the source code needed to generate, install, and (for an executable
++work) run the object code and to modify the work, including scripts to
++control those activities.  However, it does not include the work's
++System Libraries, or general-purpose tools or generally available free
++programs which are used unmodified in performing those activities but
++which are not part of the work.  For example, Corresponding Source
++includes interface definition files associated with source files for
++the work, and the source code for shared libraries and dynamically
++linked subprograms that the work is specifically designed to require,
++such as by intimate data communication or control flow between those
++subprograms and other parts of the work.
++
++  The Corresponding Source need not include anything that users
++can regenerate automatically from other parts of the Corresponding
++Source.
++
++  The Corresponding Source for a work in source code form is that
++same work.
++
++  2. Basic Permissions.
++
++  All rights granted under this License are granted for the term of
++copyright on the Program, and are irrevocable provided the stated
++conditions are met.  This License explicitly affirms your unlimited
++permission to run the unmodified Program.  The output from running a
++covered work is covered by this License only if the output, given its
++content, constitutes a covered work.  This License acknowledges your
++rights of fair use or other equivalent, as provided by copyright law.
++
++  You may make, run and propagate covered works that you do not
++convey, without conditions so long as your license otherwise remains
++in force.  You may convey covered works to others for the sole purpose
++of having them make modifications exclusively for you, or provide you
++with facilities for running those works, provided that you comply with
++the terms of this License in conveying all material for which you do
++not control copyright.  Those thus making or running the covered works
++for you must do so exclusively on your behalf, under your direction
++and control, on terms that prohibit them from making any copies of
++your copyrighted material outside their relationship with you.
++
++  Conveying under any other circumstances is permitted solely under
++the conditions stated below.  Sublicensing is not allowed; section 10
++makes it unnecessary.
++
++  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
++
++  No covered work shall be deemed part of an effective technological
++measure under any applicable law fulfilling obligations under article
++11 of the WIPO copyright treaty adopted on 20 December 1996, or
++similar laws prohibiting or restricting circumvention of such
++measures.
++
++  When you convey a covered work, you waive any legal power to forbid
++circumvention of technological measures to the extent such circumvention
++is effected by exercising rights under this License with respect to
++the covered work, and you disclaim any intention to limit operation or
++modification of the work as a means of enforcing, against the work's
++users, your or third parties' legal rights to forbid circumvention of
++technological measures.
++
++  4. Conveying Verbatim Copies.
++
++  You may convey verbatim copies of the Program's source code as you
++receive it, in any medium, provided that you conspicuously and
++appropriately publish on each copy an appropriate copyright notice;
++keep intact all notices stating that this License and any
++non-permissive terms added in accord with section 7 apply to the code;
++keep intact all notices of the absence of any warranty; and give all
++recipients a copy of this License along with the Program.
++
++  You may charge any price or no price for each copy that you convey,
++and you may offer support or warranty protection for a fee.
++
++  5. Conveying Modified Source Versions.
++
++  You may convey a work based on the Program, or the modifications to
++produce it from the Program, in the form of source code under the
++terms of section 4, provided that you also meet all of these conditions:
++
++    a) The work must carry prominent notices stating that you modified
++    it, and giving a relevant date.
++
++    b) The work must carry prominent notices stating that it is
++    released under this License and any conditions added under section
++    7.  This requirement modifies the requirement in section 4 to
++    "keep intact all notices".
++
++    c) You must license the entire work, as a whole, under this
++    License to anyone who comes into possession of a copy.  This
++    License will therefore apply, along with any applicable section 7
++    additional terms, to the whole of the work, and all its parts,
++    regardless of how they are packaged.  This License gives no
++    permission to license the work in any other way, but it does not
++    invalidate such permission if you have separately received it.
++
++    d) If the work has interactive user interfaces, each must display
++    Appropriate Legal Notices; however, if the Program has interactive
++    interfaces that do not display Appropriate Legal Notices, your
++    work need not make them do so.
++
++  A compilation of a covered work with other separate and independent
++works, which are not by their nature extensions of the covered work,
++and which are not combined with it such as to form a larger program,
++in or on a volume of a storage or distribution medium, is called an
++"aggregate" if the compilation and its resulting copyright are not
++used to limit the access or legal rights of the compilation's users
++beyond what the individual works permit.  Inclusion of a covered work
++in an aggregate does not cause this License to apply to the other
++parts of the aggregate.
++
++  6. Conveying Non-Source Forms.
++
++  You may convey a covered work in object code form under the terms
++of sections 4 and 5, provided that you also convey the
++machine-readable Corresponding Source under the terms of this License,
++in one of these ways:
++
++    a) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by the
++    Corresponding Source fixed on a durable physical medium
++    customarily used for software interchange.
++
++    b) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by a
++    written offer, valid for at least three years and valid for as
++    long as you offer spare parts or customer support for that product
++    model, to give anyone who possesses the object code either (1) a
++    copy of the Corresponding Source for all the software in the
++    product that is covered by this License, on a durable physical
++    medium customarily used for software interchange, for a price no
++    more than your reasonable cost of physically performing this
++    conveying of source, or (2) access to copy the
++    Corresponding Source from a network server at no charge.
++
++    c) Convey individual copies of the object code with a copy of the
++    written offer to provide the Corresponding Source.  This
++    alternative is allowed only occasionally and noncommercially, and
++    only if you received the object code with such an offer, in accord
++    with subsection 6b.
++
++    d) Convey the object code by offering access from a designated
++    place (gratis or for a charge), and offer equivalent access to the
++    Corresponding Source in the same way through the same place at no
++    further charge.  You need not require recipients to copy the
++    Corresponding Source along with the object code.  If the place to
++    copy the object code is a network server, the Corresponding Source
++    may be on a different server (operated by you or a third party)
++    that supports equivalent copying facilities, provided you maintain
++    clear directions next to the object code saying where to find the
++    Corresponding Source.  Regardless of what server hosts the
++    Corresponding Source, you remain obligated to ensure that it is
++    available for as long as needed to satisfy these requirements.
++
++    e) Convey the object code using peer-to-peer transmission, provided
++    you inform other peers where the object code and Corresponding
++    Source of the work are being offered to the general public at no
++    charge under subsection 6d.
++
++  A separable portion of the object code, whose source code is excluded
++from the Corresponding Source as a System Library, need not be
++included in conveying the object code work.
++
++  A "User Product" is either (1) a "consumer product", which means any
++tangible personal property which is normally used for personal, family,
++or household purposes, or (2) anything designed or sold for incorporation
++into a dwelling.  In determining whether a product is a consumer product,
++doubtful cases shall be resolved in favor of coverage.  For a particular
++product received by a particular user, "normally used" refers to a
++typical or common use of that class of product, regardless of the status
++of the particular user or of the way in which the particular user
++actually uses, or expects or is expected to use, the product.  A product
++is a consumer product regardless of whether the product has substantial
++commercial, industrial or non-consumer uses, unless such uses represent
++the only significant mode of use of the product.
++
++  "Installation Information" for a User Product means any methods,
++procedures, authorization keys, or other information required to install
++and execute modified versions of a covered work in that User Product from
++a modified version of its Corresponding Source.  The information must
++suffice to ensure that the continued functioning of the modified object
++code is in no case prevented or interfered with solely because
++modification has been made.
++
++  If you convey an object code work under this section in, or with, or
++specifically for use in, a User Product, and the conveying occurs as
++part of a transaction in which the right of possession and use of the
++User Product is transferred to the recipient in perpetuity or for a
++fixed term (regardless of how the transaction is characterized), the
++Corresponding Source conveyed under this section must be accompanied
++by the Installation Information.  But this requirement does not apply
++if neither you nor any third party retains the ability to install
++modified object code on the User Product (for example, the work has
++been installed in ROM).
++
++  The requirement to provide Installation Information does not include a
++requirement to continue to provide support service, warranty, or updates
++for a work that has been modified or installed by the recipient, or for
++the User Product in which it has been modified or installed.  Access to a
++network may be denied when the modification itself materially and
++adversely affects the operation of the network or violates the rules and
++protocols for communication across the network.
++
++  Corresponding Source conveyed, and Installation Information provided,
++in accord with this section must be in a format that is publicly
++documented (and with an implementation available to the public in
++source code form), and must require no special password or key for
++unpacking, reading or copying.
++
++  7. Additional Terms.
++
++  "Additional permissions" are terms that supplement the terms of this
++License by making exceptions from one or more of its conditions.
++Additional permissions that are applicable to the entire Program shall
++be treated as though they were included in this License, to the extent
++that they are valid under applicable law.  If additional permissions
++apply only to part of the Program, that part may be used separately
++under those permissions, but the entire Program remains governed by
++this License without regard to the additional permissions.
++
++  When you convey a copy of a covered work, you may at your option
++remove any additional permissions from that copy, or from any part of
++it.  (Additional permissions may be written to require their own
++removal in certain cases when you modify the work.)  You may place
++additional permissions on material, added by you to a covered work,
++for which you have or can give appropriate copyright permission.
++
++  Notwithstanding any other provision of this License, for material you
++add to a covered work, you may (if authorized by the copyright holders of
++that material) supplement the terms of this License with terms:
++
++    a) Disclaiming warranty or limiting liability differently from the
++    terms of sections 15 and 16 of this License; or
++
++    b) Requiring preservation of specified reasonable legal notices or
++    author attributions in that material or in the Appropriate Legal
++    Notices displayed by works containing it; or
++
++    c) Prohibiting misrepresentation of the origin of that material, or
++    requiring that modified versions of such material be marked in
++    reasonable ways as different from the original version; or
++
++    d) Limiting the use for publicity purposes of names of licensors or
++    authors of the material; or
++
++    e) Declining to grant rights under trademark law for use of some
++    trade names, trademarks, or service marks; or
++
++    f) Requiring indemnification of licensors and authors of that
++    material by anyone who conveys the material (or modified versions of
++    it) with contractual assumptions of liability to the recipient, for
++    any liability that these contractual assumptions directly impose on
++    those licensors and authors.
++
++  All other non-permissive additional terms are considered "further
++restrictions" within the meaning of section 10.  If the Program as you
++received it, or any part of it, contains a notice stating that it is
++governed by this License along with a term that is a further
++restriction, you may remove that term.  If a license document contains
++a further restriction but permits relicensing or conveying under this
++License, you may add to a covered work material governed by the terms
++of that license document, provided that the further restriction does
++not survive such relicensing or conveying.
++
++  If you add terms to a covered work in accord with this section, you
++must place, in the relevant source files, a statement of the
++additional terms that apply to those files, or a notice indicating
++where to find the applicable terms.
++
++  Additional terms, permissive or non-permissive, may be stated in the
++form of a separately written license, or stated as exceptions;
++the above requirements apply either way.
++
++  8. Termination.
++
++  You may not propagate or modify a covered work except as expressly
++provided under this License.  Any attempt otherwise to propagate or
++modify it is void, and will automatically terminate your rights under
++this License (including any patent licenses granted under the third
++paragraph of section 11).
++
++  However, if you cease all violation of this License, then your
++license from a particular copyright holder is reinstated (a)
++provisionally, unless and until the copyright holder explicitly and
++finally terminates your license, and (b) permanently, if the copyright
++holder fails to notify you of the violation by some reasonable means
++prior to 60 days after the cessation.
++
++  Moreover, your license from a particular copyright holder is
++reinstated permanently if the copyright holder notifies you of the
++violation by some reasonable means, this is the first time you have
++received notice of violation of this License (for any work) from that
++copyright holder, and you cure the violation prior to 30 days after
++your receipt of the notice.
++
++  Termination of your rights under this section does not terminate the
++licenses of parties who have received copies or rights from you under
++this License.  If your rights have been terminated and not permanently
++reinstated, you do not qualify to receive new licenses for the same
++material under section 10.
++
++  9. Acceptance Not Required for Having Copies.
++
++  You are not required to accept this License in order to receive or
++run a copy of the Program.  Ancillary propagation of a covered work
++occurring solely as a consequence of using peer-to-peer transmission
++to receive a copy likewise does not require acceptance.  However,
++nothing other than this License grants you permission to propagate or
++modify any covered work.  These actions infringe copyright if you do
++not accept this License.  Therefore, by modifying or propagating a
++covered work, you indicate your acceptance of this License to do so.
++
++  10. Automatic Licensing of Downstream Recipients.
++
++  Each time you convey a covered work, the recipient automatically
++receives a license from the original licensors, to run, modify and
++propagate that work, subject to this License.  You are not responsible
++for enforcing compliance by third parties with this License.
++
++  An "entity transaction" is a transaction transferring control of an
++organization, or substantially all assets of one, or subdividing an
++organization, or merging organizations.  If propagation of a covered
++work results from an entity transaction, each party to that
++transaction who receives a copy of the work also receives whatever
++licenses to the work the party's predecessor in interest had or could
++give under the previous paragraph, plus a right to possession of the
++Corresponding Source of the work from the predecessor in interest, if
++the predecessor has it or can get it with reasonable efforts.
++
++  You may not impose any further restrictions on the exercise of the
++rights granted or affirmed under this License.  For example, you may
++not impose a license fee, royalty, or other charge for exercise of
++rights granted under this License, and you may not initiate litigation
++(including a cross-claim or counterclaim in a lawsuit) alleging that
++any patent claim is infringed by making, using, selling, offering for
++sale, or importing the Program or any portion of it.
++
++  11. Patents.
++
++  A "contributor" is a copyright holder who authorizes use under this
++License of the Program or a work on which the Program is based.  The
++work thus licensed is called the contributor's "contributor version".
++
++  A contributor's "essential patent claims" are all patent claims
++owned or controlled by the contributor, whether already acquired or
++hereafter acquired, that would be infringed by some manner, permitted
++by this License, of making, using, or selling its contributor version,
++but do not include claims that would be infringed only as a
++consequence of further modification of the contributor version.  For
++purposes of this definition, "control" includes the right to grant
++patent sublicenses in a manner consistent with the requirements of
++this License.
++
++  Each contributor grants you a non-exclusive, worldwide, royalty-free
++patent license under the contributor's essential patent claims, to
++make, use, sell, offer for sale, import and otherwise run, modify and
++propagate the contents of its contributor version.
++
++  In the following three paragraphs, a "patent license" is any express
++agreement or commitment, however denominated, not to enforce a patent
++(such as an express permission to practice a patent or covenant not to
++sue for patent infringement).  To "grant" such a patent license to a
++party means to make such an agreement or commitment not to enforce a
++patent against the party.
++
++  If you convey a covered work, knowingly relying on a patent license,
++and the Corresponding Source of the work is not available for anyone
++to copy, free of charge and under the terms of this License, through a
++publicly available network server or other readily accessible means,
++then you must either (1) cause the Corresponding Source to be so
++available, or (2) arrange to deprive yourself of the benefit of the
++patent license for this particular work, or (3) arrange, in a manner
++consistent with the requirements of this License, to extend the patent
++license to downstream recipients.  "Knowingly relying" means you have
++actual knowledge that, but for the patent license, your conveying the
++covered work in a country, or your recipient's use of the covered work
++in a country, would infringe one or more identifiable patents in that
++country that you have reason to believe are valid.
++
++  If, pursuant to or in connection with a single transaction or
++arrangement, you convey, or propagate by procuring conveyance of, a
++covered work, and grant a patent license to some of the parties
++receiving the covered work authorizing them to use, propagate, modify
++or convey a specific copy of the covered work, then the patent license
++you grant is automatically extended to all recipients of the covered
++work and works based on it.
++
++  A patent license is "discriminatory" if it does not include within
++the scope of its coverage, prohibits the exercise of, or is
++conditioned on the non-exercise of one or more of the rights that are
++specifically granted under this License.  You may not convey a covered
++work if you are a party to an arrangement with a third party that is
++in the business of distributing software, under which you make payment
++to the third party based on the extent of your activity of conveying
++the work, and under which the third party grants, to any of the
++parties who would receive the covered work from you, a discriminatory
++patent license (a) in connection with copies of the covered work
++conveyed by you (or copies made from those copies), or (b) primarily
++for and in connection with specific products or compilations that
++contain the covered work, unless you entered into that arrangement,
++or that patent license was granted, prior to 28 March 2007.
++
++  Nothing in this License shall be construed as excluding or limiting
++any implied license or other defenses to infringement that may
++otherwise be available to you under applicable patent law.
++
++  12. No Surrender of Others' Freedom.
++
++  If conditions are imposed on you (whether by court order, agreement or
++otherwise) that contradict the conditions of this License, they do not
++excuse you from the conditions of this License.  If you cannot convey a
++covered work so as to satisfy simultaneously your obligations under this
++License and any other pertinent obligations, then as a consequence you may
++not convey it at all.  For example, if you agree to terms that obligate you
++to collect a royalty for further conveying from those to whom you convey
++the Program, the only way you could satisfy both those terms and this
++License would be to refrain entirely from conveying the Program.
++
++  13. Use with the GNU Affero General Public License.
++
++  Notwithstanding any other provision of this License, you have
++permission to link or combine any covered work with a work licensed
++under version 3 of the GNU Affero General Public License into a single
++combined work, and to convey the resulting work.  The terms of this
++License will continue to apply to the part which is the covered work,
++but the special requirements of the GNU Affero General Public License,
++section 13, concerning interaction through a network will apply to the
++combination as such.
++
++  14. Revised Versions of this License.
++
++  The Free Software Foundation may publish revised and/or new versions of
++the GNU General Public License from time to time.  Such new versions will
++be similar in spirit to the present version, but may differ in detail to
++address new problems or concerns.
++
++  Each version is given a distinguishing version number.  If the
++Program specifies that a certain numbered version of the GNU General
++Public License "or any later version" applies to it, you have the
++option of following the terms and conditions either of that numbered
++version or of any later version published by the Free Software
++Foundation.  If the Program does not specify a version number of the
++GNU General Public License, you may choose any version ever published
++by the Free Software Foundation.
++
++  If the Program specifies that a proxy can decide which future
++versions of the GNU General Public License can be used, that proxy's
++public statement of acceptance of a version permanently authorizes you
++to choose that version for the Program.
++
++  Later license versions may give you additional or different
++permissions.  However, no additional obligations are imposed on any
++author or copyright holder as a result of your choosing to follow a
++later version.
++
++  15. Disclaimer of Warranty.
++
++  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
++APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
++HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
++OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
++THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
++IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
++ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
++
++  16. Limitation of Liability.
++
++  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
++WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
++THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
++GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
++USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
++DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
++PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
++EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGES.
++
++  17. Interpretation of Sections 15 and 16.
++
++  If the disclaimer of warranty and limitation of liability provided
++above cannot be given local legal effect according to their terms,
++reviewing courts shall apply local law that most closely approximates
++an absolute waiver of all civil liability in connection with the
++Program, unless a warranty or assumption of liability accompanies a
++copy of the Program in return for a fee.
++
++                     END OF TERMS AND CONDITIONS
++
++            How to Apply These Terms to Your New Programs
++
++  If you develop a new program, and you want it to be of the greatest
++possible use to the public, the best way to achieve this is to make it
++free software which everyone can redistribute and change under these terms.
++
++  To do so, attach the following notices to the program.  It is safest
++to attach them to the start of each source file to most effectively
++state the exclusion of warranty; and each file should have at least
++the "copyright" line and a pointer to where the full notice is found.
++
++    <one line to give the program's name and a brief idea of what it does.>
++    Copyright (C) <year>  <name of author>
++
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++Also add information on how to contact you by electronic and paper mail.
++
++  If the program does terminal interaction, make it output a short
++notice like this when it starts in an interactive mode:
++
++    <program>  Copyright (C) <year>  <name of author>
++    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
++    This is free software, and you are welcome to redistribute it
++    under certain conditions; type `show c' for details.
++
++The hypothetical commands `show w' and `show c' should show the appropriate
++parts of the General Public License.  Of course, your program's commands
++might be different; for a GUI interface, you would use an "about box".
++
++  You should also get your employer (if you work as a programmer) or school,
++if any, to sign a "copyright disclaimer" for the program, if necessary.
++For more information on this, and how to apply and follow the GNU GPL, see
++<http://www.gnu.org/licenses/>.
++
++  The GNU General Public License does not permit incorporating your program
++into proprietary programs.  If your program is a subroutine library, you
++may consider it more useful to permit linking proprietary applications with
++the library.  If this is what you want to do, use the GNU Lesser General
++Public License instead of this License.  But first, please read
++<http://www.gnu.org/philosophy/why-not-lgpl.html>.
+diff --git a/lib/libvmod_netmapper/Makefile.am b/lib/libvmod_netmapper/Makefile.am
+new file mode 100644
+index 0000000..d7dcb2b
+--- /dev/null
++++ b/lib/libvmod_netmapper/Makefile.am
+@@ -0,0 +1,21 @@
++ACLOCAL_AMFLAGS = -I m4
++
++SUBDIRS = src
++
++EXTRA_DIST = README.rst
++
++dist_man_MANS = vmod_netmapper.3
++MAINTAINERCLEANFILES = $(dist_man_MANS)
++
++vmod_netmapper.3: README.rst
++
++%.1 %.2 %.3 %.4 %.5 %.6 %.7 %.8 %.9:
++if HAVE_RST2MAN
++	${RST2MAN} $< $@
++else
++	@echo "========================================"
++	@echo "You need rst2man installed to make dist"
++	@echo "========================================"
++	@false
++endif
++
+diff --git a/lib/libvmod_netmapper/NEWS b/lib/libvmod_netmapper/NEWS
+new file mode 100644
+index 0000000..2039f67
+--- /dev/null
++++ b/lib/libvmod_netmapper/NEWS
+@@ -0,0 +1,24 @@
++1.2 - 2013-09-12
++   Added vnm_validate cmdline tool.  Exit status indicates JSON parse-ability.
++     Accepts IP addr as extra argument for manual results debugging.
++   Added support for maskless IPs as implicit all-ones netmasks.
++   Bugfix: memory issues in the strings allocator
++   Backported more-robust network optimizer code from gdnsd
++   Fixed "make distcheck"
++
++1.1 - 2013-07-03
++   Changed the API slightly from 1.0 - now supports multiple databases
++     in a single VCL, which are differentiated by a text label.  VCL context
++     is still used as well (that is, init/map calls in one VCL have no
++     bearing on another).
++   Removed all known fatal errors for things like missing/unloadable
++     database files at startup/runtime.  In the case of a missing or malformed
++     database file at startup, it will complain at startup and keep trying
++     to load the DB on the reload intervals.  Until success, runtime queries
++     will return no-match and also log an error.  In the case of a map request
++     for a non-existent label (never specified in an init call), it returns
++     no-match and logs an error.
++   Fixed docs re: our variant on the build process.
++
++1.0 - 2013-06-24
++   First release
+diff --git a/lib/libvmod_netmapper/README.rst b/lib/libvmod_netmapper/README.rst
+new file mode 100644
+index 0000000..5802bee
+--- /dev/null
++++ b/lib/libvmod_netmapper/README.rst
+@@ -0,0 +1,187 @@
++=================
++libvmod_netmapper
++=================
++
++-------------------------------------------------
++Varnish module to map an IP address to a string
++-------------------------------------------------
++
++:Author: Brandon Black
++:Date: 2013-07-02
++:Version: 1.1
++:Manual section: 3
++
++SYNOPSIS
++========
++
++::
++
++    import netmapper;
++    
++    sub vcl_init {
++        netmapper.init("mydb", "/path/to/mydb.json", 42);
++        netmapper.init("odb", "/path/to/odb.json", 42);
++    }
++    
++    sub vcl_recv {
++        set req.http.X-Foo = netmapper.map("mydb", "" + client.ip);
++        set req.http.X-Bar = netmapper.map("odb", "" + client.ip);
++    }
++
++DESCRIPTION
++===========
++
++This module loads a JSON-formatted database which maps sets of IPv[46]
++networks to unique strings, and then provides an interface for VCL code
++to map IP addresses to those strings.
++
++FUNCTIONS
++=========
++
++init
++-----
++
++Prototype
++    ``init(STRING Label, STRING DatabaseFile, INT CheckInterval)``
++Return value
++    VOID
++Description
++    Loads a given JSON database with the given Label and reload check
++    interval (in seconds), for this VCL.  The database is checked via
++    stat(2) for changes every check interval, and reloaded on the fly
++    when altered.  The Label is used to differentiate multiple databases
++    during runtime map() calls.
++Example
++        ::
++
++                sub vcl_init {
++                    netmapper.init("mydb", "/path/to/mydb.json", 42);
++                }
++
++
++map
++-----
++
++Prototype
++    ``map(STRING Label, STRING IPAddr)``
++Return value
++    String, could be undefined if no match.
++Description
++    Maps the passed client IP address (in string form) against the
++    data loaded from the JSON database identified by Label, returning
++    the string key of the set this address belongs to, or NULL (undefined)
++    if not matched by any set.
++Example
++        ::
++
++                sub vcl_recv {
++                    set req.http.X-Foo = netmapper.map("mydb", "" + client.ip);
++                }
++
++
++THE DATA
++========
++
++The JSON database takes the following form:
++
++::
++
++        {
++            "localnets": ["127.0.0.0/8", "::1/128"],
++            "Foo": [
++                "192.0.2.0/24",
++                "10.0.0.0/8",
++                "2001:db8:1234::/48"
++            ],
++            "Bar": [
++                "192.0.2.128/25",
++                "172.16.0.0/12",
++                "2001:db8:4231::/48"
++            ]
++        }
++
++The module compiles this data into a binary tree for matching individual
++IP addresses against the dataset and returning the associated key.  For
++example, with the above dataset mapping "192.0.2.1" would return "Foo".
++
++In the case that one network is a subnet of another, this will be
++semi-gracefully handled and the subnet will return its key while the rest
++of the supernet will return its own key.  If an address seems to
++have a short mask (meaning, there are 1-bits in the host portion of the
++address, according to the provided netmask), the host portion will be
++cleared to match the provided mask.  Both of these conditions will
++log warnings.
++
++If the dataset contains exact duplicate networks or fails basic
++parsing, the file will fail to load with an error.  This is fatal on
++startup.  On reload attempts the existing dataset will continue
++to be used until a new file is successfully reloaded.
++
++IPv4-Compatible IPv6 Addresses
++==============================
++
++This module knows of five different relatively-trivial ways to map IPv4
++addresses into the IPv6 address space.  These are shown below, with
++C<NNNN:NNNN> in place of the copied IPv4 address bytes:
++
++::
++
++   ::NNNN:NNNN/96        # v4compat - canonical form for this module
++   ::FFFF:NNNN:NNNN/96   # v4mapped
++   ::FFFF:0:NNNN:NNNN/96 # SIIT
++   2001::NNNN:NNNN/32    # Teredo (NNNN:NNNN is xor'd with FFFF:FFFF)
++   2002:NNNN:NNNN::/16   # 6to4
++
++The module's internal memory database is an IPv6 database, and any
++IPv4 networks from the JSON input are stored in the v4compat space within
++the internal IPv6 database.
++
++When doing runtime lookups all other v4-like addresses (raw
++IPv4 addresses, v4mapped, SIIT, Teredo, and 6to4) are converted to the
++canonical v4compat IPv6 representation before querying the internal
++database.  It is not legal to directly specify the other IPv4
++subspaces (v4mapped, SIIT, Teredo, 6to4) in the JSON file directly,
++or any subnet of those spaces (these will cause a db load failure,
++much like duplicate networks above).
++
++In practice, this means a network of "192.0.2.0/24" in the JSON file
++will match for any of these other representations if the traffic happens
++to arrive via some IPv4-to-IPv6 translation scheme.  The tradeoff is
++you can't decide to map, for example, the 6to4 representation of a given
++IPv4 network differently than the Teredo representation of the same
++network.
++
++INSTALLATION
++============
++
++Usage::
++
++ ./configure VARNISHSRC=DIR [VARNISHTEST=FILE] [VARNISHD=FILE]
++
++`VARNISHSRC` is the directory of the Varnish source tree for which to
++compile your vmod. Both the `VARNISHSRC` and `VARNISHSRC/include`
++will be added to the include search paths for your module.
++
++By default the varnish source tree must be pre-built, and the varnishd
++and varnishtest binaries will be used directly from it.  Optionally,
++you can specify external binaries for these and build against an
++unbuilt `VARNISHRC`.  Be sure that the source and binaries match!
++
++Make targets:
++
++* make - builds the vmod
++* make install - installs your vmod in $libdir/varnish/vmods/
++* make check - runs the unit tests in ``src/tests/*.vtc``
++
++HISTORY
++=======
++
++This manual page was released as part of the libvmod-netmapper package.
++
++COPYRIGHT
++=========
++
++This document is licensed under the same license as the
++libvmod-netmapper project. See COPYING for details.
++
++* Copyright (c) 2013 Brandon Black <bblack@wikimedia.org>
+diff --git a/lib/libvmod_netmapper/autogen.sh b/lib/libvmod_netmapper/autogen.sh
+new file mode 100755
+index 0000000..9a12ef5
+--- /dev/null
++++ b/lib/libvmod_netmapper/autogen.sh
+@@ -0,0 +1,44 @@
++#!/bin/sh
++
++warn() {
++	echo "WARNING: $@" 1>&2
++}
++
++case `uname -s` in
++Darwin)
++	LIBTOOLIZE=glibtoolize
++	;;
++FreeBSD)
++	LIBTOOLIZE=libtoolize
++	;;
++Linux)
++	LIBTOOLIZE=libtoolize
++	;;
++SunOS)
++	LIBTOOLIZE=libtoolize
++	;;
++*)
++	warn "unrecognized platform:" `uname -s`
++	LIBTOOLIZE=libtoolize
++esac
++
++automake_version=`automake --version | tr ' ' '\n' | egrep '^[0-9]\.[0-9a-z.-]+'`
++if [ -z "$automake_version" ] ; then
++	warn "unable to determine automake version"
++else
++	case $automake_version in
++		0.*|1.[0-8]|1.[0-8][.-]*)
++			warn "automake ($automake_version) detected; 1.9 or newer recommended"
++			;;
++		*)
++			;;
++	esac
++fi
++
++set -ex
++
++aclocal -I m4
++$LIBTOOLIZE --copy --force
++autoheader
++automake --add-missing --copy --foreign
++autoconf
+diff --git a/lib/libvmod_netmapper/configure.ac b/lib/libvmod_netmapper/configure.ac
+new file mode 100644
+index 0000000..aa0a8fd
+--- /dev/null
++++ b/lib/libvmod_netmapper/configure.ac
+@@ -0,0 +1,93 @@
++AC_PREREQ(2.59)
++AC_COPYRIGHT([Copyright (c) 2013 Brandon Black <bblack@wikimedia.org>])
++AC_INIT([libvmod-netmapper],[1.2],[bblack@wikimedia.org],[libvmod-netmapper],[https://git.wikimedia.org/summary/operations%2Fsoftware%2Fvarnish%2Flibvmod-netmapper])
++AC_CONFIG_MACRO_DIR([m4])
++AC_CONFIG_AUX_DIR([acaux])
++AC_CONFIG_SRCDIR(src/vmod_netmapper.vcc)
++AM_CONFIG_HEADER(config.h)
++
++AC_CANONICAL_SYSTEM
++AC_LANG(C)
++
++AM_INIT_AUTOMAKE([dist-xz no-dist-gzip foreign tar-ustar -Wall])
++
++AC_GNU_SOURCE
++AC_PROG_CC
++AC_PROG_CC_STDC
++if test "x$ac_cv_prog_cc_c99" = xno; then
++	AC_MSG_ERROR([Could not find a C99 compatible compiler])
++fi
++AC_PROG_CPP
++AM_PROG_CC_C_O
++
++AC_PROG_INSTALL
++AC_PROG_LIBTOOL
++AC_PROG_MAKE_SET
++
++# Check for rst utilities
++AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], "no")
++if test "x$RST2MAN" = "xno"; then
++	AC_MSG_WARN([rst2man not found - not building man pages])
++fi
++AM_CONDITIONAL(HAVE_RST2MAN, [test "x$RST2MAN" != "xno"])
++
++# Check for pkg-config
++PKG_PROG_PKG_CONFIG
++
++# Checks for header files.
++AC_HEADER_STDC
++AC_CHECK_HEADERS([sys/stdlib.h])
++
++# Check for python
++AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], [AC_MSG_ERROR([Python is needed to build this vmod, please install python.])])
++
++# Varnish source tree
++AC_ARG_VAR([VARNISHSRC], [path to Varnish source tree (mandatory)])
++if test "x$VARNISHSRC" = x; then
++	AC_MSG_ERROR([No Varnish source tree specified])
++fi
++VARNISHSRC=`cd $VARNISHSRC && pwd`
++AC_CHECK_FILE([$VARNISHSRC/include/varnishapi.h],
++	[],
++	[AC_MSG_FAILURE(["$VARNISHSRC" is not a Varnish source directory])]
++)
++
++# varnishd and varnishtest locations (default from source tree)
++
++AC_ARG_VAR([VARNISHD], [path to varnishd binary (default: used built copy in VARNISHSRC)])
++if test "x$VARNISHD" = x; then
++    VARNISHD="$VARNISHSRC/bin/varnishd/varnishd"
++fi
++AC_CHECK_FILE([$VARNISHD],
++	[],
++    [AC_MSG_FAILURE([varnishd binary "$VARNISHD" does not exist])]
++)
++
++AC_ARG_VAR([VARNISHTEST], [path to varnishtest binary (default: used built copy in VARNISHSRC)])
++if test "x$VARNISHTEST" = x; then
++    VARNISHTEST="$VARNISHSRC/bin/varnishtest/varnishtest"
++fi
++AC_CHECK_FILE([$VARNISHTEST],
++	[],
++    [AC_MSG_FAILURE([varnishtest binary "$VARNISHTEST" does not exist])]
++)
++
++XLIBS=$LIBS
++
++# userspace-rcu for lockless netmap reload
++AC_CHECK_HEADER(urcu-qsbr.h,[
++     AC_CHECK_LIB([urcu-qsbr],[perror],[],AC_MSG_ERROR("liburcu-qsbr missing!"))
++], AC_MSG_ERROR("urcu-qsbr.h missing!"))
++
++# JSON parser for the input data
++AC_CHECK_HEADER(jansson.h,[
++     AC_CHECK_LIB([jansson],[json_object_update],[],AC_MSG_ERROR("libjansson missing!"))
++], AC_MSG_ERROR("jansson.h missing!"))
++
++LIBS=$XLIBS
++
++AC_CONFIG_FILES([
++	Makefile
++	src/Makefile
++])
++AC_OUTPUT
+diff --git a/lib/libvmod_netmapper/src/.gitignore b/lib/libvmod_netmapper/src/.gitignore
+new file mode 100644
+index 0000000..64eef33
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/.gitignore
+@@ -0,0 +1 @@
++vcc_if.[ch]
+diff --git a/lib/libvmod_netmapper/src/Makefile.am b/lib/libvmod_netmapper/src/Makefile.am
+new file mode 100644
+index 0000000..7d22c66
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/Makefile.am
+@@ -0,0 +1,41 @@
++VARNISHSRC ?= $(top_srcdir)
++
++AM_CPPFLAGS = -I$(VARNISHSRC)/include -I$(VARNISHSRC) -I$(srcdir)/nlt
++
++COMMON_SRC = \
++	vnm.c \
++	vnm.h \
++	vnm_strdb.c \
++	vnm_strdb.h \
++	nlt/nlist.c \
++	nlt/nlist.h \
++	nlt/ntree.c \
++	nlt/ntree.h
++
++vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_netmapper.vcc
++	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_netmapper.vcc
++
++vmoddir = $(libdir)/varnish/vmods
++vmod_LTLIBRARIES = libvmod_netmapper.la
++
++libvmod_netmapper_la_LDFLAGS = -module -export-dynamic -avoid-version -shared
++libvmod_netmapper_la_LIBADD = -lurcu-qsbr -ljansson
++libvmod_netmapper_la_SOURCES = vcc_if.c vcc_if.h vmod_netmapper.c $(COMMON_SRC)
++
++bin_PROGRAMS = vnm_validate
++vnm_validate_CPPFLAGS = $(AM_CPPFLAGS) -DNO_VARNISH
++vnm_validate_LDADD = -ljansson
++vnm_validate_SOURCES = vnm_validate.c $(COMMON_SRC)
++
++VMOD_TDATA = tests/test01a.json tests/test01b.json tests/test01c.json
++VMOD_TESTS = tests/test01.vtc
++.PHONY: $(VMOD_TESTS) $(VMOD_TDATA)
++
++$(VMOD_TESTS): libvmod_netmapper.la
++	$(VARNISHTEST) -Dvarnishd=$(VARNISHD) -Dvmod_topbuild=$(abs_top_builddir) -Dvmod_topsrc=$(abs_top_srcdir) $(srcdir)/$@
++
++check: $(VMOD_TESTS)
++
++EXTRA_DIST = nlt/README vmod_netmapper.vcc $(VMOD_TESTS) $(VMOD_TDATA)
++
++CLEANFILES = $(builddir)/vcc_if.c $(builddir)/vcc_if.h
+diff --git a/lib/libvmod_netmapper/src/nlt/README b/lib/libvmod_netmapper/src/nlt/README
+new file mode 100644
+index 0000000..85a8ca9
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/nlt/README
+@@ -0,0 +1,25 @@
++
++In the interests of getting things done faster with mostly
++  known-good code, this stuff is just a copy of the nlist/ntree
++  code from gdnsd's plugin_geoip.  It would probably be more
++  optimal to use a compressed tree for this vmod_netmapper
++  code, but this uncompressed tree is pretty damned efficient,
++  and it's really hard to implement a bug-free, efficient
++  compressed tree for these network lookups in a short period
++  of time, so I dropped that for now.
++
++Minor modifications include stuff like:
++  Removing debug and compiler-hint stuff that relied
++    on gdnsd's infrastructure.
++  Replacing the outer lookup function with one that
++    doesn't use gdnsd-specific datastructures, and doesn't
++    care about returning scope masks, etc.
++  Adding headers as necessary.
++  Removed list-merge stuff, pre-normalization stuff, map_name,
++    etc that this code doesn't need.
++  Removed internal error logging, replaced with retvals to
++    indicate failures/warnings.
++
++The functional algorithms and structures are unchanged.
++
++-- Brandon
+diff --git a/lib/libvmod_netmapper/src/nlt/nlist.c b/lib/libvmod_netmapper/src/nlt/nlist.c
+new file mode 100644
+index 0000000..e56d0b0
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/nlt/nlist.c
+@@ -0,0 +1,325 @@
++/* Copyright © 2012 Brandon L Black <blblack@gmail.com>
++ *
++ * This file is part of gdnsd-plugin-geoip.
++ *
++ * gdnsd-plugin-geoip is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * gdnsd-plugin-geoip is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with gdnsd.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#include "config.h"
++#include "nlist.h"
++#include <assert.h>
++#include <string.h>
++#include <stdlib.h>
++
++#define NLIST_INITSIZE 64
++#define MASK_DELETED 0xFFFFFFFF
++
++typedef struct {
++    uint8_t ipv6[16];
++    unsigned mask;
++    unsigned dclist;
++} net_t;
++
++struct _nlist {
++    net_t* nets;
++    unsigned alloc;
++    unsigned count;
++    bool normalized;
++};
++
++nlist_t* nlist_new(void) {
++    nlist_t* nl = malloc(sizeof(nlist_t));
++    nl->nets = malloc(sizeof(net_t) * NLIST_INITSIZE);
++    nl->alloc = NLIST_INITSIZE;
++    nl->count = 0;
++    nl->normalized = false;
++    return nl;
++}
++
++void nlist_destroy(nlist_t* nl) {
++    assert(nl);
++    free(nl->nets);
++    free(nl);
++}
++
++static bool clear_mask_bits(uint8_t* ipv6, const unsigned mask) {
++    assert(ipv6); assert(mask < 129);
++
++    bool maskbad = false;
++
++    if(mask) {
++        const unsigned revmask = 128 - mask;
++        const unsigned byte_mask = ~(0xFF << (revmask & 7)) & 0xFF;
++        unsigned bbyte = 15 - (revmask >> 3);
++
++        if(ipv6[bbyte] & byte_mask) {
++            maskbad = true;
++            ipv6[bbyte] &= ~byte_mask;
++        }
++
++        while(++bbyte < 16) {
++            if(ipv6[bbyte]) {
++                maskbad = true;
++                ipv6[bbyte] = 0;
++            }
++        }
++    }
++    else if(memcmp(ipv6, &ip6_zero, 16)) {
++        maskbad = true;
++        memset(ipv6, 0, 16);
++    }
++
++    return maskbad;
++}
++
++// Sort an array of net_t.  Sort prefers
++//   lowest network number, smallest mask.
++static int net_sorter(const void* a_void, const void* b_void) {
++    assert(a_void); assert(b_void);
++    const net_t* a = (const net_t*)a_void;
++    const net_t* b = (const net_t*)b_void;
++    int rv = memcmp(a->ipv6, b->ipv6, 16);
++    if(!rv)
++        rv = a->mask - b->mask;
++    return rv;
++}
++
++static bool masked_net_eq(const uint8_t* v6a, const uint8_t* v6b, const unsigned mask) {
++    assert(v6a); assert(v6b);
++    assert(mask < 128U); // 2x128 would call here w/ 127...
++
++    const unsigned bytes = mask >> 3;
++    assert(bytes < 16U);
++
++    const unsigned bytemask = (0xFF00 >> (mask & 7)) & 0xFF;
++    return !memcmp(v6a, v6b, bytes)
++        && (v6a[bytes] & bytemask) == (v6b[bytes] & bytemask);
++}
++
++static bool mergeable_nets(const net_t* na, const net_t* nb) {
++    assert(na); assert(nb);
++    return (na->mask == nb->mask
++        && na->dclist == nb->dclist
++        && masked_net_eq(na->ipv6, nb->ipv6, na->mask - 1));
++}
++
++bool nlist_append(nlist_t* nl, const uint8_t* ipv6, const unsigned mask, const unsigned dclist) {
++    assert(nl); assert(ipv6);
++
++    if(nl->count == nl->alloc) {
++        nl->alloc <<= 1U;
++        nl->nets = realloc(nl->nets, sizeof(net_t) * nl->alloc);
++    }
++    net_t* this_net = &nl->nets[nl->count++];
++    memcpy(this_net->ipv6, ipv6, 16U);
++    this_net->mask = mask;
++    this_net->dclist = dclist;
++
++    return clear_mask_bits(this_net->ipv6, mask);
++}
++
++static bool net_eq(const net_t* na, const net_t* nb) {
++    assert(na); assert(nb);
++    return na->mask == nb->mask && !memcmp(na->ipv6, nb->ipv6, 16);
++}
++
++// normalize ugly random-ish lists
++static void nlist_normalize(nlist_t* nl, const bool post_merge) {
++    assert(nl);
++
++    if(nl->count) {
++        if(!post_merge)
++            qsort(nl->nets, nl->count, sizeof(net_t), net_sorter);
++
++        unsigned idx = nl->count;
++        unsigned newcount = nl->count;
++        while(--idx > 0) {
++            net_t* nb = &nl->nets[idx];
++            net_t* na = &nl->nets[idx - 1];
++            const bool ab_eq = net_eq(na, nb);
++            if(ab_eq || mergeable_nets(na, nb)) {
++                nb->mask = MASK_DELETED;
++                if(!ab_eq)
++                    na->mask--;
++                newcount--;
++                unsigned upidx = idx + 1;
++                while(upidx < nl->count) {
++                    net_t* nc = &nl->nets[upidx];
++                    if(nc->mask != MASK_DELETED) {
++                        if(mergeable_nets(na, nc)) {
++                            nc->mask = MASK_DELETED;
++                            na->mask--;
++                            newcount--;
++                        }
++                        else {
++                            break;
++                        }
++                    }
++                    upidx++;
++                }
++            }
++        }
++
++        if(newcount != nl->count) { // merges happened
++            net_t* newnets = malloc(sizeof(net_t) * newcount);
++            unsigned newidx = 0;
++            for(unsigned i = 0; i < nl->count; i++) {
++                net_t* n = &nl->nets[i];
++                if(n->mask != MASK_DELETED)
++                    memcpy(&newnets[newidx++], n, sizeof(net_t));
++            }
++            assert(newidx == newcount);
++            free(nl->nets);
++            nl->nets = newnets;
++            nl->count = newcount;
++            nl->alloc = newcount;
++        }
++        else { // just optimize nets size
++            nl->alloc = nl->count;
++            nl->nets = realloc(nl->nets, sizeof(net_t) * nl->alloc);
++        }
++    }
++
++    nl->normalized = true;
++}
++
++void nlist_finish(nlist_t* nl) {
++    assert(nl);
++    if(!nl->normalized)
++        nlist_normalize(nl, false);
++}
++
++static bool net_subnet_of(const net_t* sub, const net_t* super) {
++    assert(sub); assert(super);
++    assert(sub->mask < 129);
++    assert(super->mask < 129);
++
++    bool rv = false;
++    if(sub->mask >= super->mask) {
++        const unsigned wbyte = (super->mask >> 3);
++        const unsigned byte_mask = (0xFF << (8 - (super->mask & 7))) & 0xFF;
++        if(!memcmp(sub->ipv6, super->ipv6, wbyte)) {
++            if(wbyte == 16 || (super->ipv6[wbyte] & byte_mask) == (sub->ipv6[wbyte] & byte_mask))
++                rv = true;
++        }
++    }
++
++    return rv;
++}
++
++static unsigned nxt_rec(const net_t** nl, const net_t* const nl_end, ntree_t* nt, net_t tree_net);
++
++static void nxt_rec_dir(const net_t** nlp, const net_t* const nl_end, ntree_t* nt, net_t tree_net, const unsigned nt_idx, const bool direction) {
++    assert(nlp); assert(nl_end); assert(nt);
++    assert(tree_net.mask < 129 && tree_net.mask > 0);
++
++    const net_t* nl = *nlp;
++    unsigned cnode;
++
++    // If items remain in the list, and the next list item
++    //   is a subnet of (including exact match for) the current
++    //   ntree node...
++    if(nl < nl_end && net_subnet_of(nl, &tree_net)) {
++        // exact match, consume...
++        if(tree_net.mask == nl->mask) {
++            (*nlp)++; // consume *nlp and move to next
++            // need to pre-check for a deeper subnet next in the list.
++            // We use the consumed entry as the new default and keep recursing
++            //   if deeper subnets exist.  If they don't, we assign and end recursion...
++            const net_t* nl_next = *nlp;
++            if(nl_next < nl_end && net_subnet_of(nl_next, nl)) {
++                tree_net.dclist = nl->dclist;
++                cnode = nxt_rec(nlp, nl_end, nt, tree_net);
++            }
++            else {
++                cnode = NN_SET_DCLIST(nl->dclist);
++            }
++        }
++        // Not an exact match, so just keep recursing towards such a match...
++        else {
++            cnode = nxt_rec(nlp, nl_end, nt, tree_net);
++        }
++    }
++    // list item isn't a subnet of the current tree node, and due to our
++    //   normalization that means there are no such list items remaining,
++    //   so terminate the recursion with the current default dclist.
++    else {
++        cnode = NN_SET_DCLIST(tree_net.dclist);
++    }
++
++    // store direct or recursed result.  Note we have to wait until
++    //   here to deref nt->store[nt_idx] because recursion could
++    //   re-allocate nt->store[] during nxt_rec()'s ntree_add_node() call.
++    if(direction)
++        nt->store[nt_idx].one = cnode;
++    else
++        nt->store[nt_idx].zero = cnode;
++}
++
++static unsigned nxt_rec(const net_t** nl, const net_t* const nl_end, ntree_t* nt, net_t tree_net) {
++    assert(nl); assert(nl_end); assert(nt);
++    assert(tree_net.mask < 128);
++    tree_net.mask++; // now mask for zero/one stubs
++
++    const unsigned nt_idx = ntree_add_node(nt);
++    nxt_rec_dir(nl, nl_end, nt, tree_net, nt_idx, false);
++    SETBIT_v6(tree_net.ipv6, tree_net.mask - 1);
++    nxt_rec_dir(nl, nl_end, nt, tree_net, nt_idx, true);
++
++    unsigned rv = nt_idx;
++
++    // catch missed optimizations during final translation
++    if(nt->store[nt_idx].zero == nt->store[nt_idx].one && nt_idx > 0) {
++        nt->count--; // delete the just-added node
++        rv = nt->store[nt_idx].zero;
++    }
++
++    return rv;
++}
++
++ntree_t* nlist_xlate_tree(const nlist_t* nl) {
++    assert(nl);
++    assert(nl->normalized);
++
++    ntree_t* nt = ntree_new();
++    const net_t* nlnet = &nl->nets[0];
++    const net_t* const nlnet_end = &nl->nets[nl->count];
++    net_t tree_net = {
++        .ipv6 = { 0 },
++        .mask = 0,
++        .dclist = 0
++    };
++
++    // Special-case: if a list entry for ::/0 exists, it will
++    //   be first in the list, and it needs to be skipped
++    //   over (with its dclist as the new default) before
++    //   recursing (because ::/0 is the first node of the
++    //   tree itself).
++    if(nl->count && !nl->nets[0].mask) {
++        tree_net.dclist = nl->nets[0].dclist;
++        nlnet++;
++    }
++
++    // recursively build the tree from the list
++    nxt_rec(&nlnet, nlnet_end, nt, tree_net);
++
++    // assert that the whole list was consumed
++    assert(nlnet == nlnet_end);
++
++    // finalize the tree
++    ntree_finish(nt);
++
++    return nt;
++}
+diff --git a/lib/libvmod_netmapper/src/nlt/nlist.h b/lib/libvmod_netmapper/src/nlt/nlist.h
+new file mode 100644
+index 0000000..1987e46
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/nlt/nlist.h
+@@ -0,0 +1,45 @@
++/* Copyright © 2012 Brandon L Black <blblack@gmail.com>
++ *
++ * This file is part of gdnsd-plugin-geoip.
++ *
++ * gdnsd-plugin-geoip is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * gdnsd-plugin-geoip is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with gdnsd.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#ifndef NLIST_H
++#define NLIST_H
++
++#include "config.h"
++#include <inttypes.h>
++#include <stdbool.h>
++#include "ntree.h"
++
++typedef struct _nlist nlist_t;
++
++nlist_t* nlist_new(void);
++
++void nlist_destroy(nlist_t* nl);
++
++// true retval indicates network had bits beyond the mask,
++//  which is *not* fatal, but should be warned about, because
++//  those bits will be auto-cleared in practice, and probably indicates bad input
++bool nlist_append(nlist_t* nl, const uint8_t* ipv6, const unsigned mask, const unsigned dclist);
++
++// Call this when all nlist_append() are complete. 
++void nlist_finish(nlist_t* nl);
++
++// must pass through _finish() before xlate!
++ntree_t* nlist_xlate_tree(const nlist_t* nl_a);
++
++#endif // NLIST_H
+diff --git a/lib/libvmod_netmapper/src/nlt/ntree.c b/lib/libvmod_netmapper/src/nlt/ntree.c
+new file mode 100644
+index 0000000..2e050d8
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/nlt/ntree.c
+@@ -0,0 +1,177 @@
++/* Copyright © 2012 Brandon L Black <blblack@gmail.com>
++ *
++ * This file is part of gdnsd-plugin-geoip.
++ *
++ * gdnsd-plugin-geoip is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * gdnsd-plugin-geoip is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with gdnsd.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#include "config.h"
++#include "ntree.h"
++#include <assert.h>
++#include <stdbool.h>
++#include <inttypes.h>
++#include <stdlib.h>
++#include <string.h>
++
++// unaligned 32-bit access, copied from gdnsd's compiler.h
++struct _gdnsd_una32 { uint32_t x; } __attribute__((__packed__));
++#define gdnsd_get_una32(_p) (((const struct _gdnsd_una32*)(_p))->x)
++
++// Initial node allocation count,
++//   must be power of two due to alloc code,
++static const unsigned NT_SIZE_INIT = 128;
++
++ntree_t* ntree_new(void) {
++    ntree_t* newtree = malloc(sizeof(ntree_t));
++    newtree->store = malloc(NT_SIZE_INIT * sizeof(nnode_t));
++    newtree->count = 0;
++    newtree->alloc = NT_SIZE_INIT; // set to zero on fixation
++    return newtree;
++}
++
++void ntree_destroy(ntree_t* tree) {
++    assert(tree);
++    free(tree->store);
++    free(tree);
++}
++
++unsigned ntree_add_node(ntree_t* tree) {
++    assert(tree);
++    assert(tree->alloc);
++    if(tree->count == tree->alloc) {
++        tree->alloc <<= 1;
++        tree->store = realloc(tree->store, tree->alloc * sizeof(nnode_t));
++    }
++    const unsigned rv = tree->count;
++    assert(rv < (1U << 24));
++    tree->count++;
++    return rv;
++}
++
++// returns either a node offset for the true ipv4 root
++//   node at exactly ::/96, or a terminal dclist
++//   for a wholly enclosing supernet.  This is cached
++//   for the tree to make various ipv4-related lookups
++//   faster and simpler.
++static unsigned ntree_find_v4root(const ntree_t* tree) {
++    assert(tree);
++
++    unsigned offset = 0;
++    unsigned mask_depth = 96;
++    do {
++        assert(offset < tree->count);
++        offset = tree->store[offset].zero;
++    } while(--mask_depth && !NN_IS_DCLIST(offset));
++
++    return offset;
++}
++
++void ntree_finish(ntree_t* tree) {
++    assert(tree);
++    tree->alloc = 0; // flag fixed, will fail asserts on add_node, etc now
++    tree->store = realloc(tree->store, tree->count * sizeof(nnode_t));
++    tree->ipv4 = ntree_find_v4root(tree);
++}
++
++static inline bool CHKBIT_v6(const uint8_t* ipv6, const unsigned bit) {
++    assert(ipv6);
++    assert(bit < 128);
++    return ipv6[bit >> 3] & (1UL << (~bit & 7));
++}
++
++static unsigned ntree_lookup_v6(const ntree_t* tree, const uint8_t* ip) {
++    assert(tree); assert(ip);
++
++    unsigned chkbit = 0;
++    unsigned offset = 0;
++    do {
++        assert(offset < tree->count);
++        const nnode_t* current = &tree->store[offset];
++        assert(current->one && current->zero);
++        offset = CHKBIT_v6(ip, chkbit++) ? current->one : current->zero;
++        assert(chkbit < 129);
++    } while(!NN_IS_DCLIST(offset));
++
++    assert(offset != NN_UNDEF); // the special v4-like undefined areas
++    return NN_GET_DCLIST(offset);
++}
++
++static inline bool CHKBIT_v4(const uint32_t ip, const unsigned maskbit) {
++    assert(maskbit < 32U);
++    return ip & (1U << (31U - maskbit));
++}
++
++static unsigned ntree_lookup_v4(const ntree_t* tree, const uint32_t ip) {
++    assert(tree); assert(ip);
++    assert(tree->ipv4);
++
++    unsigned chkbit = 0;
++    unsigned offset = tree->ipv4;
++    while(!NN_IS_DCLIST(offset)) {
++        assert(offset < tree->count);
++        const nnode_t* current = &tree->store[offset];
++        assert(current->one && current->zero);
++        offset = CHKBIT_v4(ip, chkbit++) ? current->one : current->zero;
++        assert(chkbit < 33);
++    }
++
++    assert(offset != NN_UNDEF); // the special v4-like undefined areas
++    return NN_GET_DCLIST(offset);
++}
++
++// if "addr" is in any v4-compatible spaces other than
++//   v4compat (our canonical one), convert to v4compat.
++// returns address zero if no conversion
++static uint32_t v6_v4fixup(const uint8_t* in) {
++    assert(in);
++
++    uint32_t ip_out = 0;
++
++    if(!memcmp(in, start_v4mapped, 12) || !memcmp(in, start_siit, 12))
++        ip_out = ntohl(gdnsd_get_una32(&in[12]));
++    else if(!memcmp(in, start_teredo, 4))
++        ip_out = ntohl(gdnsd_get_una32(&in[12]) ^ 0xFFFFFFFF);
++    else if(!memcmp(in, start_6to4, 2))
++        ip_out = ntohl(gdnsd_get_una32(&in[2]));
++
++    return ip_out;
++}
++
++unsigned ntree_lookup(const ntree_t* tree, const struct sockaddr* sa) {
++    assert(tree); assert(sa);
++    assert(!tree->alloc); // ntree_finish() was called
++    assert(tree->ipv4); // must be a non-zero node offset or a dclist w/ high-bit set
++
++    unsigned rv;
++
++    if(sa->sa_family == AF_INET) {
++        const struct sockaddr_in* sin = (const struct sockaddr_in*)sa;
++        rv = ntree_lookup_v4(tree, ntohl(sin->sin_addr.s_addr));
++    }
++    else {
++        assert(sa->sa_family == AF_INET6);
++        const struct sockaddr_in6* sin6 = (const struct sockaddr_in6*)sa;
++        const uint32_t ipv4 = v6_v4fixup(sin6->sin6_addr.s6_addr);
++        if(ipv4) {
++            rv = ntree_lookup_v4(tree, ipv4);
++        }
++        else {
++            rv = ntree_lookup_v6(tree, sin6->sin6_addr.s6_addr);
++        }
++    }
++
++    return rv;
++}
++
+diff --git a/lib/libvmod_netmapper/src/nlt/ntree.h b/lib/libvmod_netmapper/src/nlt/ntree.h
+new file mode 100644
+index 0000000..5693254
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/nlt/ntree.h
+@@ -0,0 +1,132 @@
++/* Copyright © 2012 Brandon L Black <blblack@gmail.com>
++ *
++ * This file is part of gdnsd-plugin-geoip.
++ *
++ * gdnsd-plugin-geoip is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * gdnsd-plugin-geoip is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with gdnsd.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#ifndef NTREE_H
++#define NTREE_H
++
++#include "config.h"
++#include <inttypes.h>
++#include <assert.h>
++#include <netinet/in.h>
++
++/***************************************
++ * ntree_t and related methods
++ **************************************/
++
++// ipv6 is a uint8_t[16]
++// bit is 0->127 (MSB -> LSB)
++static inline void SETBIT_v6(uint8_t* ipv6, const unsigned bit) {
++    assert(ipv6);
++    assert(bit < 128);
++    ipv6[bit >> 3] |= (1UL << (~bit & 7));
++}
++
++// Some constant IPv6 address fragments...
++
++// 96-bit prefix
++static const uint8_t start_v4compat[16] =
++    { 0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00 };
++
++// 96-bit prefix
++static const uint8_t start_v4mapped[16] =
++    { 0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0xFF, 0xFF,
++      0x00, 0x00, 0x00, 0x00 };
++
++// 96-bit prefix
++static const uint8_t start_siit[16] =
++    { 0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0xFF, 0xFF, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00 };
++
++// 16-bit prefix
++static const uint8_t start_6to4[16] =
++    { 0x20, 0x02, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00 };
++
++// 32-bit prefix
++static const uint8_t start_teredo[16] =
++    { 0x20, 0x01, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00,
++      0x00, 0x00, 0x00, 0x00 };
++
++// zero-initializer for IPv6
++static const struct in6_addr ip6_zero = { .s6_addr = { 0 } };
++
++/*
++ * This is our network/mask database.  It becomes fully populated, in that
++ * a lookup of any address *will* find a node.  This is because the original
++ * GeoIP database is also fully populated.  It maps network/mask -> dclist,
++ * and is constructed by walking the entire input GeoIP database and remapping
++ * it against this maps's vscf config.
++ */
++
++/*
++ * the legal range of a dclist or a node index is 0 -> INT32_MAX,
++ *   and we store it as a uint32_t using the high bit to signal which
++ * For each of the branch fields zero and one:
++ *   if the MSB is set, the rest of the uint32_t is a dclist
++ *     index (terminal).
++ *   if the MSB is not set, the rest of the uint32_t is
++ *     a node index for recursion.
++ */
++
++#define NN_UNDEF 0xFFFFFFFF // special undefined dclist, never
++                            //   the result of a lookup, used to
++                            //   to get netmasks correct adjacent
++                            //   to undefined v4-like spaces...
++#define NN_IS_DCLIST(x) ((x) & (1U << 31U))
++#define NN_GET_DCLIST(x) ((x) & ~(1U << 31U)) // strips high bit
++#define NN_SET_DCLIST(x) ((x) | (1U << 31U)) // sets high bit
++
++typedef struct {
++    uint32_t zero;
++    uint32_t one;
++} nnode_t;
++
++typedef struct {
++    nnode_t* store;
++    unsigned ipv4;  // cached ipv4 lookup hint
++    unsigned count; // raw nodes, including interior ones
++    unsigned alloc; // current allocation of store during construction,
++                    //   set to zero after _finish()
++} ntree_t;
++
++ntree_t* ntree_new(void);
++
++void ntree_destroy(ntree_t* tree);
++
++// keeps ->count up-to-date and resizes storage
++//   as necc by doubling.
++unsigned ntree_add_node(ntree_t* tree);
++
++// call this after done adding data
++void ntree_finish(ntree_t* tree);
++
++unsigned ntree_lookup(const ntree_t* tree, const struct sockaddr* sa);
++
++#endif // NTREE_H
+diff --git a/lib/libvmod_netmapper/src/tests/test01.vtc b/lib/libvmod_netmapper/src/tests/test01.vtc
+new file mode 100644
+index 0000000..271a234
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01.vtc
+@@ -0,0 +1,65 @@
++varnishtest "Test netmapper vmod"
++
++server s1 {
++       rxreq
++       expect req.http.X-CS-T0 == "localhosty"
++       expect req.http.X-CS-T1 == "localhosty"
++       expect req.http.X-CS-T2 == "localhosty"
++       expect req.http.X-CS-T3 == "ZZZ"
++       expect req.http.X-CS-T4 == "Carrier Foo"
++       expect req.http.X-CS-T5 == "Carrier Bar"
++       expect req.http.X-CS-T6 == "XYZZY"
++       expect req.http.X-CS-T7 == <undef>
++       expect req.http.X-CS-T8 == "Carrier Foo"
++       expect req.http.X-CS-T9 == <undef>
++       expect req.http.X-CS-TA == "Carrier Foo"
++       expect req.http.X-CS-TB == "Carrier Bar"
++       expect req.http.X-CS-TC == <undef>
++       expect req.http.X-CS-TD == <undef>
++       expect req.http.X-CS-TE == "Carrier Bar"
++       expect req.http.X-CS-TF == "nomask"
++       expect req.http.X-CS-T10 == <undef>
++       expect req.http.X-CS-T11 == "nomask"
++       expect req.http.X-CS-T12 == <undef>
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++    import netmapper from "${vmod_topbuild}/src/.libs/libvmod_netmapper.so";
++
++    sub vcl_init {
++        netmapper.init("aaa", "${vmod_topsrc}/src/tests/test01a.json", 1);
++        netmapper.init("bbb", "${vmod_topsrc}/src/tests/test01b.json", 1);
++        netmapper.init("ccc", "${vmod_topsrc}/src/tests/test01c.json", 1);
++    }
++
++    sub vcl_recv {
++        set req.http.X-CS-T0 = netmapper.map("aaa", "" + client.ip);
++        set req.http.X-CS-T1 = netmapper.map("aaa", "127.1.2.3");
++        set req.http.X-CS-T2 = netmapper.map("aaa", "::1");
++        set req.http.X-CS-T3 = netmapper.map("ccc", "123.123.123.123");
++        set req.http.X-CS-T4 = netmapper.map("aaa", "192.0.2.75");
++        set req.http.X-CS-T5 = netmapper.map("aaa", "192.0.2.175");
++        set req.http.X-CS-T6 = netmapper.map("bbb", "192.255.1.42");
++        set req.http.X-CS-T7 = netmapper.map("nxnxnx", "1.2.3.4");
++        set req.http.X-CS-T8 = netmapper.map("aaa", "2001:db8:1234::abcd");
++        set req.http.X-CS-T9 = netmapper.map("bbb", "192.254.1.42");
++        set req.http.X-CS-TA = netmapper.map("aaa", "10.200.100.10");
++        set req.http.X-CS-TB = netmapper.map("aaa", "172.16.123.123");
++        set req.http.X-CS-TC = netmapper.map("ccc", "129.129.129.129");
++        set req.http.X-CS-TD = netmapper.map("aaa", "2001:db8:4230::abcd");
++        set req.http.X-CS-TE = netmapper.map("aaa", "2001:db8:4231::abcd");
++        set req.http.X-CS-TF = netmapper.map("aaa", "1.1.1.1");
++        set req.http.X-CS-T10 = netmapper.map("aaa", "1.1.1.2");
++        set req.http.X-CS-T11 = netmapper.map("aaa", "2001:db8::1");
++        set req.http.X-CS-T12 = netmapper.map("aaa", "2001:db8::2");
++        return (pass);
++    }
++} -start
++
++client c1 {
++    txreq -url "/"
++    rxresp
++}
++
++client c1 -run
+diff --git a/lib/libvmod_netmapper/src/tests/test01a.json b/lib/libvmod_netmapper/src/tests/test01a.json
+new file mode 100644
+index 0000000..b04f7f6
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01a.json
+@@ -0,0 +1,17 @@
++{
++    "localhosty": ["127.0.0.0/8", "::1/128"],
++    "Carrier Foo": [
++        "192.0.2.0/24",
++        "10.0.0.0/8",
++        "2001:db8:1234::/48"
++    ],
++    "Carrier Bar": [
++        "192.0.2.128/25",
++        "172.16.0.0/12",
++        "2001:db8:4231::/48"
++    ],
++    "nomask": [
++        "1.1.1.1",
++        "2001:db8::1"
++    ]
++}
+diff --git a/lib/libvmod_netmapper/src/tests/test01b.json b/lib/libvmod_netmapper/src/tests/test01b.json
+new file mode 100644
+index 0000000..5697b33
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01b.json
+@@ -0,0 +1 @@
++{ "XYZZY": [ "192.255.0.0/16" ] }
+diff --git a/lib/libvmod_netmapper/src/tests/test01c.json b/lib/libvmod_netmapper/src/tests/test01c.json
+new file mode 100644
+index 0000000..118e9f8
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01c.json
+@@ -0,0 +1 @@
++{ "ZZZ": [ "0.0.0.0/1" ] }
+diff --git a/lib/libvmod_netmapper/src/vmod_netmapper.c b/lib/libvmod_netmapper/src/vmod_netmapper.c
+new file mode 100644
+index 0000000..ec8db1a
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vmod_netmapper.c
+@@ -0,0 +1,230 @@
++/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
++ *
++ * This file is part of libvmod-netmapper.
++ *
++ * libvmod-netmapper is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * libvmod-netmapper is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with libvmod-netmapper.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#include "vrt.h"
++#include "bin/varnishd/cache.h"
++#include "vcc_if.h"
++
++#include <stdbool.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <stdio.h>
++
++#include <pthread.h>
++#define _LGPL_SOURCE 1
++#include <urcu-qsbr.h>
++
++#include "vnm.h"
++
++// note, the set of databases is indexed at runtime by a text
++//  label, and we just iterate strcmp to look them up.  If anyone
++//  actually has a lot of databases and cares, please submit a patch that
++//  implements a hashtable for them!
++
++typedef struct {
++    unsigned reload_check_interval;
++    char* label;
++    char* fn;
++    vnm_db_t* db;
++    pthread_t updater;
++    struct stat db_stat;
++} vnm_db_file_t;
++
++typedef struct {
++    unsigned db_count;
++    vnm_db_file_t* dbs;
++} vnm_priv_t;
++
++// Copy a str_t*'s data to a const char* in the session workspace,
++//   so that after return we're not holding references to data in
++//   the vnm db, so that it can be swapped for update between...
++static const char* vnm_str_to_vcl(struct sess* sp, const vnm_str_t* str) {
++    const char* rv = NULL;
++    if(str->data) {
++        unsigned used = 0;
++        const unsigned space = WS_Reserve(sp->ws, 0);
++        if(space < str->len) {
++            WSP(sp, SLT_Error, "vmod_netmapper: no space for string retval!");
++        }
++        else {
++            used = str->len;
++            rv = sp->ws->f;
++            memcpy(sp->ws->f, str->data, used);
++        }
++        WS_Release(sp->ws, used);
++    }
++    return rv;
++}
++
++static void* updater_start(void* dbf_asvoid) {
++    vnm_db_file_t* dbf = dbf_asvoid;
++    struct stat check_stat;
++
++    while(1) {
++        sleep(dbf->reload_check_interval);
++        if(stat(dbf->fn, &check_stat)) {
++            VSL(SLT_Error, 0, "vmod_netmapper: Failed to stat JSON database '%s' for reload check", dbf->fn);
++            continue;
++        }
++       
++        if(    check_stat.st_mtime != dbf->db_stat.st_mtime
++            || check_stat.st_ctime != dbf->db_stat.st_ctime
++            || check_stat.st_ino   != dbf->db_stat.st_ino
++            || check_stat.st_dev   != dbf->db_stat.st_dev) {
++
++            vnm_db_t* new_db = vnm_db_parse(dbf->fn, &dbf->db_stat);
++            if(new_db) {
++                vnm_db_t* old_db = dbf->db;
++                rcu_assign_pointer(dbf->db, new_db);
++                synchronize_rcu();
++                if(old_db)
++                    vnm_db_destruct(old_db);
++                VSL(SLT_CLI, 0, "vmod_netmapper: JSON database '%s' (re-)loaded with new data", dbf->fn); // CLI??
++            }
++            else {
++                VSL(SLT_Error, 0, "vmod_netmapper: JSON database '%s' reload failed, continuing with old data", dbf->fn);
++            }
++        }
++    }
++
++    return NULL;
++}
++
++static void per_vcl_fini(void* vp_asvoid) {
++    vnm_priv_t* vp = vp_asvoid;
++
++    for(unsigned i = 0; i < vp->db_count; i++) {
++        // clean up the updater thread
++        pthread_cancel(vp->dbs[i].updater);
++        pthread_join(vp->dbs[i].updater, NULL);
++
++        // free the most-recent data
++        vnm_db_destruct(vp->dbs[i].db);
++        free(vp->dbs[i].fn);
++    }
++
++    free(vp->dbs);
++}
++
++/*****************************
++ * Actual VMOD/VCL/VRT Hooks *
++ *****************************/
++
++// we serialize all calls to vmod_init() for this vmod globally, because
++//   (a) it's not a perf hotspot anyways and
++//   (b) it is critical that this executes serially for all .init() calls
++//     at *least* within a given VCL (PRIV_VCL context).
++//   (c) I'm not 100% sure that varnish will never call this from two threads
++//     in parallel, either now or in the future, during startup with multiple
++//     VCLs using the module, etc.
++pthread_mutex_t serial_init = PTHREAD_MUTEX_INITIALIZER;
++
++void vmod_init(struct sess *sp, struct vmod_priv *priv, const char* db_label, const char* json_path, const int reload_interval) {
++
++    pthread_mutex_lock(&serial_init);
++
++    vnm_priv_t* vp = priv->priv;
++
++    if(!vp) {
++        priv->priv = vp = calloc(1, sizeof(vnm_priv_t));
++        priv->free = per_vcl_fini;
++    }
++
++    const unsigned db_idx = vp->db_count++;
++    vp->dbs = realloc(vp->dbs, vp->db_count * sizeof(vnm_db_file_t));
++    vnm_db_file_t* dbf = &vp->dbs[db_idx];
++
++    dbf->reload_check_interval = reload_interval;
++    dbf->fn = strdup(json_path);
++    dbf->label = strdup(db_label);
++    memset(&dbf->db_stat, 0, sizeof(struct stat));
++    dbf->db = vnm_db_parse(dbf->fn, &dbf->db_stat);
++    if(!dbf->db)
++        VSL(SLT_Error, 0, "vmod_netmapper: Failed initial load of JSON netmapper database %s (will keep trying periodically)", dbf->fn);
++
++    pthread_mutex_unlock(&serial_init);
++    pthread_create(&dbf->updater, NULL, updater_start, dbf);
++}
++
++// Crazy hack to get per-thread rcu register/unregister, even though
++//   Varnish doesn't give us per-thread hooks for the workers
++//   (at least, not that I noticed...)
++// Note that it doesn't matter whether some threads are using two different
++//   databases from different VCLs with different JSON files.  RCU thread
++//   registration is just a per-thread global thing.
++static pthread_key_t unreg_hack;
++static pthread_once_t unreg_hack_once = PTHREAD_ONCE_INIT;
++static void destruct_rcu(void* x) { pthread_setspecific(unreg_hack, NULL); rcu_unregister_thread(); }
++static void make_unreg_hack(void) { pthread_key_create(&unreg_hack, destruct_rcu); }
++
++const char* vmod_map(struct sess *sp, struct vmod_priv* priv, const char* db_label, const char* ip_string) {
++    assert(sp); assert(priv); assert(priv->priv); assert(ip_string);
++    CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
++
++    // The rest of the rcu register/unregister hack
++    static __thread bool rcu_registered = false;
++    if(!rcu_registered) {
++        pthread_once(&unreg_hack_once, make_unreg_hack);
++        pthread_setspecific(unreg_hack, (void*)1);
++        rcu_register_thread();
++        rcu_registered = true;
++    }
++
++    // static database index, no thread concerns during runtime...
++    const vnm_priv_t* vp = priv->priv;
++    const vnm_db_file_t* dbf = NULL;
++    for(unsigned i = 0; i < vp->db_count; i++) {
++        if(!strcmp(db_label, vp->dbs[i].label)) {
++            dbf = &vp->dbs[i];
++            break;
++        }
++    }
++
++    const char* rv = NULL;
++
++    if(!dbf) {
++        VSL(SLT_Error, 0, "vmod_netmapper: JSON database label '%s' is not configured!", db_label);
++    }
++    else {
++        // normal rcu reader stuff
++        rcu_thread_online();
++        rcu_read_lock();
++
++        const vnm_db_t* dbptr = rcu_dereference(dbf->db);
++        if(dbptr) {
++            // search net database.  if match, convert
++            //  string to a vcl string and return it...
++            const vnm_str_t* str = vnm_lookup(dbptr, ip_string);
++            if(str)
++                rv = vnm_str_to_vcl(sp, str);
++        }
++        else {
++            VSL(SLT_Error, 0, "vmod_netmapper: JSON database label '%s' was never succesfully loaded!", db_label);
++        }
++
++        // normal rcu reader stuff
++        rcu_read_unlock();
++        rcu_thread_offline();
++    }
++
++    return rv;
++}
+diff --git a/lib/libvmod_netmapper/src/vmod_netmapper.vcc b/lib/libvmod_netmapper/src/vmod_netmapper.vcc
+new file mode 100644
+index 0000000..1f33ea9
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vmod_netmapper.vcc
+@@ -0,0 +1,3 @@
++Module netmapper
++Function VOID init(PRIV_VCL, STRING, STRING, INT)
++Function STRING map(PRIV_VCL, STRING, STRING)
+diff --git a/lib/libvmod_netmapper/src/vnm.c b/lib/libvmod_netmapper/src/vnm.c
+new file mode 100644
+index 0000000..353fc89
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vnm.c
+@@ -0,0 +1,274 @@
++/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
++ *
++ * This file is part of libvmod-netmapper.
++ *
++ * libvmod-netmapper is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * libvmod-netmapper is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with libvmod-netmapper.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#ifdef NO_VARNISH
++#define ERR(fmt,...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
++#else
++#include "bin/varnishd/cache.h"
++#define ERR(fmt,...) VSL(SLT_Error, 0, "vmod_netmapper: " fmt, ##__VA_ARGS__)
++#endif
++
++#include "vnm.h"
++
++#include <assert.h>
++#include <stdbool.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <arpa/inet.h>
++#include <netdb.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include <stdio.h>
++#include <errno.h>
++
++#include <jansson.h>
++
++#include "vnm_strdb.h"
++#include "ntree.h"
++#include "nlist.h"
++
++struct _vnm_db_struct {
++    ntree_t* tree;
++    vnm_strdb_t* strdb;
++};
++
++void vnm_db_destruct(vnm_db_t* d) {
++    ntree_destroy(d->tree);
++    vnm_strdb_destroy(d->strdb);
++    free(d);
++}
++
++static bool v6_subnet_of(const uint8_t* check, const unsigned check_mask, const uint8_t* v4, const unsigned v4_mask) {
++    assert(check); assert(v4);
++    assert(!(v4_mask & 7)); // all v4_mask are whole byte masks
++
++    bool rv = false;
++
++    if(check_mask >= v4_mask)
++        rv = !memcmp(check, v4, (v4_mask >> 3));
++
++    return rv;
++}
++
++static bool check_v4_issues(const uint8_t* ipv6, const unsigned mask) {
++    assert(ipv6); assert(mask < 129);
++
++    return (
++          v6_subnet_of(ipv6, mask, start_v4mapped, 96)
++       || v6_subnet_of(ipv6, mask, start_siit, 96)
++       || v6_subnet_of(ipv6, mask, start_teredo, 32)
++       || v6_subnet_of(ipv6, mask, start_6to4, 16)
++    );
++}
++
++static bool append_string_to_nlist(const char* fn, const char* key, nlist_t* nl, const char* addr_mask, const unsigned stridx) {
++
++    // convert "192.0.2.0/24\0" -> "192.0.2.0\0" + "24\0" in stack
++    const unsigned inlen = strlen(addr_mask);
++    char net_str[inlen + 1];
++    memcpy(net_str, addr_mask, inlen + 1);
++    char* mask_str = strchr(net_str, '/');
++    if(mask_str)
++        *mask_str++ = '\0';
++
++    // translate text address + mask to sockaddr stuff (putting mask in port field)
++    struct addrinfo* ainfo = NULL;
++    const struct addrinfo hints = {
++        .ai_flags = AI_NUMERICHOST | AI_NUMERICSERV,
++        .ai_family = AF_UNSPEC,
++        .ai_socktype = 0,
++        .ai_protocol = 0,
++        .ai_addrlen = 0,
++        .ai_addr = NULL,
++        .ai_canonname = NULL,
++        .ai_next = NULL
++    };
++    const int addr_err = getaddrinfo(net_str, mask_str, &hints, &ainfo);
++    if(addr_err) {
++        ERR("JSON database '%s', key '%s': '%s' does not parse as addr/mask: %s", fn, key, net_str, gai_strerror(addr_err));
++        return true;
++    }
++
++    // Copy data to simple ipv6 + mask values, check for errors
++ 
++    unsigned mask;
++    uint8_t ipv6[16];
++
++    if(ainfo->ai_family == AF_INET6) {
++        const struct sockaddr_in6* sin6 = (struct sockaddr_in6*)ainfo->ai_addr;
++        mask = mask_str ? ntohs(sin6->sin6_port) : 128;
++        memcpy(ipv6, sin6->sin6_addr.s6_addr, 16);
++        if(check_v4_issues(ipv6, mask)) {
++            ERR("JSON database '%s', key '%s': '%s' covers illegal IPv4-like space", fn, key, addr_mask);
++            freeaddrinfo(ainfo);
++            return true;
++        }
++    }
++    else {
++        assert(ainfo->ai_family == AF_INET);
++        const struct sockaddr_in* sin = (struct sockaddr_in*)ainfo->ai_addr;
++        mask = mask_str ? ntohs(sin->sin_port) + 96 : 128;
++        memset(ipv6, 0, 16);
++        memcpy(&ipv6[12], &sin->sin_addr.s_addr, 4);
++    }
++
++    if(mask > 128) {
++        ERR("JSON database '%s', key '%s': '%s' has illegal netmask", fn, key, addr_mask);
++        freeaddrinfo(ainfo);
++        return true;
++    }
++
++    freeaddrinfo(ainfo);
++
++    // actually stick data in the nlist using existing call
++    if(nlist_append(nl, ipv6, mask, stridx))
++        ERR("JSON database '%s', key '%s': '%s' has bits beyond the network mask, which were auto-cleared!", fn, key, addr_mask);
++
++    return false;
++}
++
++vnm_db_t* vnm_db_parse(const char* fn, struct stat* db_stat) {
++    assert(fn);
++
++    struct stat db_stat_precheck;
++    if(stat(fn, &db_stat_precheck)) {
++        ERR("Failed to stat() JSON database %s: %u", fn, errno);
++        return NULL;
++    }
++
++    json_error_t errobj;
++    json_t* toplevel = json_load_file(fn, 0, &errobj);
++
++    if(!toplevel) {
++        ERR("Failed to load JSON database %s: %s", fn, errobj.text);
++        return NULL;
++    }
++
++    if(!json_is_object(toplevel)) {
++        ERR("JSON database %s top-level is not an object!", fn);
++        json_decref(toplevel);
++        return NULL;
++    }
++
++    struct stat db_stat_postcheck;
++    if(stat(fn, &db_stat_postcheck)) {
++        ERR("Failed to stat() JSON database %s: %u", fn, errno);
++        json_decref(toplevel);
++        return NULL;
++    }
++
++    if(    db_stat_postcheck.st_mtime != db_stat_precheck.st_mtime
++        || db_stat_postcheck.st_ctime != db_stat_precheck.st_ctime
++        || db_stat_postcheck.st_ino   != db_stat_precheck.st_ino
++        || db_stat_postcheck.st_dev   != db_stat_precheck.st_dev) {
++        ERR("JSON database %s changed while reading!", fn);
++        json_decref(toplevel);
++        return NULL;
++    }
++
++    nlist_t* templist = nlist_new();
++    vnm_db_t* d = malloc(sizeof(vnm_db_t));
++    d->tree = NULL;
++    d->strdb = vnm_strdb_new();
++
++    // iterate the keys...
++    const char* key;
++    json_t* val;
++    void *iter = json_object_iter(toplevel);
++    while(iter) {
++        key = json_object_iter_key(iter);
++        val = json_object_iter_value(iter);
++        if(!json_is_array(val)) {
++            ERR("JSON database %s: value for key '%s' should be an array!", fn, key);
++            nlist_destroy(templist);
++            vnm_strdb_destroy(d->strdb);
++            free(d);
++            json_decref(toplevel);
++            return NULL;
++        }
++
++        const unsigned stridx = vnm_strdb_add(d->strdb, key);
++        const unsigned nnets = json_array_size(val);
++        for(unsigned i = 0; i < nnets; i++) {
++            const json_t* net = json_array_get(val, i);
++            const bool net_isstr = json_is_string(net);
++            if(!net_isstr)
++                ERR("JSON database %s: array member %u for key '%s' should be an address string!", fn, i, key);
++            if(!net_isstr || append_string_to_nlist(fn, key, templist, json_string_value(net), stridx)) {
++                nlist_destroy(templist);
++                vnm_strdb_destroy(d->strdb);
++                free(d);
++                json_decref(toplevel);
++                return NULL;
++            }
++        }
++        iter = json_object_iter_next(toplevel, iter);
++    }
++
++    // add undefined areas for the translated v4 subspaces and optimize the list
++    nlist_append(templist, start_v4mapped, 96, NN_UNDEF);
++    nlist_append(templist, start_siit, 96, NN_UNDEF);
++    nlist_append(templist, start_6to4, 16, NN_UNDEF);
++    nlist_append(templist, start_teredo, 32, NN_UNDEF);
++    nlist_finish(templist);
++
++    // translate to tree for lookup
++    d->tree = nlist_xlate_tree(templist);
++
++    // free up temporary stuff
++    nlist_destroy(templist);
++    json_decref(toplevel);
++
++    // copy out stat data for future checks
++    if(db_stat)
++        memcpy(db_stat, &db_stat_postcheck, sizeof(struct stat));
++
++    return d;
++}
++
++const vnm_str_t* vnm_lookup(const vnm_db_t* d, const char* ip_string) {
++    assert(d); assert(d->tree); assert(d->strdb); assert(ip_string);
++
++    unsigned stridx = 0; // default, no-match
++
++    // translate text address -> sockaddr
++    struct addrinfo* ainfo = NULL;
++    const struct addrinfo hints = {
++        .ai_flags = AI_NUMERICHOST,
++        .ai_family = AF_UNSPEC,
++        .ai_socktype = 0,
++        .ai_protocol = 0,
++        .ai_addrlen = 0,
++        .ai_addr = NULL,
++        .ai_canonname = NULL,
++        .ai_next = NULL
++    };
++    const int addr_err = getaddrinfo(ip_string, NULL, &hints, &ainfo);
++    if(addr_err) {
++        ERR("Client IP '%s' does not parse: %s", ip_string, gai_strerror(addr_err));
++    }
++    else {
++        stridx = ntree_lookup(d->tree, ainfo->ai_addr);
++    }
++
++    return vnm_strdb_get(d->strdb, stridx);
++}
+diff --git a/lib/libvmod_netmapper/src/vnm.h b/lib/libvmod_netmapper/src/vnm.h
+new file mode 100644
+index 0000000..e629ba4
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vnm.h
+@@ -0,0 +1,15 @@
++#ifndef VNM_HDR
++#define VNM_HDR
++
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#include "vnm_strdb.h"
++
++typedef struct _vnm_db_struct vnm_db_t;
++
++vnm_db_t* vnm_db_parse(const char* fn, struct stat* db_stat);
++void vnm_db_destruct(vnm_db_t* n);
++const vnm_str_t* vnm_lookup(const vnm_db_t* d, const char* ip_string);
++
++#endif // VNM_HDR
+diff --git a/lib/libvmod_netmapper/src/vnm_strdb.c b/lib/libvmod_netmapper/src/vnm_strdb.c
+new file mode 100644
+index 0000000..400913d
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vnm_strdb.c
+@@ -0,0 +1,74 @@
++/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
++ *
++ * This file is part of libvmod-netmapper.
++ *
++ * libvmod-netmapper is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * libvmod-netmapper is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with libvmod-netmapper.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#include "config.h"
++#include <assert.h>
++#include <stdbool.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include "vnm_strdb.h"
++
++struct _vnm_strdb {
++    vnm_str_t* strings;
++    unsigned count;
++    unsigned alloc;
++};
++
++vnm_strdb_t* vnm_strdb_new(void) {
++    vnm_strdb_t* d = malloc(sizeof(vnm_strdb_t));
++    d->alloc = 8;
++    d->count = 1;
++    d->strings = malloc(d->alloc * sizeof(vnm_str_t));
++    // note index zero is reserved as the no-match case with a NULL zero-len string...
++    d->strings[0].data = NULL;
++    d->strings[0].len = 0;
++    return d;
++}
++
++unsigned vnm_strdb_add(vnm_strdb_t* d, const char* str) {
++    assert(d); assert(str);
++
++    if(d->count == d->alloc) {
++        d->alloc <<= 1;
++        d->strings = realloc(d->strings, d->alloc * sizeof(vnm_str_t));
++    }
++
++    const unsigned rv = d->count++;
++    vnm_str_t* s = &d->strings[rv];
++    s->len = strlen(str) + 1;
++    s->data = malloc(s->len);
++    memcpy(s->data, str, s->len);
++
++    return rv;
++}
++
++const vnm_str_t* vnm_strdb_get(const vnm_strdb_t* d, const unsigned idx) {
++    assert(d); assert(idx < d->count);
++    return &d->strings[idx];
++}
++
++void vnm_strdb_destroy(vnm_strdb_t* d) {
++    assert(d);
++    for(unsigned i = 0; i < d->count; i++)
++        free(d->strings[i].data);
++    free(d->strings);
++    free(d);
++}
++
+diff --git a/lib/libvmod_netmapper/src/vnm_strdb.h b/lib/libvmod_netmapper/src/vnm_strdb.h
+new file mode 100644
+index 0000000..0aa2a9e
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vnm_strdb.h
+@@ -0,0 +1,17 @@
++#ifndef VNM_STRDB_HDR
++#define VNM_STRDB_HDR
++
++typedef struct {
++    unsigned len; // includes NUL in length
++    char* data; // NUL-terminated
++} vnm_str_t;
++
++struct _vnm_strdb;
++typedef struct _vnm_strdb vnm_strdb_t;
++
++vnm_strdb_t* vnm_strdb_new(void);
++unsigned vnm_strdb_add(vnm_strdb_t* d, const char* str);
++const vnm_str_t* vnm_strdb_get(const vnm_strdb_t* d, const unsigned idx);
++void vnm_strdb_destroy(vnm_strdb_t* d);
++
++#endif // VNM_STRDB_HDR
+diff --git a/lib/libvmod_netmapper/src/vnm_validate.c b/lib/libvmod_netmapper/src/vnm_validate.c
+new file mode 100644
+index 0000000..d67476c
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/vnm_validate.c
+@@ -0,0 +1,42 @@
++/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
++ *
++ * This file is part of libvmod-netmapper.
++ *
++ * libvmod-netmapper is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * libvmod-netmapper is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with libvmod-netmapper.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ */
++
++#include "vnm.h"
++
++#include <stdlib.h>
++#include <stdio.h>
++
++int main(int argc, char* argv[]) {
++    if(argc != 2 && argc != 3) {
++        fprintf(stderr,"Must specify an input file!\n");
++        return 99;
++    }
++    vnm_db_t* vdb = vnm_db_parse(argv[1], NULL);
++    if(!vdb) {
++        fprintf(stderr,"Parsing '%s' failed!\n", argv[1]);
++        return 98;
++    }
++    if(argc == 3) {
++        const vnm_str_t* str = vnm_lookup(vdb, argv[2]);
++        fprintf(stderr,"%s => %s\n", argv[2], str ? str->data : "<No-Match>");
++    }
++    vnm_db_destruct(vdb);
++    fprintf(stderr,"OK\n");
++    return 0;
++}

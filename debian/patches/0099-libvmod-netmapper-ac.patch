@@ -1,0 +1,31 @@
+diff --git a/configure.ac b/configure.ac
+index 1f58e00..3c1d3ba 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -589,6 +589,8 @@ AC_CONFIG_FILES([
+     lib/libvcl/Makefile
+     lib/libvgz/Makefile
+     lib/libvmod_std/Makefile
++    lib/libvmod_netmapper/Makefile
++    lib/libvmod_netmapper/src/Makefile
+     lib/libjemalloc/Makefile
+     man/Makefile
+     redhat/Makefile
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 21146dc..2f8defb 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -7,6 +7,7 @@ SUBDIRS = \
+ 	libvcl \
+ 	libvgz \
+ 	libvmod_std \
++	libvmod_netmapper \
+ 	@JEMALLOC_SUBDIR@
+ 
+ DIST_SUBDIRS = 	\
+@@ -16,4 +17,5 @@ DIST_SUBDIRS = 	\
+ 	libvcl \
+ 	libvgz \
+ 	libvmod_std \
++	libvmod_netmapper \
+ 	libjemalloc
