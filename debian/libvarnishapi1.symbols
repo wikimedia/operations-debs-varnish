@@ -1,5 +1,6 @@
 libvarnishapi.so.1 libvarnishapi1 #MINVER#
  LIBVARNISHAPI_1.0@LIBVARNISHAPI_1.0 3.0.0
+ LIBVARNISHAPI_1.1@LIBVARNISHAPI_1.1 3.0.0
  VCLI_AuthResponse@LIBVARNISHAPI_1.0 3.0.0
  VCLI_ReadResult@LIBVARNISHAPI_1.0 3.0.0
  VCLI_WriteResult@LIBVARNISHAPI_1.0 3.0.0
@@ -19,6 +20,7 @@ libvarnishapi.so.1 libvarnishapi1 #MINVER#
 #MISSING: 3.0.0# VSL_H_Print@Base 2.0~rc1
  VSL_H_Print@LIBVARNISHAPI_1.0 3.0.0
  VSL_Matched@LIBVARNISHAPI_1.0 3.0.0
+ VSL_Name2Tag@LIBVARNISHAPI_1.1 3.0.0
 #MISSING: 3.0.0# VSL_Name@Base 2.0~rc1
 #MISSING: 3.0.0# VSL_New@Base 2.0~rc1
 #MISSING: 3.0.0# VSL_NextLog@Base 2.0~rc1
