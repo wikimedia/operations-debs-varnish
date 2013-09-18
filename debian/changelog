@@ -90,7 +90,7 @@ varnish (3.0.3plus~rc1-wm1) precise; urgency=low
     - Persisten storage support
     - HTTP object streaming support
 
- -- Mark Bergsma <mark@wikimedia>  Tue, 28 Aug 2012 11:36:52 +0000
+ -- Mark Bergsma <mark@wikimedia.org>  Tue, 28 Aug 2012 11:36:52 +0000
 
 varnish (3.0.3~rc1+persistent-wm1) precise; urgency=low
 
