@@ -1588,10 +1588,10 @@ index 0000000..1987e46
 +#endif // NLIST_H
 diff --git a/lib/libvmod_netmapper/src/nlt/ntree.c b/lib/libvmod_netmapper/src/nlt/ntree.c
 new file mode 100644
-index 0000000..2e050d8
+index 0000000..7cef9da
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/nlt/ntree.c
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,176 @@
 +/* Copyright © 2012 Brandon L Black <blblack@gmail.com>
 + *
 + * This file is part of gdnsd-plugin-geoip.
@@ -1708,8 +1708,7 @@ index 0000000..2e050d8
 +}
 +
 +static unsigned ntree_lookup_v4(const ntree_t* tree, const uint32_t ip) {
-+    assert(tree); assert(ip);
-+    assert(tree->ipv4);
++    assert(tree); assert(tree->ipv4);
 +
 +    unsigned chkbit = 0;
 +    unsigned offset = tree->ipv4;
