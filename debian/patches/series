@@ -11,6 +11,6 @@
 0010-libvmod_std-collect.patch
 0010-varnishtest-rxbytes.patch
 0020-filter-headers.patch
+0020-varnishd-esi-gzip-fix.patch
 0098-libvmod-netmapper-src.patch
 0099-libvmod-netmapper-ac.patch
-

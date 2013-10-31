@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm18) precise; urgency=low
+
+  * Add ESI+gzip bugfix (from Yuri)
+
+ -- Brandon Black <bblack@wikimedia.org>  Thu, 31 Oct 2013 05:02:42 +0000
+
 varnish (3.0.3plus~rc1-wm17) precise; urgency=low
 
   * Update netmapper from b62b6c7a
