@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm19) precise; urgency=low
+
+  * Update netmapper to 553fa29a
+
+ -- Brandon Black <bblack@wikimedia.org>  Sat, 30 Nov 2013 18:59:44 +0000
+
 varnish (3.0.3plus~rc1-wm18) precise; urgency=low
 
   * Add ESI+gzip bugfix (from Yuri)
