@@ -22,6 +22,7 @@ Build-Depends:
  xsltproc,
  libjansson-dev,
  liburcu-dev,
+ libjemalloc-dev (>= 3.4.1),
 Vcs-Browser: http://git.debian.org/?p=pkg-varnish/pkg-varnish.git;a=summary
 Vcs-Git: git://git.debian.org/pkg-varnish/pkg-varnish.git
 Homepage: http://varnish-cache.org/
@@ -29,7 +30,7 @@ Standards-Version: 3.9.3
 
 Package: varnish
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, gcc ( >= 3.3), libc6-dev | libc6.1-dev | libc-dev, adduser, libjansson4, liburcu1
+Depends: ${shlibs:Depends}, ${misc:Depends}, gcc ( >= 3.3), libc6-dev | libc6.1-dev | libc-dev, adduser
 Suggests: varnish-doc
 Replaces: libvarnishapi1 (<< 3.0.0-5)
 Description: state of the art, high-performance web accelerator
