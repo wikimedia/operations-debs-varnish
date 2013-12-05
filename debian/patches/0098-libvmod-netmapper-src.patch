@@ -2016,10 +2016,10 @@ index 0000000..118e9f8
 +{ "ZZZ": [ "0.0.0.0/1" ] }
 diff --git a/lib/libvmod_netmapper/src/vmod_netmapper.c b/lib/libvmod_netmapper/src/vmod_netmapper.c
 new file mode 100644
-index 0000000..c2551cb
+index 0000000..63f3737
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/vmod_netmapper.c
-@@ -0,0 +1,224 @@
+@@ -0,0 +1,213 @@
 +/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
 + *
 + * This file is part of libvmod-netmapper.
@@ -2136,28 +2136,18 @@ index 0000000..c2551cb
 +        // free the most-recent data
 +        vnm_db_destruct(vp->dbs[i].db);
 +        free(vp->dbs[i].fn);
++        free(vp->dbs[i].label);
 +    }
 +
 +    free(vp->dbs);
++    free(vp);
 +}
 +
 +/*****************************
 + * Actual VMOD/VCL/VRT Hooks *
 + *****************************/
 +
-+// we serialize all calls to vmod_init() for this vmod globally, because
-+//   (a) it's not a perf hotspot anyways and
-+//   (b) it is critical that this executes serially for all .init() calls
-+//     at *least* within a given VCL (PRIV_VCL context).
-+//   (c) I'm not 100% sure that varnish will never call this from two threads
-+//     in parallel, either now or in the future, during startup with multiple
-+//     VCLs using the module, etc.
-+pthread_mutex_t serial_init = PTHREAD_MUTEX_INITIALIZER;
-+
 +void vmod_init(struct sess *sp, struct vmod_priv *priv, const char* db_label, const char* json_path, const int reload_interval) {
-+
-+    pthread_mutex_lock(&serial_init);
-+
 +    vnm_priv_t* vp = priv->priv;
 +
 +    if(!vp) {
@@ -2177,7 +2167,6 @@ index 0000000..c2551cb
 +    if(!dbf->db)
 +        VSL(SLT_Error, 0, "vmod_netmapper: Failed initial load of JSON netmapper database %s (will keep trying periodically)", dbf->fn);
 +
-+    pthread_mutex_unlock(&serial_init);
 +    pthread_create(&dbf->updater, NULL, updater_start, dbf);
 +}
 +
@@ -2255,10 +2244,10 @@ index 0000000..1f33ea9
 +Function STRING map(PRIV_VCL, STRING, STRING)
 diff --git a/lib/libvmod_netmapper/src/vnm.c b/lib/libvmod_netmapper/src/vnm.c
 new file mode 100644
-index 0000000..353fc89
+index 0000000..fd8170f
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/vnm.c
-@@ -0,0 +1,274 @@
+@@ -0,0 +1,277 @@
 +/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
 + *
 + * This file is part of libvmod-netmapper.
@@ -2530,6 +2519,9 @@ index 0000000..353fc89
 +    else {
 +        stridx = ntree_lookup(d->tree, ainfo->ai_addr);
 +    }
++
++    if(ainfo)
++        freeaddrinfo(ainfo);
 +
 +    return vnm_strdb_get(d->strdb, stridx);
 +}

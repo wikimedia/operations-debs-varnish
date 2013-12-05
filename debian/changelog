@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm24) precise; urgency=low
+
+  * update netmapper to 418eb681
+
+ -- Brandon Black <bblack@wikimedia.org>  Thu, 05 Dec 2013 23:18:24 +0000
+
 varnish (3.0.3plus~rc1-wm23) precise; urgency=low
 
   * Use external, up-to-date jemalloc
