@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm25) precise; urgency=low
+
+  * Fix HTTP/0.9 issue (return 400 on request)
+
+ -- Brandon Black <bblack@wikimedia.org>  Fri, 06 Dec 2013 15:48:19 +0000
+
 varnish (3.0.3plus~rc1-wm24) precise; urgency=low
 
   * update netmapper to 418eb681
