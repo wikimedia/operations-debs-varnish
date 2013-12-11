@@ -122,6 +122,7 @@ RES_BuildHttp(const struct sess *sp)
 	http_FilterFields(sp->wrk, sp->fd, sp->wrk->resp, sp->obj->http,
 	    HTTPH_A_DELIVER);
 
+	http_Unset(sp->wrk->resp, H_Accept_Ranges);
 	if (!(sp->wrk->res_mode & RES_LEN)) {
 		http_Unset(sp->wrk->resp, H_Content_Length);
 	} else if (params->http_range_support) {
@@ -144,6 +145,7 @@ RES_BuildHttp(const struct sess *sp)
 	else
 		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "X-Varnish: %u", sp->xid);
+	http_Unset(sp->wrk->resp, H_Age);
 	http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp, "Age: %.0f",
 	    sp->obj->exp.age + sp->t_resp - sp->obj->exp.entered);
 	http_SetHeader(sp->wrk, sp->fd, sp->wrk->resp, "Via: 1.1 varnish");
@@ -385,9 +387,11 @@ RES_StreamStart(struct sess *sp, ssize_t *plow, ssize_t *phigh)
 	if (!(sp->wrk->res_mode & RES_CHUNKED) &&
 	    sp->wrk->h_content_length != NULL &&
 	    sp->wantbody &&
-	    *phigh == -1)
+	    *phigh == -1) {
+		http_Unset(sp->wrk->resp, H_Content_Length);
 		http_PrintfHeader(sp->wrk, sp->fd, sp->wrk->resp,
 		    "Content-Length: %s", sp->wrk->h_content_length);
+	}
 
 	sp->wrk->acct_tmp.hdrbytes +=
 	    http_Write(sp->wrk, sp->wrk->resp, 1);
