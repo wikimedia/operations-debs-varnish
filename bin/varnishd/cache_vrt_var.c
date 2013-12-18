@@ -483,12 +483,6 @@ VRT_r_client_ip(const struct sess *sp)
 struct sockaddr_storage *
 VRT_r_server_ip(struct sess *sp)
 {
-	int i;
-
-	if (sp->mysockaddr->ss_family == AF_UNSPEC) {
-		i = getsockname(sp->fd, (void*)sp->mysockaddr, &sp->mysockaddrlen);
-		assert(VTCP_Check(i));
-	}
 
 	return (sp->mysockaddr);
 }
@@ -553,6 +547,12 @@ unsigned
 VRT_r_req_backend_healthy(const struct sess *sp)
 {
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
+       /*
+        * XXX: Not optimal, but we do not have a backend in vcl_deliver
+        * XXX: and we have to return something.
+        */
+       if (sp->director == NULL)
+	       return (0);
 	CHECK_OBJ_NOTNULL(sp->director, DIRECTOR_MAGIC);
 	return (VDI_Healthy(sp->director, sp));
 }

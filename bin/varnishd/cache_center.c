@@ -258,6 +258,7 @@ cnt_prepresp(struct sess *sp)
 		AZ(sp->obj);
 		sp->restarts++;
 		sp->director = NULL;
+		sp->wrk->vfp = NULL;
 		sp->wrk->h_content_length = NULL;
 		http_Setup(sp->wrk->bereq, NULL);
 		http_Setup(sp->wrk->beresp, NULL);
@@ -796,12 +797,21 @@ cnt_fetchbody(struct sess *sp)
 	/* Create Vary instructions */
 	if (sp->objcore != NULL) {
 		CHECK_OBJ_NOTNULL(sp->objcore, OBJCORE_MAGIC);
-		vary = VRY_Create(sp, sp->wrk->beresp);
-		if (vary != NULL) {
-			varyl = VSB_len(vary);
-			assert(varyl > 0);
+		varyl = VRY_Create(sp, sp->wrk->beresp, &vary);
+		if (varyl > 0) {
+			AN(vary);
+			assert(varyl == VSB_len(vary));
 			l += varyl;
-		}
+		} else if (varyl < 0) {
+			/* Vary parse error */
+			AZ(vary);
+			sp->err_code = 503;
+			sp->step = STP_ERROR;
+			VDI_CloseFd(sp);
+			return (0);
+		} else
+			/* No vary */
+			AZ(vary);
 	}
 
 	/*
@@ -810,7 +820,7 @@ cnt_fetchbody(struct sess *sp)
 	 */
 	l += strlen("Content-Length: XxxXxxXxxXxxXxxXxx") + sizeof(void *);
 
-	if (sp->wrk->exp.ttl < params->shortlived || sp->objcore == NULL)
+	if (sp->wrk->exp.ttl < params->shortlived || pass == 1)
 		sp->wrk->storage_hint = TRANSIENT_STORAGE;
 
 	sp->obj = STV_NewObject(sp, sp->wrk->storage_hint, l,
@@ -1249,7 +1259,9 @@ DOT	lookup2 [
 DOT		shape=diamond
 DOT		label="obj.f.pass ?"
 DOT	]
-DOT	hash -> lookup [label="hash",style=bold,color=green]
+DOT	hash -> lookup [style=bold,color=green]
+DOT	hash -> pipe [style=bold,color=orange]
+DOT	hash -> pass2 [style=bold,color=red]
 DOT	lookup -> lookup2 [label="yes",style=bold,color=green]
 DOT }
 DOT lookup2 -> hit [label="no", style=bold,color=green]
@@ -1536,11 +1548,11 @@ DOT		label="vcl_recv()|req."
 DOT	]
 DOT }
 DOT RESTART -> recv
-DOT recv -> pipe [label="pipe",style=bold,color=orange]
-DOT recv -> pass2 [label="pass",style=bold,color=red]
+DOT recv -> hash [label="lookup",style=bold,color=green]
+DOT recv -> hash [label="pass",style=bold,color=red]
+DOT recv -> hash [label="pipe",style=bold,color=orange]
 DOT recv -> err_recv [label="error"]
 DOT err_recv [label="ERROR",shape=plaintext]
-DOT recv -> hash [label="lookup",style=bold,color=green]
  */
 
 static int

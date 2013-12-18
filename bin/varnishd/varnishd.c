@@ -262,7 +262,9 @@ Symbol_Lookup(struct vsb *vsb, void *ptr)
 	}
 	if (s0 == NULL)
 		return (-1);
-	VSB_printf(vsb, "%p: %s+%jx", ptr, s0->n, (uintmax_t)pp - s0->a);
+	if (!strcmp(s0->n, "_end"))
+		return (-1);
+	VSB_printf(vsb, "%p: %s+0x%jx", ptr, s0->n, (uintmax_t)pp - s0->a);
 	return (0);
 }
 
@@ -480,6 +482,7 @@ main(int argc, char * const *argv)
 			AN(p);
 			*p++ = '\0';
 			MCF_ParamSet(cli, optarg, p);
+			*--p = '=';
 			cli_check(cli);
 			break;
 		case 's':

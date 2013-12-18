@@ -95,9 +95,11 @@ static struct logline {
 	char *df_h;			/* %h (host name / IP adress)*/
 	char *df_m;			/* %m, Request method*/
 	char *df_s;			/* %s, Status */
-	struct tm df_t;			/* %t, Date and time */
+	struct tm df_t;			/* %t, Date and time, received */
 	char *df_u;			/* %u, Remote user */
 	char *df_ttfb;			/* Time to first byte */
+	double df_D;			/* %D, time taken to serve the request,
+					   in microseconds, also used for %T */
 	const char *df_hitmiss;		/* Whether this is a hit or miss */
 	const char *df_handling;	/* How the request was handled (hit/miss/pass/pipe) */
 	int active;			/* Is log line in an active trans */
@@ -136,13 +138,18 @@ isprefix(const char *str, const char *prefix, const char *end,
 
 /*
  * Returns a copy of the first consecutive sequence of non-space
- * characters in the string.
+ * characters in the string in dst. dst will be free'd first if non-NULL.
  */
-static char *
-trimfield(const char *str, const char *end)
+static void
+trimfield(char **dst, const char *str, const char *end)
 {
 	size_t len;
-	char *p;
+
+	/* free if already set */
+	if (*dst != NULL) {
+		free(*dst);
+		*dst = NULL;
+	}
 
 	/* skip leading space */
 	while (str < end && *str && *str == ' ')
@@ -154,22 +161,26 @@ trimfield(const char *str, const char *end)
 			break;
 
 	/* copy and return */
-	p = malloc(len + 1);
-	assert(p != NULL);
-	memcpy(p, str, len);
-	p[len] = '\0';
-	return (p);
+	*dst = malloc(len + 1);
+	assert(*dst != NULL);
+	memcpy(*dst, str, len);
+	(*dst)[len] = '\0';
 }
 
 /*
  * Returns a copy of the entire string with leading and trailing spaces
- * trimmed.
+ * trimmed in dst. dst will be free'd first if non-NULL.
  */
-static char *
-trimline(const char *str, const char *end)
+static void
+trimline(char **dst, const char *str, const char *end)
 {
 	size_t len;
-	char *p;
+
+	/* free if already set */
+	if (*dst != NULL) {
+		free(*dst);
+		*dst = NULL;
+	}
 
 	/* skip leading space */
 	while (str < end && *str && *str == ' ')
@@ -184,11 +195,10 @@ trimline(const char *str, const char *end)
 		--len;
 
 	/* copy and return */
-	p = malloc(len + 1);
-	assert(p != NULL);
-	memcpy(p, str, len);
-	p[len] = '\0';
-	return (p);
+	*dst = malloc(len + 1);
+	assert(*dst != NULL);
+	memcpy(*dst, str, len);
+	(*dst)[len] = '\0';
 }
 
 static char *
@@ -284,9 +294,9 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 		}
 		lp->active = 1;
 		if (isprefix(ptr, "default", end, &next))
-			lp->df_h = trimfield(next, end);
+			trimfield(&lp->df_h, next, end);
 		else
-			lp->df_h = trimfield(ptr, end);
+			trimfield(&lp->df_h, ptr, end);
 		break;
 
 	case SLT_TxRequest:
@@ -296,7 +306,7 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_m = trimline(ptr, end);
+		trimline(&lp->df_m, ptr, end);
 		break;
 
 	case SLT_TxURL: {
@@ -308,12 +318,12 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		qs = index(ptr, '?');
+		qs = memchr(ptr, '?', len);
 		if (qs) {
-			lp->df_U = trimline(ptr, qs);
-			lp->df_q = trimline(qs, end);
+			trimline(&lp->df_U, ptr, qs);
+			trimline(&lp->df_q, qs, end);
 		} else {
-			lp->df_U = trimline(ptr, end);
+			trimline(&lp->df_U, ptr, end);
 		}
 		break;
 	}
@@ -325,7 +335,7 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_H = trimline(ptr, end);
+		trimline(&lp->df_H, ptr, end);
 		break;
 
 	case SLT_RxStatus:
@@ -335,14 +345,14 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_s = trimline(ptr, end);
+		trimline(&lp->df_s, ptr, end);
 		break;
 
 	case SLT_RxHeader:
 		if (!lp->active)
 			break;
 		if (isprefix(ptr, "content-length:", end, &next))
-			lp->df_b = trimline(next, end);
+			trimline(&lp->df_b, next, end);
 		else if (isprefix(ptr, "date:", end, &next) &&
 			 strptime(next, "%a, %d %b %Y %T", &lp->df_t) == NULL) {
 			clean_logline(lp);
@@ -352,21 +362,21 @@ collect_backend(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 	case SLT_TxHeader:
 		if (!lp->active)
 			break;
-		split = strchr(ptr, ':');
+		split = memchr(ptr, ':', len);
 		if (split == NULL)
 			break;
 		if (isprefix(ptr, "authorization:", end, &next) &&
 		    isprefix(next, "basic", end, &next)) {
-			lp->df_u = trimline(next, end);
+			trimline(&lp->df_u, next, end);
 		} else {
 			struct hdr *h;
 			size_t l;
-			h = malloc(sizeof(struct hdr));
+			h = calloc(1, sizeof(struct hdr));
 			AN(h);
 			AN(split);
 			l = strlen(split);
-			h->key = trimline(ptr, split-1);
-			h->value = trimline(split+1, split+l-1);
+			trimline(&h->key, ptr, split-1);
+			trimline(&h->value, split+1, split+l-1);
 			VTAILQ_INSERT_HEAD(&lp->req_headers, h, list);
 		}
 		break;
@@ -391,7 +401,6 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
     const char *ptr, unsigned len)
 {
 	const char *end, *next, *split;
-	long l;
 	time_t t;
 
 	assert(spec & VSL_S_CLIENT);
@@ -405,7 +414,7 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 		}
 		lp->active = 1;
-		lp->df_h = trimfield(ptr, end);
+		trimfield(&lp->df_h, ptr, end);
 		break;
 
 	case SLT_RxRequest:
@@ -415,7 +424,7 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_m = trimline(ptr, end);
+		trimline(&lp->df_m, ptr, end);
 		break;
 
 	case SLT_RxURL: {
@@ -427,12 +436,12 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		qs = index(ptr, '?');
+		qs = memchr(ptr, '?', len);
 		if (qs) {
-			lp->df_U = trimline(ptr, qs);
-			lp->df_q = trimline(qs, end);
+			trimline(&lp->df_U, ptr, qs);
+			trimline(&lp->df_q, qs, end);
 		} else {
-			lp->df_U = trimline(ptr, end);
+			trimline(&lp->df_U, ptr, end);
 		}
 		break;
 	}
@@ -444,7 +453,7 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_H = trimline(ptr, end);
+		trimline(&lp->df_H, ptr, end);
 		break;
 
 	case SLT_TxStatus:
@@ -453,28 +462,27 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 		if (lp->df_s != NULL)
 			clean_logline(lp);
 		else
-			lp->df_s = trimline(ptr, end);
+			trimline(&lp->df_s, ptr, end);
 		break;
 
 	case SLT_TxHeader:
 	case SLT_RxHeader:
 		if (!lp->active)
 			break;
-		split = strchr(ptr, ':');
+		split = memchr(ptr, ':', len);
 		if (split == NULL)
 			break;
 		if (tag == SLT_RxHeader &&
 		    isprefix(ptr, "authorization:", end, &next) &&
 		    isprefix(next, "basic", end, &next)) {
-			free(lp->df_u);
-			lp->df_u = trimline(next, end);
+			trimline(&lp->df_u, next, end);
 		} else {
 			struct hdr *h;
-			h = malloc(sizeof(struct hdr));
+			h = calloc(1, sizeof(struct hdr));
 			AN(h);
 			AN(split);
-			h->key = trimline(ptr, split);
-			h->value = trimline(split+1, end);
+			trimline(&h->key, ptr, split);
+			trimline(&h->value, split+1, end);
 			if (tag == SLT_RxHeader)
 				VTAILQ_INSERT_HEAD(&lp->req_headers, h, list);
 			else
@@ -486,17 +494,17 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 		if(!lp->active)
 			break;
 
-		split = strchr(ptr, ':');
+		split = memchr(ptr, ':', len);
 		if (split == NULL)
 			break;
 
 		struct hdr *h;
-		h = malloc(sizeof(struct hdr));
+		h = calloc(1, sizeof(struct hdr));
 		AN(h);
 		AN(split);
 
-		h->key = trimline(ptr, split);
-		h->value = trimline(split+1, end);
+		trimline(&h->key, ptr, split);
+		trimline(&h->value, split+1, end);
 
 		VTAILQ_INSERT_HEAD(&lp->vcl_log, h, list);
 		break;
@@ -528,7 +536,7 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 			clean_logline(lp);
 			break;
 		}
-		lp->df_b = trimline(ptr, end);
+		trimline(&lp->df_b, ptr, end);
 		break;
 
 	case SLT_SessionClose:
@@ -544,14 +552,19 @@ collect_client(struct logline *lp, enum VSL_tag_e tag, unsigned spec,
 	case SLT_ReqEnd:
 	{
 		char ttfb[64];
+		double t_start, t_end;
 		if (!lp->active)
 			break;
-		if (lp->df_ttfb != NULL || sscanf(ptr, "%*u %*u.%*u %ld.%*u %*u.%*u %s", &l, ttfb) != 2) {
+		if (lp->df_ttfb != NULL ||
+		    sscanf(ptr, "%*u %lf %lf %*u.%*u %s", &t_start, &t_end, ttfb) != 3) {
 			clean_logline(lp);
 			break;
 		}
+		if (lp->df_ttfb != NULL)
+			free(lp->df_ttfb);
 		lp->df_ttfb = strdup(ttfb);
-		t = l;
+		lp->df_D = t_end - t_start;
+		t = t_start;
 		localtime_r(&t, &lp->df_t);
 		/* got it all */
 		lp->complete = 1;
@@ -574,6 +587,10 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 	char *q, tbuf[64];
 	const char *p;
 	struct vsb *os;
+
+	/* XXX: Ignore fd's outside 65536 */
+	if (fd >= 65536)
+		return (reopen);
 
 	if (fd >= nll) {
 		struct logline **newll = ll;
@@ -646,6 +663,11 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 			VSB_cat(os, lp->df_b ? lp->df_b : "-");
 			break;
 
+		case 'D':
+			/* %D */
+			VSB_printf(os, "%f", lp->df_D);
+			break;
+
 		case 'H':
 			VSB_cat(os, lp->df_H ? lp->df_H : "HTTP/1.0");
 			break;
@@ -697,6 +719,11 @@ h_ncsa(void *priv, enum VSL_tag_e tag, unsigned fd,
 			/* %t */
 			strftime(tbuf, sizeof tbuf, "[%d/%b/%Y:%T %z]", &lp->df_t);
 			VSB_cat(os, tbuf);
+			break;
+
+		case 'T':
+			/* %T */
+			VSB_printf(os, "%d", (int)lp->df_D);
 			break;
 
 		case 'U':
