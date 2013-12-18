@@ -549,12 +549,12 @@ hsh_rush(struct dstat *ds, struct objhead *oh)
 }
 
 void
-HSH_Rush(struct objhead *oh)
+HSH_Rush(struct dstat *ds, struct objhead *oh)
 {
 	CHECK_OBJ_NOTNULL(oh, OBJHEAD_MAGIC);
 	Lck_Lock(&oh->mtx);
 	if (oh->waitinglist != NULL)
-		hsh_rush(oh);
+		hsh_rush(ds, oh);
 	Lck_Unlock(&oh->mtx);
 }
 

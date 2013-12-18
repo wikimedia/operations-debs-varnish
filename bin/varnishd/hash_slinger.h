@@ -31,6 +31,7 @@
 struct sess;
 struct worker;
 struct object;
+struct dstat;
 
 typedef void hash_init_f(int ac, char * const *av);
 typedef void hash_start_f(void);
@@ -54,7 +55,7 @@ struct hash_slinger {
 void HSH_Prealloc(const struct sess *sp);
 void HSH_Cleanup(struct worker *w);
 struct objcore *HSH_Lookup(struct sess *sp, struct objhead **poh);
-void HSH_Rush(struct objhead *oh);
+void HSH_Rush(struct dstat *ds, struct objhead *oh);
 void HSH_Unbusy(const struct sess *sp);
 void HSH_Ref(struct objcore *o);
 void HSH_Drop(struct sess *sp);

@@ -1076,7 +1076,7 @@ cnt_streambody(struct sess *sp)
 	if (sp_fetch->obj->objcore != NULL && 
 	    !(sp_fetch->obj->objcore->flags & OC_F_PASS)) {
 		bo->can_stream = 1;
-		HSH_Rush(sp_fetch->obj->objcore->objhead);
+		HSH_Rush(&sp_fetch->wrk->stats, sp_fetch->obj->objcore->objhead);
 	}
 
 	bo->stream_error = FetchBody(sp_fetch);
