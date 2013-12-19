@@ -1,0 +1,6 @@
+Changes to the upstream source should be committed to the git tree as a branch
+rebased against the upstream/$version tag.
+
+
+Build the package with "gitpkg", using the quilt-patches-deb-export-hook hook
+to automatically create quilt patches when packaging.

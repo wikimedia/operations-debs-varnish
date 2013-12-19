@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -e
+
+# Undo mangling of /etc/default/varnish that happened during lenny->squeeze
+# upgrades.
+unmangle_defaults() {
+    export defaultsfile='/etc/default/varnish'
+
+    if ! [ -f "$defaultsfile" ]; then
+        return
+    fi
+
+    # The checksums in the package that introduced the bug
+    md5_before_change='af3fd9c9e3dd6976367638113373f6f7'
+    md5_after_change='708e91b32d1ae5eed7f82d772c2fd421'
+
+    # The checksum in the current package
+    md5_in_package=$(dpkg-query -f '${Conffiles}' -W varnish \
+        | awk '$1 == ENVIRON["defaultsfile"] {print $2}')
+
+    # The checksum in the file system
+    md5_in_filesystem=$(md5sum "$defaultsfile" | awk '{print $1}')
+
+    if [ "$md5_in_package" = "$md5_before_change" -a "$md5_in_filesystem" = "$md5_after_change" ]; then
+	sed -i '/^START=/s/yes/no/g' "$defaultsfile"
+    fi
+}
+
+case "$1" in
+    install|upgrade)
+        if dpkg --compare-versions "$2" "lt-nl" "3.0.3-1~"; then
+            unmangle_defaults
+        fi
+        ;;
+esac
+
+#DEBHELPER#
