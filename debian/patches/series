@@ -1,0 +1,8 @@
+0010-varnishd-cache_dir_chash.patch
+0010-varnishncsa-udplog.patch
+0010-varnishd-nukelru.patch
+0010-varnishd-vcl_error-allow-keepalive.patch
+0010-varnishd-persistent-mmap-exit.patch
+0010-varnishd-cachehitmiss-ignore-purge.patch
+0010-libvmod_std-collect.patch
+0020-filter-headers.patch

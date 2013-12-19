@@ -1,0 +1,24 @@
+diff --git a/bin/varnishd/cache_center.c b/bin/varnishd/cache_center.c
+index 61d3fb4..640d848 100644
+--- a/bin/varnishd/cache_center.c
++++ b/bin/varnishd/cache_center.c
+@@ -1313,7 +1313,8 @@ cnt_lookup(struct sess *sp)
+ 
+ 	/* If we inserted a new object it's a miss */
+ 	if (oc->flags & OC_F_BUSY && !oc->busyobj->can_stream) {
+-		sp->wrk->stats.cache_miss++;
++		if (strcasecmp(http_GetReq(sp->http), "PURGE") != 0)
++			sp->wrk->stats.cache_miss++;
+ 
+ 		if (sp->vary_l != NULL) {
+ 			assert(oc->busyobj->vary == sp->vary_b);
+@@ -1350,7 +1351,8 @@ cnt_lookup(struct sess *sp)
+ 		return (0);
+ 	}
+ 
+-	sp->wrk->stats.cache_hit++;
++	if (strcasecmp(http_GetReq(sp->http), "PURGE") != 0)
++		sp->wrk->stats.cache_hit++;
+ 	WSP(sp, SLT_Hit, "%u", sp->obj->xid);
+ 	sp->step = STP_HIT;
+ 	return (0);

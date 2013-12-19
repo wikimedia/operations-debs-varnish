@@ -1,0 +1,535 @@
+diff --git a/bin/varnishd/Makefile.am b/bin/varnishd/Makefile.am
+index 00dc716..77d817f 100644
+--- a/bin/varnishd/Makefile.am
++++ b/bin/varnishd/Makefile.am
+@@ -25,6 +25,7 @@ varnishd_SOURCES = \
+ 	cache_dir_random.c \
+ 	cache_dir_dns.c \
+ 	cache_dir_round_robin.c \
++	cache_dir_chash.c \
+ 	cache_esi_fetch.c \
+ 	cache_esi_parse.c \
+ 	cache_esi_deliver.c \
+diff --git a/bin/varnishd/cache_backend.h b/bin/varnishd/cache_backend.h
+index 21a7061..68e1256 100644
+--- a/bin/varnishd/cache_backend.h
++++ b/bin/varnishd/cache_backend.h
+@@ -167,3 +167,4 @@ dir_init_f VRT_init_dir_random;
+ dir_init_f VRT_init_dir_round_robin;
+ dir_init_f VRT_init_dir_fallback;
+ dir_init_f VRT_init_dir_client;
++dir_init_f VRT_init_dir_chash;
+diff --git a/bin/varnishd/cache_backend_cfg.c b/bin/varnishd/cache_backend_cfg.c
+index 0582f72..0b5d0c4 100644
+--- a/bin/varnishd/cache_backend_cfg.c
++++ b/bin/varnishd/cache_backend_cfg.c
+@@ -269,6 +269,8 @@ VRT_init_dir(struct cli *cli, struct director **dir, const char *name,
+ 		VRT_init_dir_fallback(cli, dir, idx, priv);
+ 	else if (!strcmp(name, "client"))
+ 		VRT_init_dir_client(cli, dir, idx, priv);
++	else if (!strcmp(name, "chash"))
++		VRT_init_dir_chash(cli, dir, idx, priv);
+ 	else
+ 		INCOMPL();
+ }
+diff --git a/bin/varnishd/cache_dir_chash.c b/bin/varnishd/cache_dir_chash.c
+new file mode 100644
+index 0000000..10ae2c2
+--- /dev/null
++++ b/bin/varnishd/cache_dir_chash.c
+@@ -0,0 +1,286 @@
++/*-
++ * Copyright (c) 2006 Verdens Gang AS
++ * Copyright (c) 2006-2011 Varnish Software AS
++ * All rights reserved.
++ *
++ * Author: Mark Bergsma <mark@wikimedia.org>
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * The consistent hash director uses a consistent hash function on the
++ * requested URL to pick a backend.
++ *
++ * A consistent hashing scheme is used that is similar to the
++ * one used in e.g. libketama and some DHTs: each backend name is
++ * hashed one or more times and placed on a circle (the continuum) which
++ * represents a 64 bit double precision number space. A new request's URL
++ * is hashed, and the smallest backend hash value greater than or equal
++ * to the source address hash is selected. If the selected server is
++ * unavailable (down, overloaded) then the next is tried, and so on.
++ *
++ * Destination load weighting is implemented by placing a number of points
++ * on the continuum that is a multiple of the backend weight value: the
++ * higher the weight, the more points on the continuum, and the higher the
++ * probability that this backend is selected if the URL and backend name
++ * hashes are uniformly distributed over the circle.
++ */
++
++#include "config.h"
++
++#include <sys/types.h>
++#include <sys/socket.h>
++
++#include <stdio.h>
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++#include <math.h>
++
++#include "cache.h"
++#include "cache_backend.h"
++#include "vrt.h"
++#include "vsha256.h"
++#include "vend.h"
++
++/*--------------------------------------------------------------------*/
++
++struct vdi_chash_host {
++	struct director		*backend;
++	unsigned			weight;
++};
++
++struct vdi_chash_continuum {
++	double					hash;
++	struct vdi_chash_host	*host;
++};
++
++struct vdi_chash {
++	unsigned		magic;
++#define VDI_CHASH_MAGIC	0x61acf3f2
++	struct director		dir;
++
++	unsigned		retries;
++	unsigned		tot_weight;
++	struct vdi_chash_host	*hosts;
++	struct vdi_chash_continuum	*continuum;
++	unsigned		nhosts;
++};
++
++/*
++ * Applies sha256 using the given context and input/length, and returns
++ * the digest
++ */
++
++static void
++vdi_chash_sha_digest(uint8_t digest[SHA256_LEN], const char *input,
++		ssize_t len)
++{
++	struct SHA256Context ctx;
++
++	AN(input);
++	SHA256_Init(&ctx);
++	SHA256_Update(&ctx, input, len);
++	SHA256_Final(digest, &ctx);
++	return;
++}
++
++static int
++vdi_chash_cont_cmp(const void *a, const void *b) {
++    const struct vdi_chash_continuum *da =
++    		(const struct vdi_chash_continuum *) a;
++    const struct vdi_chash_continuum *db =
++    		(const struct vdi_chash_continuum *) b;
++
++    return (da->hash > db->hash) - (da->hash < db->hash);
++}
++
++/*
++ * Returns the URL hash as a double.
++ */
++static double
++vdi_chash_url_hash(const struct vdi_chash *vs, const struct sess *sp)
++{
++	AN(sp->digest);
++	return (vle32dec(sp->digest) / exp2(32));
++}
++
++/*
++ * Find the next closest backend compared to URL hash r [0...1[
++ */
++static int
++vdi_chash_find_one(struct sess *sp, const struct vdi_chash *vs, double r)
++{
++	unsigned int left, right;
++	struct vdi_chash_continuum *vc = vs->continuum;
++
++	if (vs->tot_weight == 0)
++		return (-1);
++	else if (vs->tot_weight == 1
++		|| r <= vc[0].hash
++		|| r > vc[vs->tot_weight-1].hash)
++		return (0);
++
++	/* binary search */
++	left = 0;
++	right = vs->tot_weight;
++	while (left+1 != right) {
++		unsigned int mid = (left + right) / 2;
++		if (r <= vc[mid].hash)
++			right = mid;
++		else
++			left = mid;
++	}
++	/* vc[right-1] < r <= vc[right] */
++	return (right);
++}
++
++/*
++ * Try the specified number of times to get a backend.
++ * First one according to closest hash value, after that,
++ * the next closest backend that is up.
++ */
++static struct vbc *
++vdi_chash_getfd(const struct director *d, struct sess *sp)
++{
++	int k, idx;
++	struct vdi_chash *vs;
++	double r;
++	struct director *backend;
++
++	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
++	CHECK_OBJ_NOTNULL(d, DIRECTOR_MAGIC);
++	CAST_OBJ_NOTNULL(vs, d->priv, VDI_CHASH_MAGIC);
++
++	r = vdi_chash_url_hash(vs, sp);
++	idx = vdi_chash_find_one(sp, vs, r);
++	if (idx >= 0) {
++		for (k = 0; k < vs->retries; k++, idx++) {
++			backend = vs->continuum[idx % vs->tot_weight].host->backend;
++			if (VDI_Healthy(backend, sp))
++				return (VDI_GetFd(backend, sp));
++		}
++	}
++
++	return (NULL);
++}
++
++/*
++ * Healthy if just a single backend is...
++ */
++static unsigned
++vdi_chash_healthy(const struct director *d, const struct sess *sp)
++{
++	struct vdi_chash *vs;
++	int i;
++
++	CHECK_OBJ_NOTNULL(d, DIRECTOR_MAGIC);
++	CAST_OBJ_NOTNULL(vs, d->priv, VDI_CHASH_MAGIC);
++
++	for (i = 0; i < vs->nhosts; i++) {
++		if (VDI_Healthy(vs->hosts[i].backend, sp))
++			return (1);
++	}
++	return (0);
++}
++
++static void
++vdi_chash_fini(const struct director *d)
++{
++	struct vdi_chash *vs;
++
++	CHECK_OBJ_NOTNULL(d, DIRECTOR_MAGIC);
++	CAST_OBJ_NOTNULL(vs, d->priv, VDI_CHASH_MAGIC);
++
++	free(vs->hosts);
++	free(vs->continuum);
++	free(vs->dir.vcl_name);
++	vs->dir.magic = 0;
++	FREE_OBJ(vs);
++}
++
++void
++VRT_init_dir_chash(struct cli *cli, struct director **bp, int idx,
++    const void *priv)
++{
++	const struct vrt_dir_random *t;
++	struct vdi_chash *vs;
++	const struct vrt_dir_random_entry *te;
++	struct vdi_chash_host *vh;
++	struct vdi_chash_continuum *vc;
++	int i, j;
++	uint8_t digest[SHA256_LEN];
++	double hash;
++
++	ASSERT_CLI();
++	(void)cli;
++	t = priv;
++
++	ALLOC_OBJ(vs, VDI_CHASH_MAGIC);
++	XXXAN(vs);
++	vs->hosts = calloc(sizeof *vh, t->nmember);
++	XXXAN(vs->hosts);
++
++	vs->dir.magic = DIRECTOR_MAGIC;
++	vs->dir.priv = vs;
++	vs->dir.name = "chash";
++	REPLACE(vs->dir.vcl_name, t->name);
++	vs->dir.getfd = vdi_chash_getfd;
++	vs->dir.fini = vdi_chash_fini;
++	vs->dir.healthy = vdi_chash_healthy;
++
++	vs->retries = t->retries;
++	if (vs->retries == 0)
++		vs->retries = t->nmember;
++	vh = vs->hosts;
++	te = t->members;
++	vs->tot_weight = 0;
++	for (i = 0; i < t->nmember; i++, vh++, te++) {
++		assert(te->weight > 0);
++		vh->weight = te->weight;
++		vs->tot_weight += vh->weight;
++		vh->backend = bp[te->host];
++		AN(vh->backend);
++	}
++	vs->nhosts = t->nmember;
++
++	/* Create the continuum */
++	vs->continuum = calloc(sizeof *vc, vs->tot_weight);
++	XXXAN(vs->continuum);
++
++	vh = vs->hosts;
++	vc = vs->continuum;
++	for (i = 0; i < vs->nhosts; i++, vh++) {
++		vdi_chash_sha_digest(digest, vh->backend->vcl_name,
++				strlen(vh->backend->vcl_name));
++		/* Hash backend->vcl_name vh->weight times */
++		for (j = 0; j < vh->weight; j++, vc++) {
++			vdi_chash_sha_digest(digest, digest, SHA256_LEN);
++			vc->hash = (vle32dec(digest) / exp2(32));
++			vc->host = vh;
++			AN(vc->host);
++		}
++	}
++	qsort(vs->continuum, vs->tot_weight, sizeof *vc, vdi_chash_cont_cmp);
++
++	bp[idx] = &vs->dir;
++}
+diff --git a/include/vrt.h b/include/vrt.h
+index 9f0228f..c90758c 100644
+--- a/include/vrt.h
++++ b/include/vrt.h
+@@ -125,6 +125,23 @@ struct vrt_dir_dns {
+ };
+ 
+ /*
++ * A director for consistent hashing on the URL
++ */
++
++struct vrt_dir_chash_entry {
++	int					host;
++	double					weight;
++};
++
++struct vrt_dir_chash {
++	const char				*name;
++	unsigned				retries;
++	unsigned				nmember;
++	const struct vrt_dir_chash_entry	*members;
++};
++
++
++/*
+  * other stuff.
+  * XXX: document when bored
+  */
+diff --git a/lib/libvcl/Makefile.am b/lib/libvcl/Makefile.am
+index fa61423..c953e88 100644
+--- a/lib/libvcl/Makefile.am
++++ b/lib/libvcl/Makefile.am
+@@ -21,6 +21,7 @@ libvcl_la_SOURCES = \
+ 	vcc_dir_random.c \
+ 	vcc_dir_round_robin.c \
+ 	vcc_dir_dns.c \
++	vcc_dir_chash.c \
+ 	vcc_expr.c \
+ 	vcc_parse.c \
+ 	vcc_fixed_token.c \
+diff --git a/lib/libvcl/vcc_backend.c b/lib/libvcl/vcc_backend.c
+index f79447f..d243490 100644
+--- a/lib/libvcl/vcc_backend.c
++++ b/lib/libvcl/vcc_backend.c
+@@ -698,6 +698,7 @@ static const struct dirlist {
+ 	{ "round-robin",	vcc_ParseRoundRobinDirector },
+ 	{ "fallback",		vcc_ParseRoundRobinDirector },
+ 	{ "dns",		vcc_ParseDnsDirector },
++	{ "chash",		vcc_ParseCHashDirector },
+ 	{ NULL,		NULL }
+ };
+ 
+diff --git a/lib/libvcl/vcc_compile.h b/lib/libvcl/vcc_compile.h
+index ec7caed..f7bdb84 100644
+--- a/lib/libvcl/vcc_compile.h
++++ b/lib/libvcl/vcc_compile.h
+@@ -252,6 +252,9 @@ sym_expr_t vcc_Eval_Backend;
+ /* vcc_dir_dns.c */
+ parsedirector_f vcc_ParseDnsDirector;
+ 
++/* vcc_dir_chash.c */
++parsedirector_f vcc_ParseCHashDirector;
++
+ /* vcc_obj.c */
+ extern const struct var vcc_vars[];
+ 
+diff --git a/lib/libvcl/vcc_dir_chash.c b/lib/libvcl/vcc_dir_chash.c
+new file mode 100644
+index 0000000..36a20da
+--- /dev/null
++++ b/lib/libvcl/vcc_dir_chash.c
+@@ -0,0 +1,137 @@
++/*-
++ * Copyright (c) 2006 Verdens Gang AS
++ * Copyright (c) 2006-2010 Varnish Software AS
++ * All rights reserved.
++ *
++ * Author: Poul-Henning Kamp <phk@phk.freebsd.dk>
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++#include "config.h"
++
++#include <sys/types.h>
++#include <sys/socket.h>
++
++#include <stdio.h>
++#include <stdarg.h>
++#include <string.h>
++
++#include "vsb.h"
++
++#include "vcc_priv.h"
++#include "vcc_compile.h"
++#include "libvarnish.h"
++
++/*--------------------------------------------------------------------
++ * Parse directors
++ */
++
++void
++vcc_ParseCHashDirector(struct vcc *tl)
++{
++	struct token *t_field, *t_be;
++	int nelem;
++	struct fld_spec *fs, *mfs;
++	unsigned u, retries;
++	const char *first;
++	char *p;
++
++	fs = vcc_FldSpec(tl, "?retries", NULL);
++
++	retries = 0;
++	while (tl->t->tok != '{') {
++		vcc_IsField(tl, &t_field, fs);
++		ERRCHK(tl);
++		if (vcc_IdIs(t_field, "retries")) {
++			ExpectErr(tl, CNUM);
++			retries = vcc_UintVal(tl);
++			ERRCHK(tl);
++			SkipToken(tl, ';');
++		} else {
++			ErrInternal(tl);
++		}
++	}
++
++	mfs = vcc_FldSpec(tl, "!backend", "!weight", NULL);
++
++	Fc(tl, 0,
++	    "\nstatic const struct vrt_dir_chash_entry vdre_%.*s[] = {\n",
++	    PF(tl->t_dir));
++
++	for (nelem = 0; tl->t->tok != '}'; nelem++) {	/* List of members */
++		first = "";
++		t_be = tl->t;
++		vcc_ResetFldSpec(mfs);
++
++		SkipToken(tl, '{');
++		Fc(tl, 0, "\t{");
++
++		while (tl->t->tok != '}') {	/* Member fields */
++			vcc_IsField(tl, &t_field, mfs);
++			ERRCHK(tl);
++			if (vcc_IdIs(t_field, "backend")) {
++				vcc_ParseBackendHost(tl, nelem, &p);
++				ERRCHK(tl);
++				AN(p);
++				Fc(tl, 0, "%s .host = VGC_backend_%s",
++				    first, p);
++			} else if (vcc_IdIs(t_field, "weight")) {
++				ExpectErr(tl, CNUM);
++				u = vcc_UintVal(tl);
++				ERRCHK(tl);
++				if (u == 0) {
++					VSB_printf(tl->sb,
++					    "The .weight must be higher "
++					    "than zero.");
++					vcc_ErrToken(tl, tl->t);
++					VSB_printf(tl->sb, " at\n");
++					vcc_ErrWhere(tl, tl->t);
++					return;
++				}
++				Fc(tl, 0, "%s .weight = %u", first, u);
++				SkipToken(tl, ';');
++			} else {
++				ErrInternal(tl);
++			}
++			first = ", ";
++		}
++		vcc_FieldsOk(tl, mfs);
++		if (tl->err) {
++			VSB_printf(tl->sb,
++			    "\nIn member host specification starting at:\n");
++			vcc_ErrWhere(tl, t_be);
++			return;
++		}
++		Fc(tl, 0, " },\n");
++		vcc_NextToken(tl);
++	}
++	Fc(tl, 0, "};\n");
++	Fc(tl, 0,
++	    "\nstatic const struct vrt_dir_chash vgc_dir_priv_%.*s = {\n",
++	    PF(tl->t_dir));
++	Fc(tl, 0, "\t.name = \"%.*s\",\n", PF(tl->t_dir));
++	Fc(tl, 0, "\t.retries = %u,\n", retries);
++	Fc(tl, 0, "\t.nmember = %d,\n", nelem);
++	Fc(tl, 0, "\t.members = vdre_%.*s,\n", PF(tl->t_dir));
++	Fc(tl, 0, "};\n");
++}

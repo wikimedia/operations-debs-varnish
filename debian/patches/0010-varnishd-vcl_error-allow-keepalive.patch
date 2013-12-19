@@ -1,0 +1,18 @@
+diff --git a/bin/varnishd/cache_center.c b/bin/varnishd/cache_center.c
+index 61d3fb4..8ac90c4 100644
+--- a/bin/varnishd/cache_center.c
++++ b/bin/varnishd/cache_center.c
+@@ -518,8 +518,11 @@ cnt_error(struct sess *sp)
+ 		sp->handling = VCL_RET_DELIVER;
+ 
+ 
+-	/* We always close when we take this path */
+-	sp->doclose = "error";
++	/* We close, unless the object explicitly states Connection: keep-alive */
++	if (sp->wrk->do_close || !http_HdrIs(h, H_Connection, "keep-alive"))
++		sp->doclose = "error";
++	http_Unset(h, H_Connection);
++
+ 	sp->wantbody = 1;
+ 
+ 	assert(sp->handling == VCL_RET_DELIVER);

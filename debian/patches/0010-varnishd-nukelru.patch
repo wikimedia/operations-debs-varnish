@@ -1,0 +1,18 @@
+diff --git a/bin/varnishd/cache_expire.c b/bin/varnishd/cache_expire.c
+index 8143e2f..28930d9 100644
+--- a/bin/varnishd/cache_expire.c
++++ b/bin/varnishd/cache_expire.c
+@@ -579,9 +579,11 @@ EXP_NukeLRU(struct worker *wrk, struct lru *lru)
+ 			WSL(wrk, SLT_ExpKill, 0, "%u %.0f LRU",
+ 			    o->xid, EXP_Ttl(NULL, o) - t);
+ 			EXP_Set_ttl(&o->exp, 0.);
+-			(void)HSH_Deref(wrk, oc, NULL);
++			if (HSH_Deref(wrk, oc, NULL) > 0)
++				printf("Could not destroy object %u in EXP_NukeLRU\n", o->xid);
++			else
++				VSC_C_main->n_lru_nuked++;
+ 		}
+-		VSC_C_main->n_lru_nuked++;
+ 
+ 		Lck_Lock(&lru->mtx);
+ 	}
