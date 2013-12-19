@@ -1,0 +1,3 @@
+Example gbp to rebuild package from git checkout of branch (modify to suit...):
+--------------------------------------------------------------------------------
+git buildpackage --git-debian-branch=3.0.5-plus-wm --git-upstream-branch=3.0.5-plus --git-upstream-tree=branch --git-export-dir=../build-area -us -uc
