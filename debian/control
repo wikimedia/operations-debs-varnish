@@ -22,6 +22,8 @@ Build-Depends:
  pkg-config,
  python-docutils,
  xsltproc,
+ libjansson-dev,
+ liburcu-dev,
 Vcs-Browser: http://git.debian.org/?p=pkg-varnish/pkg-varnish.git;a=summary
 Vcs-Git: git://git.debian.org/pkg-varnish/pkg-varnish.git
 Homepage: http://varnish-cache.org/
