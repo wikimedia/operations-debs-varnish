@@ -50,6 +50,7 @@ override_dh_install:
 		$(CURDIR)/debian/varnish/usr/share/varnish/reload-vcl
 
 override_dh_installdocs:
+	make -C doc/sphinx html
 	dh_installdocs
 	@ # Use the packaged javascript libraries
 	if [ -d $(CURDIR)/debian/varnish-doc ]; then \
