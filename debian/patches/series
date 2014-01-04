@@ -12,6 +12,5 @@
 0010-varnishtest-rxbytes.patch
 0020-filter-headers.patch
 0020-varnishd-esi-gzip-fix.patch
-0025-varnishd-http09.patch
 0098-libvmod-netmapper-src.patch
 0099-libvmod-netmapper-ac.patch
