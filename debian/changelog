@@ -1,3 +1,10 @@
+varnish (3.0.3plus~rc1-wm27) precise; urgency=low
+
+  * Updated netmapper w/ new fixes
+  * Removed HTTP/0.9 patch (for testing)
+
+ -- Brandon Black <bblack@wikimedia.org>  Sun, 05 Jan 2014 00:51:12 +0000
+
 varnish (3.0.3plus~rc1-wm25) precise; urgency=low
 
   * Fix HTTP/0.9 issue (return 400 on request)
