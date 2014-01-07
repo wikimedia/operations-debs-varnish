@@ -2016,10 +2016,10 @@ index 0000000..118e9f8
 +{ "ZZZ": [ "0.0.0.0/1" ] }
 diff --git a/lib/libvmod_netmapper/src/vmod_netmapper.c b/lib/libvmod_netmapper/src/vmod_netmapper.c
 new file mode 100644
-index 0000000..63f3737
+index 0000000..91a88ce
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/vmod_netmapper.c
-@@ -0,0 +1,213 @@
+@@ -0,0 +1,220 @@
 +/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
 + *
 + * This file is part of libvmod-netmapper.
@@ -2073,7 +2073,7 @@ index 0000000..63f3737
 +
 +typedef struct {
 +    unsigned db_count;
-+    vnm_db_file_t* dbs;
++    vnm_db_file_t** dbs;
 +} vnm_priv_t;
 +
 +// Copy a str_t*'s data to a const char* in the session workspace,
@@ -2107,6 +2107,10 @@ index 0000000..63f3737
 +            || check_stat.st_ino   != dbf->db_stat.st_ino
 +            || check_stat.st_dev   != dbf->db_stat.st_dev) {
 +
++            // this is just to prevent resource leaks on pthread_cancel
++            //   racing a reload, nothing to do with the rcu stuff.
++            pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
++
 +            vnm_db_t* new_db = vnm_db_parse(dbf->fn, &dbf->db_stat);
 +            if(new_db) {
 +                vnm_db_t* old_db = dbf->db;
@@ -2119,6 +2123,8 @@ index 0000000..63f3737
 +            else {
 +                VSL(SLT_Error, 0, "vmod_netmapper: JSON database '%s' reload failed, continuing with old data", dbf->fn);
 +            }
++
++            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 +        }
 +    }
 +
@@ -2130,13 +2136,14 @@ index 0000000..63f3737
 +
 +    for(unsigned i = 0; i < vp->db_count; i++) {
 +        // clean up the updater thread
-+        pthread_cancel(vp->dbs[i].updater);
-+        pthread_join(vp->dbs[i].updater, NULL);
++        pthread_cancel(vp->dbs[i]->updater);
++        pthread_join(vp->dbs[i]->updater, NULL);
 +
 +        // free the most-recent data
-+        vnm_db_destruct(vp->dbs[i].db);
-+        free(vp->dbs[i].fn);
-+        free(vp->dbs[i].label);
++        vnm_db_destruct(vp->dbs[i]->db);
++        free(vp->dbs[i]->fn);
++        free(vp->dbs[i]->label);
++        free(vp->dbs[i]);
 +    }
 +
 +    free(vp->dbs);
@@ -2156,8 +2163,8 @@ index 0000000..63f3737
 +    }
 +
 +    const unsigned db_idx = vp->db_count++;
-+    vp->dbs = realloc(vp->dbs, vp->db_count * sizeof(vnm_db_file_t));
-+    vnm_db_file_t* dbf = &vp->dbs[db_idx];
++    vp->dbs = realloc(vp->dbs, vp->db_count * sizeof(vnm_db_file_t*));
++    vnm_db_file_t* dbf = vp->dbs[db_idx] = malloc(sizeof(vnm_db_file_t));
 +
 +    dbf->reload_check_interval = reload_interval;
 +    dbf->fn = strdup(json_path);
@@ -2198,8 +2205,8 @@ index 0000000..63f3737
 +    const vnm_priv_t* vp = priv->priv;
 +    const vnm_db_file_t* dbf = NULL;
 +    for(unsigned i = 0; i < vp->db_count; i++) {
-+        if(!strcmp(db_label, vp->dbs[i].label)) {
-+            dbf = &vp->dbs[i];
++        if(!strcmp(db_label, vp->dbs[i]->label)) {
++            dbf = vp->dbs[i];
 +            break;
 +        }
 +    }
