@@ -1,0 +1,38 @@
+diff --git a/bin/varnishd/storage_persistent_mgt.c b/bin/varnishd/storage_persistent_mgt.c
+index ff10973..6b714b3 100644
+--- a/bin/varnishd/storage_persistent_mgt.c
++++ b/bin/varnishd/storage_persistent_mgt.c
+@@ -39,6 +39,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <sys/mman.h>
++#include <fcntl.h>
+ 
+ #include "cache.h"
+ #include "stevedore.h"
+@@ -160,6 +161,13 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+ 
+ 	AZ(ftruncate(sc->fd, sc->mediasize));
+ 
++#ifdef HAVE_POSIX_FALLOCATE
++	const int pfa_err = posix_fallocate(sc->fd, 0, sc->mediasize);
++	if(pfa_err)
++		ARGV_ERR("(-spersistent): fallocate() for %s failed: %s",
++			sc->filename, strerror(pfa_err));
++#endif
++
+ 	/* Try to determine correct mmap address */
+ 	i = read(sc->fd, &sgn, sizeof sgn);
+ 	assert(i == sizeof sgn);
+diff --git a/configure.ac b/configure.ac
+index 306cf24..f550b91 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -204,6 +204,7 @@ AC_CHECK_FUNCS([abort2])
+ AC_CHECK_FUNCS([timegm])
+ AC_CHECK_FUNCS([nanosleep])
+ AC_CHECK_FUNCS([setppriv])
++AC_CHECK_FUNCS([posix_fallocate])
+ 
+ save_LIBS="${LIBS}"
+ LIBS="${PTHREAD_LIBS}"
