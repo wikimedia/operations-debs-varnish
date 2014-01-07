@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm28) precise; urgency=low
+
+  * Added fallocate for persistent storage
+
+ -- Brandon Black <bblack@wikimedia.org>  Tue, 07 Jan 2014 06:12:50 +0000
+
 varnish (3.0.3plus~rc1-wm27) precise; urgency=low
 
   * Updated netmapper w/ new fixes
