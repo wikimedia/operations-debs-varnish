@@ -1,3 +1,9 @@
+varnish (3.0.5plus~wmftest-wm3) unstable; urgency=low
+
+  * Better fallocate patch
+    
+ -- Brandon Black <bblack@wikimedia.org>  Wed, 08 Jan 2014 18:33:16 +0000
+
 varnish (3.0.5plus~wmftest-wm2) unstable; urgency=low
 
   * Updated netmapper patch
