@@ -1,5 +1,5 @@
 diff --git a/bin/varnishd/storage_persistent_mgt.c b/bin/varnishd/storage_persistent_mgt.c
-index ff10973..6b714b3 100644
+index ff10973..36e9c5d 100644
 --- a/bin/varnishd/storage_persistent_mgt.c
 +++ b/bin/varnishd/storage_persistent_mgt.c
 @@ -39,6 +39,7 @@
@@ -10,29 +10,53 @@ index ff10973..6b714b3 100644
  
  #include "cache.h"
  #include "stevedore.h"
-@@ -160,6 +161,13 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+@@ -160,6 +161,37 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
  
  	AZ(ftruncate(sc->fd, sc->mediasize));
  
-+#ifdef HAVE_POSIX_FALLOCATE
-+	const int pfa_err = posix_fallocate(sc->fd, 0, sc->mediasize);
-+	if(pfa_err)
-+		ARGV_ERR("(-spersistent): fallocate() for %s failed: %s",
-+			sc->filename, strerror(pfa_err));
++#if defined __linux__ && defined HAVE_FALLOCATE
++	/* fallocate new persistent files on Linux.
++	 * Notes:
++	 *   1) posix_fallocate() silently does horrible things if the kernel/fs
++	 *     doesn't have native support, hence direct fallocate() below.
++	 *   2) XFS (but not ext4) has an odd behavior where it will fail with
++	 *     ENOSPC when fallocate() is called for a second time on the same
++	 *     large file (> half fs size) that was already fallocate()'d earlier.
++	 *     Apparently it wants to re-reserve the whole space temporarily
++	 *     during the syscall, even though the file already has enough allocated.
++	 *     This is the reason we only do the call on newly-created files, but
++	 *     it would be better if we could do it as an idempotent operation every
++	 *     time, to be sure that we fix up allocation if the user created it
++	 *     via some other method, or it was resized, etc...
++	 */
++	if(i == 1) { // retval from STV_GetFile() indicating newly-created
++		if(fallocate(sc->fd, 0, 0, sc->mediasize)) {
++			if(errno == ENOSYS || errno == EOPNOTSUPP)
++				printf("Warning: (-spersistent): fallocate() not supported by kernel/fs for file %s\n",
++					sc->filename);
++			else
++				ARGV_ERR("(-spersistent): fallocate() for new file %s failed: %s\n",
++					sc->filename, strerror(errno));
++		}
++		else {
++			printf("(-spersistent): new file %s fallocate()'d to size %lli\n",
++				sc->filename, (long long int)sc->mediasize);
++		}
++	}
 +#endif
 +
  	/* Try to determine correct mmap address */
  	i = read(sc->fd, &sgn, sizeof sgn);
  	assert(i == sizeof sgn);
 diff --git a/configure.ac b/configure.ac
-index 306cf24..f550b91 100644
+index 306cf24..df55d80 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -204,6 +204,7 @@ AC_CHECK_FUNCS([abort2])
  AC_CHECK_FUNCS([timegm])
  AC_CHECK_FUNCS([nanosleep])
  AC_CHECK_FUNCS([setppriv])
-+AC_CHECK_FUNCS([posix_fallocate])
++AC_CHECK_FUNCS([fallocate])
  
  save_LIBS="${LIBS}"
  LIBS="${PTHREAD_LIBS}"
