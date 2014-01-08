@@ -1,3 +1,9 @@
+varnish (3.0.3plus~rc1-wm29) precise; urgency=low
+
+  * fallocate patch improvements (includes workaround for XFS bug)
+
+ -- Brandon Black <bblack@wikimedia.org>  Wed, 08 Jan 2014 18:13:16 +0000
+
 varnish (3.0.3plus~rc1-wm28) precise; urgency=low
 
   * Added fallocate for persistent storage
