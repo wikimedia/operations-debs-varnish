@@ -52,7 +52,7 @@ diff --git a/configure.ac b/configure.ac
 index 306cf24..df55d80 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -204,6 +204,7 @@ AC_CHECK_FUNCS([abort2])
+@@ -199,6 +199,7 @@ AC_CHECK_FUNCS([abort2])
  AC_CHECK_FUNCS([timegm])
  AC_CHECK_FUNCS([nanosleep])
  AC_CHECK_FUNCS([setppriv])
