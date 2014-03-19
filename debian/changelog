@@ -1,3 +1,10 @@
+varnish (3.0.5plus~wmftest-wm5) unstable; urgency=low
+
+  * Minor fixup to fallocate patchfile
+  * Added libvmod-header patches
+
+ -- Brandon Black <bblack@wikimedia.org>  Wed, 19 Mar 2014 12:29:14 -0500
+
 varnish (3.0.5plus~wmftest-wm4) unstable; urgency=low
 
   * Update netmapper to 139f4393 (bugfix + 3.0.5 test compat)

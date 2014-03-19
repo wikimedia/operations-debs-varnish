@@ -1,0 +1,1409 @@
+## This is a direct import of the 3.0 branch head of
+## https://github.com/varnish/libvmod-header.git at commit 53ae9f724
+## The only change was to rm -rf the .git directory
+## --bblack
+diff --git a/lib/libvmod_header/.gitignore b/lib/libvmod_header/.gitignore
+new file mode 100644
+index 0000000..721478a
+--- /dev/null
++++ b/lib/libvmod_header/.gitignore
+@@ -0,0 +1,34 @@
++Makefile
++Makefile.in
++aclocal.m4
++autom4te.cache/
++config.guess
++config.h
++config.h.in
++config.log
++config.status
++config.sub
++configure
++depcomp
++install-sh
++libtool
++ltmain.sh
++m4/libtool.m4
++m4/ltoptions.m4
++m4/ltsugar.m4
++m4/ltversion.m4
++m4/lt~obsolete.m4
++missing
++src/.deps/
++src/.libs/
++src/Makefile
++src/Makefile.in
++src/libvmod_header.la
++src/vcc_if.c
++src/vcc_if.h
++src/vcc_if.lo
++src/vcc_if.o
++src/vmod_header.lo
++src/vmod_header.o
++stamp-h1
++vmod_header.3
+diff --git a/lib/libvmod_header/LICENSE b/lib/libvmod_header/LICENSE
+new file mode 100644
+index 0000000..56cb50b
+--- /dev/null
++++ b/lib/libvmod_header/LICENSE
+@@ -0,0 +1,23 @@
++Copyright (c) 2011 Varnish Software AS
++All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice, this list of conditions and the following disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGE.
+diff --git a/lib/libvmod_header/Makefile.am b/lib/libvmod_header/Makefile.am
+new file mode 100644
+index 0000000..5fa262f
+--- /dev/null
++++ b/lib/libvmod_header/Makefile.am
+@@ -0,0 +1,17 @@
++ACLOCAL_AMFLAGS = -I m4
++
++SUBDIRS = src
++
++dist_man_MANS = vmod_header.3
++MAINTAINERCLEANFILES = $(dist_man_MANS)
++doc_DATA = README.rst LICENSE
++
++vmod_header.3: README.rst
++if HAVE_RST2MAN
++	${RST2MAN} README.rst $@
++else
++	@echo "========================================"
++	@echo "You need rst2man installed to make dist"
++	@echo "========================================"
++	@false
++endif
+diff --git a/lib/libvmod_header/README.rst b/lib/libvmod_header/README.rst
+new file mode 100644
+index 0000000..1e3cf94
+--- /dev/null
++++ b/lib/libvmod_header/README.rst
+@@ -0,0 +1,176 @@
++===========
++vmod_header
++===========
++
++---------------------
++Varnish Header Module
++---------------------
++
++:Manual section: 3
++:Author: Kristian Lyngstøl
++:Date: 2011-08-12
++:Version: 0.3
++
++SYNOPSIS
++========
++
++::
++
++        import header;
++
++        header.append(<header>, <content>)
++        header.get(<header>, <regular expression>)
++        header.remove(<header>, <regular expression>)
++        header.copy(<source header>, <destination header>)
++        header.version()
++
++DESCRIPTION
++===========
++
++Varnish Module (vmod) for manipulation of duplicated headers (for instance
++multiple set-cookie headers).
++
++FUNCTIONS
++=========
++
++Example VCL::
++
++	backend foo { ... };
++
++	import header;
++
++	sub vcl_fetch {
++		header.append(beresp.http.Set-Cookie,"foo=bar");
++                header.remove(beresp.http.Set-Cookie,"dontneedthiscookie");
++	}
++
++
++append
++------
++
++Prototype
++        header.append(<header>, <content>)
++Returns
++        void
++Description
++        Append lets you add an extra occurrence of an existing header.
++Example
++        ``header.append(beresp.http.Set-Cookie,"foo=bar")``
++
++get
++---
++
++Prototype
++        header.get(<header>, <regular expression>)
++Returns
++        String
++Description
++        Get fetches the value of the first `header` that matches the given
++        regular expression.
++Example
++        ``set beresp.http.xusr = header.get(beresp.http.set-cookie,"user=");``
++
++remove
++------
++
++Prototype
++        header.remove(<header>, <regular expression>)
++Returns
++        void
++Description
++        remove() removes all occurences of `header` that matches the given
++        regular expression. The example is a white-list of "funcookie=".
++Example
++        ``header.remove(beresp.http.set-cookie,"^(?!(funcookie=))");``
++
++copy
++----
++
++Prototype
++        header.copy(<source header>, <destination header>)
++Returns
++        void
++Description
++        Copies all of the source headers to a new header.
++Example
++        ``header.copy(beresp.http.set-cookie, beresp.http.x-old-cookie);``
++
++version
++-------
++
++Prototype
++        header.version()
++Returns
++        string
++Description
++        Returns the string constant version-number of the header vmod.
++Example
++        ``set resp.http.X-header-version = header.version();``
++
++
++INSTALLATION
++============
++
++Installation requires the Varnish source tree (only the source matching the
++binary installation).
++
++1. `./autogen.sh`  (for git-installation)
++2. `./configure VARNISHSRC=/path/to/your/varnish/source/varnish-cache`
++3. `make`
++4. `make install` (may require root: sudo make install)
++5. `make check` (Optional for regression tests)
++
++VARNISHSRC is the directory of the Varnish source tree for which to
++compile your vmod. Both the VARNISHSRC and VARNISHSRC/include
++will be added to the include search paths for your module.
++
++Optionally you can also set the vmod install dir by adding VMODDIR=DIR
++(defaults to the pkg-config discovered directory from your Varnish
++installation).
++
++
++ACKNOWLEDGEMENTS
++================
++
++The development of this plugin was made possible by the sponsorship of
++Softonic, http://en.softonic.com/ .
++
++Author: Kristian Lyngstøl <kristian@varnish-software.com>, Varnish Software AS
++Skeleton by Martin Blix Grydeland <martin@varnish-software.com>, vmods are
++part of Varnish Cache 3.0 and beyond.
++
++Also thanks to: Imo Klabun and Anders Nordby for bug reports.
++
++HISTORY
++=======
++
++Version 0.1: Initial version, somewhat ambiguous where it starts and ends.
++
++Version 0.2: Bug fixes for string removal
++
++Version 0.3: Bug fixes for get/remove, add version()
++
++BUGS
++====
++
++You can't use dynamic regular expressions, which also holds true for normal
++regular expressions in regsub(), but VCL isn't able to warn you about this
++when it comes to vmods yet.
++
++Some overlap with varnishd exists, this will be mended as Varnish 3.0
++evolves.
++
++SEE ALSO
++========
++
++* varnishd(1)
++* vcl(7)
++* https://github.com/varnish/libvmod-header
++
++COPYRIGHT
++=========
++
++This document is licensed under the same license as the
++libvmod-header project. See LICENSE for details.
++
++* Copyright (c) 2011-2013 Varnish Software
+diff --git a/lib/libvmod_header/autogen.sh b/lib/libvmod_header/autogen.sh
+new file mode 100755
+index 0000000..2e1fb89
+--- /dev/null
++++ b/lib/libvmod_header/autogen.sh
+@@ -0,0 +1,44 @@
++#!/bin/sh
++
++warn() {
++	echo "WARNING: $@" 1>&2
++}
++
++case `uname -s` in
++Darwin)
++	LIBTOOLIZE=glibtoolize
++	;;
++FreeBSD)
++	LIBTOOLIZE=libtoolize
++	;;
++Linux)
++	LIBTOOLIZE=libtoolize
++	;;
++SunOS)
++	LIBTOOLIZE=libtoolize
++	;;
++*)
++	warn "unrecognized platform:" `uname -s`
++	LIBTOOLIZE=libtoolize
++esac
++
++automake_version=`automake --version | tr ' ' '\n' | egrep '^[0-9]\.[0-9a-z.-]+'`
++if [ -z "$automake_version" ] ; then
++	warn "unable to determine automake version"
++else
++	case $automake_version in
++		0.*|1.[0-8]|1.[0-8][.-]*)
++			warn "automake ($automake_version) detected; 1.9 or newer recommended"
++			;;
++		*)
++			;;
++	esac
++fi
++
++set -ex
++
++$LIBTOOLIZE --copy --force
++aclocal -I m4
++autoheader
++automake --add-missing --copy --foreign
++autoconf
+diff --git a/lib/libvmod_header/configure.ac b/lib/libvmod_header/configure.ac
+new file mode 100644
+index 0000000..dfe99e8
+--- /dev/null
++++ b/lib/libvmod_header/configure.ac
+@@ -0,0 +1,137 @@
++AC_PREREQ(2.59)
++AC_COPYRIGHT([Copyright (c) 2011 Varnish Software AS])
++AC_INIT([libvmod-header], [0.3])
++AC_CONFIG_MACRO_DIR([m4])
++AC_CONFIG_SRCDIR(src/vmod_header.vcc)
++AC_CONFIG_HEADERS(config.h)
++
++AC_CANONICAL_SYSTEM
++AC_LANG(C)
++
++AM_INIT_AUTOMAKE([foreign])
++
++AC_GNU_SOURCE
++AC_PROG_CC
++AC_PROG_CC_STDC
++if test "x$ac_cv_prog_cc_c99" = xno; then
++	AC_MSG_ERROR([Could not find a C99 compatible compiler])
++fi
++AC_PROG_CPP
++
++AC_PROG_INSTALL
++AC_PROG_LIBTOOL
++AC_PROG_MAKE_SET
++
++# Check for rst utilities
++AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], "no")
++if test "x$RST2MAN" = "xno"; then
++	AC_MSG_WARN([rst2man not found - not building man pages])
++fi
++AM_CONDITIONAL(HAVE_RST2MAN, [test "x$RST2MAN" != "xno"])
++
++# Check for pkg-config
++PKG_PROG_PKG_CONFIG
++
++# Checks for header files.
++AC_HEADER_STDC
++AC_CHECK_HEADERS([sys/stdlib.h])
++
++# Check for python
++AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], [AC_MSG_ERROR([Python is needed to build this vmod, please install python.])])
++
++# Varnish source tree
++AC_ARG_VAR([VARNISHSRC], [path to Varnish source tree (mandatory)])
++if test "x$VARNISHSRC" = x; then
++	AC_MSG_ERROR([No Varnish source tree specified])
++fi
++VARNISHSRC=`cd $VARNISHSRC && pwd`
++AC_CHECK_FILE([$VARNISHSRC/include/varnishapi.h],
++	[],
++	[AC_MSG_FAILURE(["$VARNISHSRC" is not a Varnish source directory])]
++)
++
++# Check that varnishtest is built in the varnish source directory
++AC_CHECK_FILE([$VARNISHSRC/bin/varnishtest/varnishtest],
++	[],
++	[AC_MSG_FAILURE([Can't find "$VARNISHSRC/bin/varnishtest/varnishtest". Please build your varnish source directory])]
++)
++
++# vmod installation dir
++AC_ARG_VAR([VMODDIR], [vmod installation directory @<:@LIBDIR/varnish/vmods@:>@])
++if test "x$VMODDIR" = x; then
++	VMODDIR=`pkg-config --variable=vmoddir varnishapi`
++	if test "x$VMODDIR" = x; then
++		AC_MSG_FAILURE([Can't determine vmod installation directory])
++	fi
++fi
++
++
++# This corresponds to FreeBSD's WARNS level 6
++DEVELOPER_CFLAGS="-Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls -Wformat"
++
++# Additional flags for GCC 4
++EXTRA_DEVELOPER_CFLAGS="-Wextra -Wno-missing-field-initializers -Wno-sign-compare"
++
++# --enable-developer-warnings
++AC_ARG_ENABLE(developer-warnings,
++	AS_HELP_STRING([--enable-developer-warnings],[enable strict warnings (default is NO)]),
++	CFLAGS="${CFLAGS} ${DEVELOPER_CFLAGS}")
++
++# --enable-debugging-symbols
++AC_ARG_ENABLE(debugging-symbols,
++	AS_HELP_STRING([--enable-debugging-symbols],[enable debugging symbols (default is NO)]),
++	CFLAGS="${CFLAGS} -O0 -g -fno-inline")
++
++# --enable-diagnostics
++AC_ARG_ENABLE(diagnostics,
++	AS_HELP_STRING([--enable-diagnostics],[enable run-time diagnostics (default is NO)]),
++	CFLAGS="${CFLAGS} -DDIAGNOSTICS")
++
++# --enable-extra-developer-warnings
++AC_ARG_ENABLE(extra-developer-warnings,
++	AS_HELP_STRING([--enable-extra-developer-warnings],[enable even stricter warnings (default is NO)]),
++	[],
++	[enable_extra_developer_warnings=no])
++
++if test "x$enable_stack_protector" != "xno"; then
++	save_CFLAGS="$CFLAGS"
++	CFLAGS="${CFLAGS} ${EXTRA_DEVELOPER_CFLAGS}"
++	AC_COMPILE_IFELSE(
++		[AC_LANG_PROGRAM([],[],[])],
++		[],
++		[AC_MSG_WARN([All of ${EXTRA_DEVELOPER_CFLAGS} not supported, disabling])
++		    CFLAGS="$save_CFLAGS"])
++fi
++
++# --enable-stack-protector
++AC_ARG_ENABLE(stack-protector,
++	AS_HELP_STRING([--enable-stack-protector],[enable stack protector (default is NO)]),
++	[],
++	[enable_stack_protector=no])
++
++if test "x$enable_stack_protector" != "xno"; then
++	save_CFLAGS="$CFLAGS"
++	CFLAGS="${CFLAGS} -fstack-protector-all"
++	AC_COMPILE_IFELSE(
++		[AC_LANG_PROGRAM([],[],[])],
++		[],
++		[AC_MSG_WARN([-fstack-protector not supported, disabling])
++		    CFLAGS="$save_CFLAGS"])
++fi
++
++# --enable-tests
++AC_ARG_ENABLE(tests,
++	AS_HELP_STRING([--enable-tests],[build test programs (default is NO)]))
++AM_CONDITIONAL([ENABLE_TESTS], [test x$enable_tests = xyes])
++
++# --enable-werror
++AC_ARG_ENABLE(werror,
++	AS_HELP_STRING([--enable-werror],[use -Werror (default is NO)]),
++	CFLAGS="${CFLAGS} -Werror")
++
++
++AC_CONFIG_FILES([
++	Makefile
++	src/Makefile
++])
++AC_OUTPUT
+diff --git a/lib/libvmod_header/debian/changelog b/lib/libvmod_header/debian/changelog
+new file mode 100644
+index 0000000..b1b2b45
+--- /dev/null
++++ b/lib/libvmod_header/debian/changelog
+@@ -0,0 +1,5 @@
++libvmod-header (0.1) unstable; urgency=low
++
++  * First version
++
++ -- Lasse Karstensen <lasse@varnish-software.com>  Fri,  7 Mar 2014 14:49:00 +0100
+diff --git a/lib/libvmod_header/debian/compat b/lib/libvmod_header/debian/compat
+new file mode 100644
+index 0000000..7f8f011
+--- /dev/null
++++ b/lib/libvmod_header/debian/compat
+@@ -0,0 +1 @@
++7
+diff --git a/lib/libvmod_header/debian/control b/lib/libvmod_header/debian/control
+new file mode 100644
+index 0000000..fcaff09
+--- /dev/null
++++ b/lib/libvmod_header/debian/control
+@@ -0,0 +1,12 @@
++Source: libvmod-header
++Section: web
++Priority: extra
++Maintainer: Varnish Software AS <support@varnish-software.com>
++Build-Depends: debhelper (>= 7), build-essential, python-docutils
++Standards-Version: 3.8.1
++Vcs-Git: git://github.com/varnish/libvmod-header.git
++
++Package: libvmod-header
++Architecture: any
++Depends: varnish, ${misc:Depends}
++Description: Header manipulation in Varnish VCL
+diff --git a/lib/libvmod_header/debian/copyright b/lib/libvmod_header/debian/copyright
+new file mode 100644
+index 0000000..12ff29a
+--- /dev/null
++++ b/lib/libvmod_header/debian/copyright
+@@ -0,0 +1,29 @@
++Copyright:
++
++    Copyright 2009-2014 Varnish Software AS
++
++License:
++
++Copyright (c) 2010-2014 Varnish Software AS
++All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice, this list of conditions and the following disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGE.
+diff --git a/lib/libvmod_header/debian/dirs b/lib/libvmod_header/debian/dirs
+new file mode 100644
+index 0000000..be2e66d
+--- /dev/null
++++ b/lib/libvmod_header/debian/dirs
+@@ -0,0 +1 @@
++usr/share/doc/libvmod-header
+diff --git a/lib/libvmod_header/debian/docs b/lib/libvmod_header/debian/docs
+new file mode 100644
+index 0000000..92bab46
+--- /dev/null
++++ b/lib/libvmod_header/debian/docs
+@@ -0,0 +1,2 @@
++README.rst
++LICENSE
+diff --git a/lib/libvmod_header/debian/rules b/lib/libvmod_header/debian/rules
+new file mode 100755
+index 0000000..82ac88f
+--- /dev/null
++++ b/lib/libvmod_header/debian/rules
+@@ -0,0 +1,18 @@
++#!/usr/bin/make -f
++export DH_VERBOSE=1
++
++VARNISHSRC = $(DEBIAN_VARNISH_SRC)
++VMODDIR = $(shell PKG_CONFIG_PATH="$(VARNISHSRC)" pkg-config --variable=vmoddir varnishapi)
++
++override_dh_auto_configure:
++	dh_auto_configure -- VMODDIR="$(VMODDIR)" VARNISHSRC="$(VARNISHSRC)"
++
++override_dh_gencontrol:
++	if [ -n "$$DEBIAN_OVERRIDE_BINARY_VERSION" ]; then \
++		dh_gencontrol -- -v$$DEBIAN_OVERRIDE_BINARY_VERSION; \
++	else \
++		dh_gencontrol ; \
++	fi
++
++%:
++	dh $@
+diff --git a/lib/libvmod_header/m4/PLACEHOLDER b/lib/libvmod_header/m4/PLACEHOLDER
+new file mode 100644
+index 0000000..e69de29
+diff --git a/lib/libvmod_header/src/Makefile.am b/lib/libvmod_header/src/Makefile.am
+new file mode 100644
+index 0000000..a332343
+--- /dev/null
++++ b/lib/libvmod_header/src/Makefile.am
+@@ -0,0 +1,28 @@
++AM_CPPFLAGS = -I$(VARNISHSRC)/include -I$(VARNISHSRC)
++
++vmoddir = $(VMODDIR)
++vmod_LTLIBRARIES = libvmod_header.la
++
++libvmod_header_la_LDFLAGS = -module -export-dynamic -avoid-version
++
++libvmod_header_la_SOURCES = \
++	vcc_if.c \
++	vcc_if.h \
++	vmod_header.c
++
++vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_header.vcc
++	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_header.vcc
++
++VMOD_TESTS = tests/*.vtc
++.PHONY: $(VMOD_TESTS)
++
++tests/*.vtc:
++	$(VARNISHSRC)/bin/varnishtest/varnishtest -Dvarnishd=$(VARNISHSRC)/bin/varnishd/varnishd -Dvmod_topbuild=$(abs_top_builddir) $@
++
++check: $(VMOD_TESTS)
++
++EXTRA_DIST = \
++	vmod_header.vcc \
++	$(VMOD_TESTS)
++
++CLEANFILES = $(builddir)/vcc_if.c $(builddir)/vcc_if.h
+diff --git a/lib/libvmod_header/src/tests/append.vtc b/lib/libvmod_header/src/tests/append.vtc
+new file mode 100644
+index 0000000..bca67bc
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/append.vtc
+@@ -0,0 +1,40 @@
++varnishtest "Header-vmod: Test appending"
++
++server s1 {
++	timeout 10
++
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "foo: 1" -hdr "foo: 2"
++	rxreq
++	expect req.url == "/bar"
++	txresp -status 200 -hdr "foo: 1" -hdr "foo: 2"
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/foo") {
++			set beresp.http.foo = "null";
++		} elsif ( req.url == "/bar") {
++			header.append(beresp.http.foo, "blatti");
++		}
++		return(deliver);
++	}
++} -start
++
++client c1 {
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "null"
++} -run
++
++client c2 {
++	txreq -url "/bar"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == 1
++} -run
++
+diff --git a/lib/libvmod_header/src/tests/copy.vtc b/lib/libvmod_header/src/tests/copy.vtc
+new file mode 100644
+index 0000000..66ea594
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/copy.vtc
+@@ -0,0 +1,45 @@
++
++# This assumes that:
++#  1. Append works
++#  2. The first header is the only tested in varnishtest when multiple
++#     copies are present
++
++varnishtest "Header-vmod: Test copying"
++
++server s1 {
++	timeout 10
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3"
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/foo") {
++			header.copy(beresp.http.foo,beresp.http.bar);
++			set beresp.http.x-one = header.get(beresp.http.bar,"one");
++			set beresp.http.x-two = header.get(beresp.http.bar,"two");
++			set beresp.http.x-three = header.get(beresp.http.bar,"three");
++			set beresp.http.y-one = header.get(beresp.http.foo,"one");
++			set beresp.http.y-two = header.get(beresp.http.foo,"two");
++			set beresp.http.y-three = header.get(beresp.http.foo,"three");
++		}
++		return(deliver);
++	}
++} -start
++
++client c1 {
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.bar == "one=1"
++	expect resp.http.foo == "one=1"
++	expect resp.http.x-one == "one=1"
++	expect resp.http.x-two == "two=2"
++	expect resp.http.x-three == "three=3"
++	expect resp.http.y-one == "one=1"
++	expect resp.http.y-two == "two=2"
++	expect resp.http.y-three == "three=3"
++} -run
+diff --git a/lib/libvmod_header/src/tests/get.vtc b/lib/libvmod_header/src/tests/get.vtc
+new file mode 100644
+index 0000000..a1b79dd
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/get.vtc
+@@ -0,0 +1,51 @@
++
++varnishtest "Header-vmod: Test fetching"
++
++server s1 {
++	timeout 10
++
++	rxreq
++	expect req.url == "/"
++	txresp -status 200 -hdr "foo: sillycookie=blah" -hdr "foo: realcookie=YAI"
++	rxreq
++	expect req.url == "/two"
++	txresp -status 200 -hdr "foo: sillycookie=blah" -hdr "foo: realcookie=YAI"
++	
++	rxreq
++	expect req.url == "/three"
++	txresp -status 200
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/") {
++			set beresp.http.xusr = header.get(beresp.http.foo,"realcookie=");
++		} elsif (req.url == "/two") {
++			set beresp.http.xusr = header.get(beresp.http.foo,"^realcookie=");
++		} elsif (req.url == "/three") {
++			set beresp.http.xusr = header.get(req.http.Cookie, "foo-bar=");
++		}
++		return(deliver);
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.xusr == "realcookie=YAI"
++
++	txreq -url "/two"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.xusr == "realcookie=YAI"
++
++	txreq -url "/three" -hdr "Cookie: foo-bar=derp"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.xusr == "foo-bar=derp"
++} -run
++
++
+diff --git a/lib/libvmod_header/src/tests/import.vtc b/lib/libvmod_header/src/tests/import.vtc
+new file mode 100644
+index 0000000..0371be2
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/import.vtc
+@@ -0,0 +1,20 @@
++varnishtest "Header-vmod: Test basic import"
++
++server s1 {
++	timeout 10
++	rxreq
++	expect req.url == "/"
++	txresp -status 200 -hdr "foo: 1"
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == 1
++} -run
++
+diff --git a/lib/libvmod_header/src/tests/keep-others.vtc b/lib/libvmod_header/src/tests/keep-others.vtc
+new file mode 100644
+index 0000000..babb8ec
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/keep-others.vtc
+@@ -0,0 +1,47 @@
++# Bug #1 !
++# The remove-function was removing somewhat vigorously.
++# This check ensures that other headers are kept intact.
++
++varnishtest "Header-vmod: Ensure other headers remain untouched"
++
++server s1 {
++	timeout 10
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "bar: xxx=y" -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3"
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "Content-Type: text/html" -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3"
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3" -hdr "Content-Type: text/html"
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/foo") {
++			header.remove(beresp.http.foo,"one=1");
++		}
++		return(hit_for_pass);
++	}
++} -start
++
++client c1 {
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.bar == "xxx=y"
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.Content-Type == "text/html"
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.Content-Type == "text/html"
++} -run
+diff --git a/lib/libvmod_header/src/tests/remove.vtc b/lib/libvmod_header/src/tests/remove.vtc
+new file mode 100644
+index 0000000..841719f
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/remove.vtc
+@@ -0,0 +1,96 @@
++
++varnishtest "Header-vmod: Test removing"
++
++server s1 {
++	timeout 10
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "foo: notok=1" -hdr "foo: ok2k" -hdr "foo: notok=2"
++	rxreq
++	expect req.url == "/bar"
++	txresp -status 200 -hdr "foo: notok=1" -hdr "foo: ok2k" -hdr "foo: notok=2"
++	rxreq
++	expect req.url == "/nothing"
++	txresp -status 200 -hdr "foo: notok=1" -hdr "foo: ok2k" -hdr "foo: notok=2"
++	rxreq
++	expect req.url == "/blatti1"
++	txresp -status 200 -hdr "foo: notok=1" -hdr "foo:notok=3" -hdr "foo: ok2k" -hdr "foo: notok=2"
++	rxreq
++	expect req.url == "/blatti2"
++	txresp -status 200 -hdr "foo: notok=1" -hdr "foo: ok2k" -hdr "foo:notok=3" -hdr "foo: notok=2"
++	rxreq
++	expect req.url == "/blatti3"
++	txresp -status 200 -hdr "set-cookie: analytics=1" -hdr "set-cookie: funcookie=ok2k" -hdr "set-cookie: uglycookie=3" -hdr "set-cookie: notok=2"
++	
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/foo") {
++			header.remove(beresp.http.foo,"notok");
++		}
++		if (req.url == "/nothing") {
++			header.remove(beresp.http.foo,".");
++		}
++		if (req.url == "/blatti1") {
++			header.remove(beresp.http.foo,"^ no.ok=.$");
++		}
++		if (req.url == "/blatti2") {
++			header.remove(beresp.http.foo,"^no.ok=.$");
++		}
++		if (req.url == "/blatti3") {
++			header.remove(beresp.http.set-cookie,"^(?!(funcookie=))");
++		}
++		if (beresp.http.foo) {
++			set beresp.http.foo-exists = "yes";
++		} else {
++			set beresp.http.foo-exists = "no";
++		}
++
++		return(deliver);
++	}
++} -start
++
++client c1 {
++	# Remove one, "notok". Assumes ok2k (second in line) is tested next
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "ok2k"
++
++	# Remove nothing
++	txreq -url "/bar"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "notok=1"
++
++	# Remove everything (confusing names, huh?)
++	txreq -url "/nothing"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo-exists == "no"
++
++	# Remove with regex - fail due to whitespace in the regex
++	txreq -url "/blatti1"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo-exists == "yes"
++	expect resp.http.foo == "notok=1"
++
++	# Remove with regex - work (remove leading whitespace)
++	txreq -url "/blatti2"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo-exists == "yes"
++	expect resp.http.foo == "ok2k"
++	
++	# Remove everything except fun-cookie
++	txreq -url "/blatti3"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo-exists == "no"
++	expect resp.http.set-cookie == "funcookie=ok2k"
++} -run
++
+diff --git a/lib/libvmod_header/src/tests/some-data.vtc b/lib/libvmod_header/src/tests/some-data.vtc
+new file mode 100644
+index 0000000..3993724
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/some-data.vtc
+@@ -0,0 +1,51 @@
++# Got reports of no data being sent in return after 3.0.1, this test-case
++# tries to do some simple verification, though it fails to detect the
++# problem.
++
++
++varnishtest "Header-vmod: Send some data too"
++
++server s1 {
++	timeout 10
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "bar: xxx=y" -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3" -body "Hello"
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "Content-Type: text/html" -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3" -body "Hello"
++	rxreq
++	expect req.url == "/foo"
++	txresp -status 200 -hdr "foo: one=1" -hdr "foo: two=2" -hdr "foo: three=3" -hdr "Content-Type: text/html" -body "Hello"
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		if (req.url == "/foo") {
++			header.remove(beresp.http.foo,"one=1");
++		}
++		return(hit_for_pass);
++	}
++} -start
++
++client c1 {
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.bar == "xxx=y"
++	expect resp.bodylen == 5
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.Content-Type == "text/html"
++	expect resp.bodylen == 5
++	txreq -url "/foo"
++	rxresp
++	expect resp.status == 200
++	expect resp.http.foo == "two=2"
++	expect resp.http.Content-Type == "text/html"
++	expect resp.bodylen == 5
++} -run
+diff --git a/lib/libvmod_header/src/tests/version.vtc b/lib/libvmod_header/src/tests/version.vtc
+new file mode 100644
+index 0000000..42913a6
+--- /dev/null
++++ b/lib/libvmod_header/src/tests/version.vtc
+@@ -0,0 +1,29 @@
++# Somewhat oversimplified, but at least it ensures that SOMETHING works
++# (The alternative would be to automakeify this test or manually update it
++# every time there's a new version, which defeats the purpose somewhat).
++
++varnishtest "Header-vmod: Test version string"
++
++server s1 {
++	rxreq
++	expect req.url == "/"
++	txresp -status 200
++} -start
++
++varnish v1 -vcl+backend {
++	import header from "${vmod_topbuild}/src/.libs/libvmod_header.so";
++
++	sub vcl_fetch {
++		set beresp.http.x-version = header.version();
++		if (!beresp.http.x-version) {
++			set beresp.status = 500;
++		}
++		return(deliver);
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++} -run
+diff --git a/lib/libvmod_header/src/vmod_header.c b/lib/libvmod_header/src/vmod_header.c
+new file mode 100644
+index 0000000..110324e
+--- /dev/null
++++ b/lib/libvmod_header/src/vmod_header.c
+@@ -0,0 +1,300 @@
++/*-
++ * Copyright (c) 2011-2013 Varnish Software AS
++ * All rights reserved.
++ *
++ * Author: Kristian Lyngstol <kristian@bohemians.org>
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ */
++
++#include <stdlib.h>
++#include <pthread.h>
++
++#include "vrt.h"
++#include "bin/varnishd/cache.h"
++#include "include/vct.h"
++
++#include "vcc_if.h"
++#include "config.h"
++
++/*
++ * This mutex is used to avoid having two threads that initializes the same
++ * regex at the same time. While it means that there's a single, global
++ * lock for all libvmod-header actions dealing with regular expressions,
++ * the contention only applies on the first request that calls that
++ * specific function.
++ */
++pthread_mutex_t header_mutex;
++
++/*
++ * Initialize the regex *s on priv, if it hasn't already been done.
++ * XXX: We have to recheck the condition after grabbing the lock to avoid a
++ * XXX: race condition.
++ */
++static void
++header_init_re(struct vmod_priv *priv, const char *s)
++{
++	if (priv->priv == NULL) {
++		assert(pthread_mutex_lock(&header_mutex) == 0);
++		if (priv->priv == NULL) {
++			VRT_re_init(&priv->priv, s);
++			priv->free = VRT_re_fini;
++		}
++		pthread_mutex_unlock(&header_mutex);
++	}
++}
++
++/*
++ * Returns the right struct http * to use for a given type of header.
++ *
++ * FIXME: Stolen bluntly from cache_vrt.c
++ */
++static struct http *
++header_vrt_selecthttp(const struct sess *sp, enum gethdr_e where)
++{
++        struct http *hp=NULL;
++
++        CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
++        switch (where) {
++        case HDR_REQ:
++                hp = sp->http;
++                break;
++        case HDR_BEREQ:
++                hp = sp->wrk->bereq;
++                break;
++        case HDR_BERESP:
++                hp = sp->wrk->beresp;
++                break;
++        case HDR_RESP:
++                hp = sp->wrk->resp;
++                break;
++        case HDR_OBJ:
++                CHECK_OBJ_NOTNULL(sp->obj, OBJECT_MAGIC);
++                hp = sp->obj->http;
++                break;
++        default:
++                assert("ops");
++        }
++        CHECK_OBJ_NOTNULL(hp, HTTP_MAGIC);
++        return (hp);
++}
++
++/*
++ * Returns true if the *hdr header is the one pointed to by *hh.
++ *
++ * FIXME: duplication from varnishd.
++ */
++static int
++header_http_IsHdr(const txt *hh, const char *hdr)
++{
++	unsigned l;
++
++	Tcheck(*hh);
++	AN(hdr);
++	l = hdr[0];
++	assert(l == strlen(hdr + 1));
++	assert(hdr[l] == ':');
++	hdr++;
++	return (!strncasecmp(hdr, hh->b, l));
++}
++
++/*
++ * Return true if the hp->hd[u] header matches *hdr and the regex *re
++ * matches the content.
++ *
++ * If re is NULL, content is not tested and as long as it's the right
++ * header, a match is returned.
++ */
++static int
++header_http_match(const struct sess *sp, const struct http *hp, unsigned u, void *re, const char *hdr)
++{
++	char *start;
++	unsigned l;
++
++	assert(hdr);
++	assert(hp);
++
++	Tcheck(hp->hd[u]);
++	if (hp->hd[u].b == NULL)
++		return 0;
++
++	l = hdr[0];
++
++	if (!header_http_IsHdr(&hp->hd[u], hdr))
++		return 0;
++
++	if (re == NULL)
++		return 1;
++
++	start = hp->hd[u].b + l;
++	while (*start != '\0' && *start == ' ')
++		start++;
++
++	if (!*start)
++		return 0;
++
++	if (VRT_re_match(sp, start, re))
++		return 1;
++
++	return 0;
++}
++
++/*
++ * Returns the (first) header named as *hdr that also matches the regular
++ * expression *re.
++ */
++static unsigned
++header_http_findhdr(const struct sess *sp, const struct http *hp, const char *hdr, void *re)
++{
++        unsigned u;
++
++        for (u = HTTP_HDR_FIRST; u < hp->nhd; u++) {
++		if (header_http_match(sp, hp, u, re, hdr))
++			return (u);
++        }
++        return (0);
++}
++
++/*
++ * Removes all copies of the header that matches *hdr with content that
++ * matches *re. Same as http_Unset(), plus regex.
++ */
++static void
++header_http_Unset(struct sess *sp, struct http *hp, const char *hdr, void *re)
++{
++	unsigned u, v;
++
++	for (v = u = HTTP_HDR_FIRST; u < hp->nhd; u++) {
++		if (header_http_match(sp, hp, u, re, hdr))
++			continue;
++		if (v != u) {
++			memcpy(&hp->hd[v], &hp->hd[u], sizeof *hp->hd);
++			memcpy(&hp->hdf[v], &hp->hdf[u], sizeof *hp->hdf);
++		}
++		v++;
++	}
++	hp->nhd = v;
++}
++
++/*
++ * Copies all occurrences of *hdr to a destination header *dst_h. Uses
++ * vmod_header_append(), so all copies are kept intact.
++ *
++ * XXX: Not sure I like the idea of iterating a list of headers while
++ * XXX: adding to it. It may be correct now, but perhaps not so much in
++ * XXX: the future.
++ */
++static void
++header_http_cphdr(struct sess *sp,
++		  const struct http *hp,
++		  const char *hdr,
++		  enum gethdr_e dst_e,
++		  const char *dst_h)
++{
++        unsigned u;
++	char *p;
++
++        for (u = HTTP_HDR_FIRST; u < hp->nhd; u++) {
++		if (!header_http_match(sp, hp, u, NULL, hdr))
++			continue;
++
++		p = hp->hd[u].b + hdr[0];
++		while (vct_issp(*p))
++			p++;
++                vmod_append(sp, dst_e, dst_h, p, vrt_magic_string_end);
++        }
++}
++
++/*
++ * vmod entrypoint. Sets up the header mutex.
++ */
++int
++init_function(struct vmod_priv *priv __attribute__((unused)),
++	      const struct VCL_conf *conf __attribute__((unused)))
++{
++	assert(pthread_mutex_init(&header_mutex, NULL) == 0);
++	return (0);
++}
++
++void __match_proto__()
++vmod_append(struct sess *sp, enum gethdr_e e, const char *h, const char *fmt, ...)
++{
++	va_list ap;
++	struct http *hp;
++	char *b;
++	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
++	assert(fmt != NULL);
++
++	hp = header_vrt_selecthttp(sp, e);
++	va_start(ap, fmt);
++	b = VRT_String(hp->ws, h + 1, fmt, ap);
++	if (b == NULL)
++		WSP(sp, SLT_LostHeader, "vmod_header: %s", h+1);
++	else
++		http_SetHeader(sp->wrk, sp->fd, hp, b);
++	va_end(ap);
++}
++
++const char * __match_proto__()
++vmod_get(struct sess *sp, struct vmod_priv *priv, enum gethdr_e e, const char *h, const char *s)
++{
++	struct http *hp;
++	unsigned u;
++	char *p;
++
++	header_init_re(priv, s);
++
++	hp = header_vrt_selecthttp(sp, e);
++	u = header_http_findhdr(sp, hp, h, priv->priv);
++	if (u == 0) {
++		return NULL;
++	}
++	p = hp->hd[u].b + h[0];
++	while (vct_issp(*p))
++		p++;
++	return p;
++}
++
++void __match_proto__()
++vmod_copy(struct sess *sp, enum gethdr_e src_e, const char *src_h, enum gethdr_e dst_e, const char *dst_h)
++{
++	struct http *src_hp;
++
++	src_hp = header_vrt_selecthttp(sp, src_e);
++	header_http_cphdr(sp, src_hp, src_h, dst_e, dst_h);
++}
++
++void __match_proto__()
++vmod_remove(struct sess *sp, struct vmod_priv *priv, enum gethdr_e e, const char *h, const char *s)
++{
++	struct http *hp;
++
++	header_init_re(priv, s);
++	hp = header_vrt_selecthttp(sp, e);
++	header_http_Unset(sp, hp, h, priv->priv);
++}
++
++const char * __match_proto__()
++vmod_version(struct sess *sp __attribute__((unused)))
++{
++	return VERSION;
++}
+diff --git a/lib/libvmod_header/src/vmod_header.vcc b/lib/libvmod_header/src/vmod_header.vcc
+new file mode 100644
+index 0000000..d60c842
+--- /dev/null
++++ b/lib/libvmod_header/src/vmod_header.vcc
+@@ -0,0 +1,7 @@
++Module header
++Init init_function
++Function VOID append(HEADER,STRING_LIST)
++Function VOID remove(PRIV_CALL,HEADER,STRING)
++Function STRING get(PRIV_CALL,HEADER,STRING)
++Function VOID copy(HEADER,HEADER)
++Function STRING version()
+diff --git a/lib/libvmod_header/vmod-header.spec b/lib/libvmod_header/vmod-header.spec
+new file mode 100644
+index 0000000..c69da84
+--- /dev/null
++++ b/lib/libvmod_header/vmod-header.spec
+@@ -0,0 +1,39 @@
++Summary: Header VMOD for Varnish %{VARNISHVER}
++Name: vmod-header
++Version: 0.1
++Release: 1%{?dist}
++License: BSD
++Group: System Environment/Daemons
++Source0: ./libvmod-header.tar.gz
++BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
++Requires: varnish > 3.0
++BuildRequires: make, autoconf, automake, libtool, python-docutils
++
++%description
++Header VMOD for Varnish %{VARNISHVER}.
++
++%prep
++%setup -n libvmod-header
++
++%build
++# this assumes that VARNISHSRC is defined on the rpmbuild command line, like this:
++# rpmbuild -bb --define 'VARNISHSRC /home/user/rpmbuild/BUILD/varnish-3.0.3' redhat/*spec
++./configure VARNISHSRC=%{VARNISHSRC} VMODDIR="$(PKG_CONFIG_PATH=%{VARNISHSRC} pkg-config --variable=vmoddir varnishapi)" --prefix=/usr/ --docdir='${datarootdir}/doc/%{name}'
++make
++make check
++
++%install
++make install DESTDIR=%{buildroot}
++
++%clean
++rm -rf %{buildroot}
++
++%files
++%defattr(-,root,root,-)
++%{_libdir}/varnish/vmods/
++%doc /usr/share/doc/%{name}/*
++%{_mandir}/man?/*
++
++%changelog
++* Wed Oct 03 2012 Lasse Karstensen <lasse@varnish-software.com> - 0.1-0.20120918
++- Initial version.

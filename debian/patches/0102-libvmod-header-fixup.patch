@@ -1,0 +1,43 @@
+## These Makefile fixups are necessary post-github-import
+##  to make libvmod-header build in-tree for our deb pkg
+## --bblack
+diff --git a/lib/libvmod_header/src/Makefile.am b/lib/libvmod_header/src/Makefile.am
+index a332343..65b62ff 100644
+--- a/lib/libvmod_header/src/Makefile.am
++++ b/lib/libvmod_header/src/Makefile.am
+@@ -1,17 +1,19 @@
++VARNISHSRC ?= $(top_srcdir)
++
+ AM_CPPFLAGS = -I$(VARNISHSRC)/include -I$(VARNISHSRC)
+ 
+-vmoddir = $(VMODDIR)
++vmoddir = $(libdir)/varnish/vmods
+ vmod_LTLIBRARIES = libvmod_header.la
+ 
+-libvmod_header_la_LDFLAGS = -module -export-dynamic -avoid-version
++libvmod_header_la_LDFLAGS = -module -export-dynamic -avoid-version -shared
+ 
+ libvmod_header_la_SOURCES = \
+ 	vcc_if.c \
+ 	vcc_if.h \
+ 	vmod_header.c
+ 
+-vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_header.vcc
+-	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_header.vcc
++vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_header.vcc
++	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_header.vcc
+ 
+ VMOD_TESTS = tests/*.vtc
+ .PHONY: $(VMOD_TESTS)
+diff --git a/lib/libvmod_header/Makefile.am b/lib/libvmod_header/Makefile.am
+index 5fa262f..a886d8e 100644
+--- a/lib/libvmod_header/Makefile.am
++++ b/lib/libvmod_header/Makefile.am
+@@ -4,7 +4,6 @@ SUBDIRS = src
+ 
+ dist_man_MANS = vmod_header.3
+ MAINTAINERCLEANFILES = $(dist_man_MANS)
+-doc_DATA = README.rst LICENSE
+ 
+ vmod_header.3: README.rst
+ if HAVE_RST2MAN

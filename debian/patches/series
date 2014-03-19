@@ -9,3 +9,6 @@
 0020-filter-headers.patch
 0098-libvmod-netmapper-src.patch
 0099-libvmod-netmapper-ac.patch
+0100-libvmod-header-src.patch
+0101-libvmod-header-ac.patch
+0102-libvmod-header-fixup.patch
