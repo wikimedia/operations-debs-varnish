@@ -1128,10 +1128,10 @@ index 0000000..64eef33
 +vcc_if.[ch]
 diff --git a/lib/libvmod_netmapper/src/Makefile.am b/lib/libvmod_netmapper/src/Makefile.am
 new file mode 100644
-index 0000000..7d22c66
+index 0000000..52591ed
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/Makefile.am
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,44 @@
 +VARNISHSRC ?= $(top_srcdir)
 +
 +AM_CPPFLAGS = -I$(VARNISHSRC)/include -I$(VARNISHSRC) -I$(srcdir)/nlt
@@ -1161,14 +1161,17 @@ index 0000000..7d22c66
 +vnm_validate_LDADD = -ljansson
 +vnm_validate_SOURCES = vnm_validate.c $(COMMON_SRC)
 +
-+VMOD_TDATA = tests/test01a.json tests/test01b.json tests/test01c.json
++VMOD_TDATA = tests/test01a.json tests/test01b.json tests/test01c.json tests/test01d.json tests/test01e.json
 +VMOD_TESTS = tests/test01.vtc
 +.PHONY: $(VMOD_TESTS) $(VMOD_TDATA)
 +
 +$(VMOD_TESTS): libvmod_netmapper.la
 +	$(VARNISHTEST) -Dvarnishd=$(VARNISHD) -Dvmod_topbuild=$(abs_top_builddir) -Dvmod_topsrc=$(abs_top_srcdir) $(srcdir)/$@
 +
-+check: $(VMOD_TESTS)
++validate-tests:
++	for jin in $(VMOD_TDATA); do $(abs_top_builddir)/src/vnm_validate $$jin; done
++
++check: $(VMOD_TESTS) validate-tests
 +
 +EXTRA_DIST = nlt/README vmod_netmapper.vcc $(VMOD_TESTS) $(VMOD_TDATA)
 +
@@ -1923,10 +1926,10 @@ index 0000000..5693254
 +#endif // NTREE_H
 diff --git a/lib/libvmod_netmapper/src/tests/test01.vtc b/lib/libvmod_netmapper/src/tests/test01.vtc
 new file mode 100644
-index 0000000..3e2d7f5
+index 0000000..d29effa
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/tests/test01.vtc
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,71 @@
 +varnishtest "Test netmapper vmod"
 +
 +server s1 {
@@ -1950,6 +1953,8 @@ index 0000000..3e2d7f5
 +       expect req.http.X-CS-T10 == ""
 +       expect req.http.X-CS-T11 == "nomask"
 +       expect req.http.X-CS-T12 == ""
++       expect req.http.X-CS-T13 == ""
++       expect req.http.X-CS-T14 == ""
 +       txresp
 +} -start
 +
@@ -1960,6 +1965,8 @@ index 0000000..3e2d7f5
 +        netmapper.init("aaa", "${vmod_topsrc}/src/tests/test01a.json", 1);
 +        netmapper.init("bbb", "${vmod_topsrc}/src/tests/test01b.json", 1);
 +        netmapper.init("ccc", "${vmod_topsrc}/src/tests/test01c.json", 1);
++        netmapper.init("ddd", "${vmod_topsrc}/src/tests/test01d.json", 1);
++        netmapper.init("eee", "${vmod_topsrc}/src/tests/test01e.json", 1);
 +    }
 +
 +    sub vcl_recv {
@@ -1982,6 +1989,8 @@ index 0000000..3e2d7f5
 +        set req.http.X-CS-T10 = netmapper.map("aaa", "1.1.1.2");
 +        set req.http.X-CS-T11 = netmapper.map("aaa", "2001:db8::1");
 +        set req.http.X-CS-T12 = netmapper.map("aaa", "2001:db8::2");
++        set req.http.X-CS-T13 = netmapper.map("ddd", "2001:db8::2");
++        set req.http.X-CS-T14 = netmapper.map("eee", "2001:db8::2");
 +        return (pass);
 +    }
 +} -start
@@ -2029,6 +2038,20 @@ index 0000000..118e9f8
 +++ b/lib/libvmod_netmapper/src/tests/test01c.json
 @@ -0,0 +1 @@
 +{ "ZZZ": [ "0.0.0.0/1" ] }
+diff --git a/lib/libvmod_netmapper/src/tests/test01d.json b/lib/libvmod_netmapper/src/tests/test01d.json
+new file mode 100644
+index 0000000..ffcd441
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01d.json
+@@ -0,0 +1 @@
++{ }
+diff --git a/lib/libvmod_netmapper/src/tests/test01e.json b/lib/libvmod_netmapper/src/tests/test01e.json
+new file mode 100644
+index 0000000..fe51488
+--- /dev/null
++++ b/lib/libvmod_netmapper/src/tests/test01e.json
+@@ -0,0 +1 @@
++[]
 diff --git a/lib/libvmod_netmapper/src/vmod_netmapper.c b/lib/libvmod_netmapper/src/vmod_netmapper.c
 new file mode 100644
 index 0000000..91a88ce
@@ -2266,10 +2289,10 @@ index 0000000..1f33ea9
 +Function STRING map(PRIV_VCL, STRING, STRING)
 diff --git a/lib/libvmod_netmapper/src/vnm.c b/lib/libvmod_netmapper/src/vnm.c
 new file mode 100644
-index 0000000..fd8170f
+index 0000000..a326fc8
 --- /dev/null
 +++ b/lib/libvmod_netmapper/src/vnm.c
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,279 @@
 +/* Copyright © 2013 Brandon L Black <bblack@wikimedia.org>
 + *
 + * This file is part of libvmod-netmapper.
@@ -2435,8 +2458,8 @@ index 0000000..fd8170f
 +        return NULL;
 +    }
 +
-+    if(!json_is_object(toplevel)) {
-+        ERR("JSON database %s top-level is not an object!", fn);
++    if(!json_is_object(toplevel) && !(json_is_array(toplevel) && !json_array_size(toplevel))) {
++        ERR("JSON database %s top-level is not an object or empty array!", fn);
 +        json_decref(toplevel);
 +        return NULL;
 +    }
@@ -2462,38 +2485,40 @@ index 0000000..fd8170f
 +    d->tree = NULL;
 +    d->strdb = vnm_strdb_new();
 +
-+    // iterate the keys...
-+    const char* key;
-+    json_t* val;
-+    void *iter = json_object_iter(toplevel);
-+    while(iter) {
-+        key = json_object_iter_key(iter);
-+        val = json_object_iter_value(iter);
-+        if(!json_is_array(val)) {
-+            ERR("JSON database %s: value for key '%s' should be an array!", fn, key);
-+            nlist_destroy(templist);
-+            vnm_strdb_destroy(d->strdb);
-+            free(d);
-+            json_decref(toplevel);
-+            return NULL;
-+        }
-+
-+        const unsigned stridx = vnm_strdb_add(d->strdb, key);
-+        const unsigned nnets = json_array_size(val);
-+        for(unsigned i = 0; i < nnets; i++) {
-+            const json_t* net = json_array_get(val, i);
-+            const bool net_isstr = json_is_string(net);
-+            if(!net_isstr)
-+                ERR("JSON database %s: array member %u for key '%s' should be an address string!", fn, i, key);
-+            if(!net_isstr || append_string_to_nlist(fn, key, templist, json_string_value(net), stridx)) {
++    if(json_is_object(toplevel)) {
++        // iterate the keys...
++        const char* key;
++        json_t* val;
++        void *iter = json_object_iter(toplevel);
++        while(iter) {
++            key = json_object_iter_key(iter);
++            val = json_object_iter_value(iter);
++            if(!json_is_array(val)) {
++                ERR("JSON database %s: value for key '%s' should be an array!", fn, key);
 +                nlist_destroy(templist);
 +                vnm_strdb_destroy(d->strdb);
 +                free(d);
 +                json_decref(toplevel);
 +                return NULL;
 +            }
++
++            const unsigned stridx = vnm_strdb_add(d->strdb, key);
++            const unsigned nnets = json_array_size(val);
++            for(unsigned i = 0; i < nnets; i++) {
++                const json_t* net = json_array_get(val, i);
++                const bool net_isstr = json_is_string(net);
++                if(!net_isstr)
++                    ERR("JSON database %s: array member %u for key '%s' should be an address string!", fn, i, key);
++                if(!net_isstr || append_string_to_nlist(fn, key, templist, json_string_value(net), stridx)) {
++                    nlist_destroy(templist);
++                    vnm_strdb_destroy(d->strdb);
++                    free(d);
++                    json_decref(toplevel);
++                    return NULL;
++                }
++            }
++            iter = json_object_iter_next(toplevel, iter);
 +        }
-+        iter = json_object_iter_next(toplevel, iter);
 +    }
 +
 +    // add undefined areas for the translated v4 subspaces and optimize the list

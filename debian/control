@@ -21,6 +21,7 @@ Build-Depends:
  libtool,
  pkg-config,
  python-docutils,
+ python-sphinx,
  xsltproc,
  libjansson-dev,
  liburcu-dev,

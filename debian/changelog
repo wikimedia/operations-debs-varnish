@@ -1,3 +1,11 @@
+varnish (3.0.5plus~x-wm6) unstable; urgency=low
+
+  * Updated libvmod-netmapper to f23e9634 (empty array support)
+  * Added build dep for python-sphinx
+  * Removed wmftest from version string
+
+ -- Brandon Black <bblack@wikimedia.org>  Fri, 27 Jun 2014 15:47:07 +0000
+
 varnish (3.0.5plus~wmftest-wm5) unstable; urgency=low
 
   * Minor fixup to fallocate patchfile
