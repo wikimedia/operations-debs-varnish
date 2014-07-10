@@ -1,8 +1,8 @@
 AC_PREREQ(2.59)
 AC_COPYRIGHT([Copyright (c) 2006 Verdens Gang AS
-Copyright (c) 2006-2011 Varnish Software AS])
+Copyright (c) 2006-2014 Varnish Software AS])
 AC_REVISION([$Id$])
-AC_INIT([Varnish], [3.0.5plus], [varnish-dev@varnish-cache.org])
+AC_INIT([Varnish], [3.0.6rc1plus], [varnish-dev@varnish-cache.org])
 AC_CONFIG_SRCDIR(include/varnishapi.h)
 AM_CONFIG_HEADER(config.h)
 
@@ -369,7 +369,10 @@ else
 fi
 
 AM_MISSING_HAS_RUN
-AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], [AC_MSG_ERROR([Python is needed to build Varnish, please install python.])])
+AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], "no")
+if test "x$PYTHON" = "xno"; then
+  AC_MSG_ERROR([Python is needed to build Varnish, please install python.])
+fi
 
 # Older Solaris versions define SO_{RCV,SND}TIMEO, but do not
 # implement them.
