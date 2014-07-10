@@ -1,3 +1,32 @@
+varnish (3.0.6plus~x-wm1) unstable; urgency=low
+
+  * Merged upstream varnish 3.0.6rc1:
+    * a18deaf Correct AC_CHECK_PROGS usage
+    * e6f2b52 Typo in BAN configuration
+    * ac7f10c Add Travis-CI configuration file.
+    * 2c0f1ba Workaround a problem in recent libedit versions
+    * 7b410fd Improve description of bug #1327.
+    * e1be153 Use forgotten rc1 tag also in spec file.
+    * 4d16476 Prepare for 3.0.6-rc1 release.
+    * 73efe81 Document the storage.<name>.* VCL variables.
+    * 1b6cc9d Fix v-c.o bug 1327 (http_max_hdr not multiple of 4) also for 3.0
+    * 8213a0b Don't medd up the t_open and t_resp when handling ESI subrequests.
+    * 12f835b Format %D as microseconds in integer value
+    * 2e4b131 Fix two minor typographical errors.
+    * af56dab Fix up function declarations to fix compile errors on clang
+    * dec9098 Clear the pass oc flag bits earlier in the ban lurker
+    * efe5068 Document req.grace=0s strangeness
+    * f6f75ea Fix varnishd segfault in jemalloc's arena_dalloc()
+    * 0152502 Document that vcl_pass/vcl_miss can't restart
+    * ac7ced6 Allow backends to start with if, include or else
+    * 4ae3ffc Stop handling after gzip object end.
+    * fc26e3f doc typo
+    * dd0e696 Document %D and %T for varnishncsa
+    * 897cc56 Fix typo in comment
+  * Updated patch line offsets
+
+ -- Brandon Black <bblack@wikimedia.org>  Thu, 10 Jul 2014 17:53:47 +0000
+
 varnish (3.0.5plus~x-wm6) unstable; urgency=low
 
   * Updated libvmod-netmapper to f23e9634 (empty array support)

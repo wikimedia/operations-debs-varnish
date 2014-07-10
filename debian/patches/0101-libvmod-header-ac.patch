@@ -2,7 +2,7 @@ diff --git a/configure.ac b/configure.ac
 index b626b28..63b8044 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -591,6 +591,8 @@ AC_CONFIG_FILES([
+@@ -594,6 +594,8 @@ AC_CONFIG_FILES([
      lib/libvmod_std/Makefile
      lib/libvmod_netmapper/Makefile
      lib/libvmod_netmapper/src/Makefile

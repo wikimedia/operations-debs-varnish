@@ -14,7 +14,7 @@ diff --git a/bin/varnishd/cache_backend.h b/bin/varnishd/cache_backend.h
 index 21a7061..68e1256 100644
 --- a/bin/varnishd/cache_backend.h
 +++ b/bin/varnishd/cache_backend.h
-@@ -167,3 +167,4 @@ dir_init_f VRT_init_dir_random;
+@@ -168,3 +168,4 @@ dir_init_f VRT_init_dir_random;
  dir_init_f VRT_init_dir_round_robin;
  dir_init_f VRT_init_dir_fallback;
  dir_init_f VRT_init_dir_client;
