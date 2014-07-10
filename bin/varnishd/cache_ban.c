@@ -868,6 +868,10 @@ ban_lurker_work(const struct sess *sp, unsigned pass)
 				continue;
 			}
 			/*
+			 * Clear this oc's pass bits.
+			 */
+			oc->flags &= ~OC_F_LURK;
+			/*
 			 * If the object is busy, we can't touch
 			 * it. Defer it to a later run.
 			 */
@@ -885,7 +889,6 @@ ban_lurker_work(const struct sess *sp, unsigned pass)
 			 */
 			AN(oc->refcnt);
 			oc->refcnt++;
-			oc->flags &= ~OC_F_LURK;
 			Lck_Unlock(&ban_mtx);
 			/*
 			 * Get the object and check it against all relevant bans

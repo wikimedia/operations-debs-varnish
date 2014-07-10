@@ -372,8 +372,6 @@ cnt_done(struct sess *sp)
 		    sp->xid, sp->t_req, sp->t_end, dh, dp, da);
 	}
 	sp->xid = 0;
-	sp->t_open = sp->t_end;
-	sp->t_resp = NAN;
 	WSL_Flush(sp->wrk, 0);
 
 	/* If we did an ESI include, don't mess up our state */
@@ -382,7 +380,9 @@ cnt_done(struct sess *sp)
 
 	memset(&sp->acct_req, 0, sizeof sp->acct_req);
 
+	sp->t_open = sp->t_end;
 	sp->t_req = NAN;
+	sp->t_resp = NAN;
 	sp->hash_always_miss = 0;
 	sp->hash_ignore_busy = 0;
 
@@ -1367,8 +1367,6 @@ DOT		label="vcl_miss()|req.\nbereq."
 DOT	]
 DOT	miss -> vcl_miss [style=bold,color=blue]
 DOT }
-DOT vcl_miss -> rst_miss [label="restart",color=purple]
-DOT rst_miss [label="RESTART",shape=plaintext]
 DOT vcl_miss -> err_miss [label="error"]
 DOT err_miss [label="ERROR",shape=plaintext]
 DOT vcl_miss -> fetch [label="fetch",style=bold,color=blue]
@@ -1453,8 +1451,6 @@ DOT	pass2 -> vcl_pass [style=bold, color=red]
 DOT	vcl_pass -> pass_do [label="pass"] [style=bold, color=red]
 DOT }
 DOT pass_do -> fetch [style=bold, color=red]
-DOT vcl_pass -> rst_pass [label="restart",color=purple]
-DOT rst_pass [label="RESTART",shape=plaintext]
 DOT vcl_pass -> err_pass [label="error"]
 DOT err_pass [label="ERROR",shape=plaintext]
  */
