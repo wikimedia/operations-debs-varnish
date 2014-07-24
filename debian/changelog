@@ -1,3 +1,10 @@
+varnish (3.0.6plus~x-wm2) unstable; urgency=low
+
+  * Added explicit persistent mmap addr support
+  * Fixed up printf formatting for mmap fail
+
+ -- Brandon Black <bblack@wikimedia.org>  Thu, 24 Jul 2014 16:11:14 +0000
+
 varnish (3.0.6plus~x-wm1) unstable; urgency=low
 
   * Merged upstream varnish 3.0.6rc1:
