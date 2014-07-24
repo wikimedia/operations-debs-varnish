@@ -1,0 +1,36 @@
+diff --git a/bin/varnishd/storage_persistent_mgt.c b/bin/varnishd/storage_persistent_mgt.c
+index 3538fe4..208c37c 100644
+--- a/bin/varnishd/storage_persistent_mgt.c
++++ b/bin/varnishd/storage_persistent_mgt.c
+@@ -147,8 +147,8 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+ 	VTAILQ_INIT(&sc->segments);
+ 
+ 	/* Argument processing */
+-	if (ac != 2)
+-		ARGV_ERR("(-spersistent) wrong number of arguments\n");
++	if (ac < 2 || ac > 3)
++		ARGV_ERR("(-spersistent) wrong number of arguments; should be file,size[,address]\n");
+ 
+ 	i = STV_GetFile(av[0], &sc->fd, &sc->filename, "-spersistent");
+ 	if (i == 2)
+@@ -195,10 +195,18 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+ 	/* Try to determine correct mmap address */
+ 	i = read(sc->fd, &sgn, sizeof sgn);
+ 	assert(i == sizeof sgn);
+-	if (!strcmp(sgn.ident, "SILO"))
++	if (!strcmp(sgn.ident, "SILO")) {
+ 		target = (void*)(uintptr_t)sgn.mapped;
+-	else
++	}
++	else if(ac == 3) { // provided explicit addr arg for new storage
++		errno = 0;
++		target = (void*)(uintptr_t)strtoull(av[2], NULL, 0);
++		if(errno)
++			ARGV_ERR("(-spersistent) address argument '%s' invalid: %s", av[2], strerror(errno));
++	}
++	else {
+ 		target = NULL;
++	}
+ 
+ 	sc->base = (void*)mmap(target, sc->mediasize, PROT_READ|PROT_WRITE,
+ 	    MAP_NOCORE | MAP_NOSYNC | MAP_SHARED, sc->fd, 0);
