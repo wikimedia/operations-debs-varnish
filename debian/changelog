@@ -1,3 +1,11 @@
+varnish (3.0.5plus~x-wm7) unstable; urgency=low
+
+  * 2x Cherry-picked patch updates from 3.0.6-plus-wm:
+  * Added explicit persistent mmap addr support
+  * Fixed up printf formatting for mmap fail
+
+ -- Brandon Black <bblack@wikimedia.org>  Mon, 28 Jul 2014 15:35:31 +0000
+
 varnish (3.0.5plus~x-wm6) unstable; urgency=low
 
   * Updated libvmod-netmapper to f23e9634 (empty array support)
