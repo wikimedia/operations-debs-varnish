@@ -1,5 +1,15 @@
+===========================================
+Changes from 3.0.6rc1 to 3.0.6 (2014-10-16)
+===========================================
+
+- Minor changes to documentation.
+- [varnishadm] Add termcap workaround for libedit. Bug 1514_.
+
+.. _1531: http://varnish-cache.org/trac/ticket/1531
+
+
 ============================================
-Changes from 3.0.5 to 3.0.6-rc1 (2014-06-24)
+Changes from 3.0.5 to 3.0.6rc1 (2014-06-24)
 ============================================
 
 - Document storage.<name>.* VCL variables. Bug 1514_.
@@ -7,7 +17,7 @@ Changes from 3.0.5 to 3.0.6-rc1 (2014-06-24)
 - Avoid negative ReqEnd timestamps with ESI. Bug 1297_.
 - %D format for varnishncsa is now an integer (as documented)
 - Fix compile errors with clang.
-- Clear objectcore flags earlier in ban lurker. Bug 1470_.
+- Clear objectcore flags earlier in ban lurker to avoid spinning thread. Bug 1470_.
 - Patch embedded jemalloc to avoid segfault. Bug 1448_.
 - Allow backend names to start with if, include or else. Bug 1439_.
 - Stop handling gzip after gzip body end. Bug 1086_.
@@ -149,6 +159,9 @@ Other
 Changes from 3.0.2 to 3.0.3
 ===========================
 
+Note: In between 3.0.2 and 3.0.3 the VCL truth value for empty strings changed.
+Please see `Bug #1406`_ for the details.
+
 Varnishd
 --------
 
@@ -225,6 +238,7 @@ Varnishd
 .. _bug #1125: http://varnish-cache.org/trac/ticket/1125
 .. _bug #1126: http://varnish-cache.org/trac/ticket/1126
 .. _bug #1140: http://varnish-cache.org/trac/ticket/1140
+.. _bug #1406: http://varnish-cache.org/trac/ticket/1406
 
 varnishncsa
 -----------
