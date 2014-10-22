@@ -2,7 +2,7 @@
 %define __find_provides %{_builddir}/varnish-%{version}%{?v_rc:-%{?v_rc}}/redhat/find-provides
 Summary: High-performance HTTP accelerator
 Name: varnish
-Version: 3.0.6rc1plus
+Version: 3.0.6plus
 Release: 1%{?dist}
 License: BSD
 Group: System Environment/Daemons
@@ -14,6 +14,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 # You will need at least automake autoconf libtool python-docutils
 #BuildRequires: automake autoconf libtool python-docutils
 BuildRequires: ncurses-devel libxslt groff pcre-devel pkgconfig libedit-devel
+BuildRequires: python
 Requires: varnish-libs = %{version}-%{release}
 Requires: logrotate
 Requires: ncurses
