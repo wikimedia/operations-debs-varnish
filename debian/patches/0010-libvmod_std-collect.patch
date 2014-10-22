@@ -2,7 +2,7 @@ diff --git a/lib/libvmod_std/vmod_std.c b/lib/libvmod_std/vmod_std.c
 index 544e2dc..217f60a 100644
 --- a/lib/libvmod_std/vmod_std.c
 +++ b/lib/libvmod_std/vmod_std.c
-@@ -187,5 +187,7 @@ vmod_collect(struct sess *sp, enum gethdr_e e, const char *h)
+@@ -188,5 +188,7 @@ vmod_collect(struct sess *sp, enum gethdr_e e, const char *h)
  		http_CollectHdr(sp->http, h);
  	else if (e == HDR_BERESP)
  		http_CollectHdr(sp->wrk->beresp, h);

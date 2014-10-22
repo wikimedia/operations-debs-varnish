@@ -1,3 +1,20 @@
+varnish (3.0.6plus~x-wm3) unstable; urgency=low
+
+  * Merged upstream varnish 3.0.6 (final):
+    * 1899836 Prepare 3.0.6.
+    * 3cf2f3f Update copyright statement.
+    * 80381e6 Improve description of effects of bug 1470.
+    * 928b0af Forgotten version number in last commit.
+    * dc17564 Prepare 3.0.6rc2.
+    * 7c39957 recommend system libjemalloc
+    * 5cb77b2 EL7 chroot seem not to have python by default.
+    * cf06737 Add that empty string VCL truth value changed.
+    * 9511eef Double allocated varnishlog buffer space.
+    * 779ab3a always include config.h first
+  * Updated debian/patches/ line offsets
+
+ -- Brandon Black <bblack@wikimedia.org>  Wed, 22 Oct 2014 17:50:00 +0000
+
 varnish (3.0.6plus~x-wm2) unstable; urgency=low
 
   * Added explicit persistent mmap addr support
