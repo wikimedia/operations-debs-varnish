@@ -10,7 +10,7 @@ index ff10973..36e9c5d 100644
  
  #include "cache.h"
  #include "stevedore.h"
-@@ -160,6 +161,37 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
+@@ -160,6 +161,29 @@ smp_mgt_init(struct stevedore *parent, int ac, char * const *av)
  
  	AZ(ftruncate(sc->fd, sc->mediasize));
  
@@ -22,26 +22,18 @@ index ff10973..36e9c5d 100644
 +	 *   2) XFS (but not ext4) has an odd behavior where it will fail with
 +	 *     ENOSPC when fallocate() is called for a second time on the same
 +	 *     large file (> half fs size) that was already fallocate()'d earlier.
-+	 *     Apparently it wants to re-reserve the whole space temporarily
-+	 *     during the syscall, even though the file already has enough allocated.
-+	 *     This is the reason we only do the call on newly-created files, but
-+	 *     it would be better if we could do it as an idempotent operation every
-+	 *     time, to be sure that we fix up allocation if the user created it
-+	 *     via some other method, or it was resized, etc...
 +	 */
-+	if(i == 1) { // retval from STV_GetFile() indicating newly-created
-+		if(fallocate(sc->fd, 0, 0, sc->mediasize)) {
-+			if(errno == ENOSYS || errno == EOPNOTSUPP)
-+				printf("Warning: (-spersistent): fallocate() not supported by kernel/fs for file %s\n",
-+					sc->filename);
-+			else
-+				ARGV_ERR("(-spersistent): fallocate() for new file %s failed: %s\n",
-+					sc->filename, strerror(errno));
-+		}
-+		else {
-+			printf("(-spersistent): new file %s fallocate()'d to size %lli\n",
-+				sc->filename, (long long int)sc->mediasize);
-+		}
++	if(fallocate(sc->fd, 0, 0, sc->mediasize)) {
++		if(errno == ENOSYS || errno == EOPNOTSUPP)
++			printf("Warning: (-spersistent): fallocate() not supported by kernel/fs for file %s\n",
++				sc->filename);
++		else
++			ARGV_ERR("(-spersistent): fallocate() for file %s failed: %s\n",
++				sc->filename, strerror(errno));
++	}
++	else {
++		printf("(-spersistent): file %s fallocate()'d to size %lli\n",
++			sc->filename, (long long int)sc->mediasize);
 +	}
 +#endif
 +

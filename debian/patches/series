@@ -7,6 +7,8 @@
 0010-libvmod_std-collect.patch
 0010-varnishd-persistent-fallocate.patch
 0010-varnishd-persistent-addrarg.patch
+0010-varnishd-file-fallocate.patch
+0010-varnishd-no-size-reduce.patch
 0020-filter-headers.patch
 0098-libvmod-netmapper-src.patch
 0099-libvmod-netmapper-ac.patch

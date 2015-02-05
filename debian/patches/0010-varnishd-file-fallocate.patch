@@ -1,0 +1,27 @@
+diff --git a/bin/varnishd/storage_file.c b/bin/varnishd/storage_file.c
+index 21de929..3ef19e6 100644
+--- a/bin/varnishd/storage_file.c
++++ b/bin/varnishd/storage_file.c
+@@ -110,7 +110,21 @@ smf_initfile(struct smf_sc *sc, const char *size)
+ 
+ 	AZ(ftruncate(sc->fd, (off_t)sc->filesize));
+ 
+-	/* XXX: force block allocation here or in open ? */
++#if defined __linux__ && defined HAVE_FALLOCATE
++	// See notes in storage_persistent_mgt.c fallocate code
++	if(fallocate(sc->fd, 0, 0, sc->filesize)) {
++		if(errno == ENOSYS || errno == EOPNOTSUPP)
++			printf("Warning: (-sfile): fallocate() not supported by kernel/fs for file %s\n",
++				sc->filename);
++		else
++			ARGV_ERR("(-sfile): fallocate() for new file %s failed: %s\n",
++				sc->filename, strerror(errno));
++	}
++	else {
++		printf("(-sfile): new file %s fallocate()'d to size %lli\n",
++			sc->filename, (long long int)sc->filesize);
++	}
++#endif
+ }
+ 
+ static const char default_size[] = "100M";

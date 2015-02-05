@@ -1,3 +1,15 @@
+varnish (3.0.6plus-wm5) jessie-wikimedia; urgency=low
+
+  * Added two new local patches:
+    * fallocate() for file (non-persistent) storage
+    * disable truncation of requested size to detected
+      available filesystem space.
+  * Modifies current persistent fallocate patch to always
+    call fallocate, not just on creation (that was an XFS
+    bug workaround, but we're now moving to ext4).
+
+ -- Brandon Black <bblack@wikimedia.org>  Thu, 05 Feb 2015 16:35:15 +0000
+
 varnish (3.0.6plus~x-wm3) unstable; urgency=low
 
   * Merged upstream varnish 3.0.6 (final):
