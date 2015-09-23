@@ -1,3 +1,11 @@
+varnish (3.0.6plus-wm8) jessie-wikimedia; urgency=low
+
+  * Added libvmod-tbf
+  * Added libvmod-ipcast
+  * Minor bugfixes to local fallocate and no-size-reduce patches
+
+ -- Brandon Black <bblack@wikimedia.org>  Wed, 23 Sep 2015 23:37:10 +0000
+
 varnish (3.0.6plus-wm6) jessie-wikimedia; urgency=low
 
   * debian/rules update to not start varnishd on pkg install
