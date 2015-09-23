@@ -14,7 +14,7 @@ index bd4e368..f9eb925 100644
 +		// fprintf(stderr, "WARNING: (%s) file size reduced"
 +		    // " to %ju (80%% of available disk space)\n", ctx, l);
 +		fprintf(stderr, "WARNING: (%s) file size does not fit in"
-+		    " reported free space, continuing anyways!");
++		    " reported free space, continuing anyways!", ctx);
  	}
  
  	if (sizeof(void *) == 4 && l > INT32_MAX) { /*lint !e506 !e774 !e845 */
