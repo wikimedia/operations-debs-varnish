@@ -1,0 +1,2796 @@
+commit d0a9baf1b69b4ec2eac2080ae1f1ced0adcb2408
+Author: Brandon Black <bblack@wikimedia.org>
+Date:   Wed Sep 23 17:25:20 2015 +0000
+
+    XXX raw import of TBF source tree
+
+diff --git a/lib/libvmod_tbf/.gitignore b/lib/libvmod_tbf/.gitignore
+new file mode 100644
+index 0000000..506e185
+--- /dev/null
++++ b/lib/libvmod_tbf/.gitignore
+@@ -0,0 +1,28 @@
++*.a
++*.la
++*.lo
++*.o
++*.tar.*
++*~
++.deps
++.emacs*
++.gdbinit
++.libs
++ABOUT-NLS
++ChangeLog
++INSTALL
++Makefile
++Makefile.in
++TAGS
++aclocal.m4
++autom4te.cache/
++build-aux
++config.h
++config.h.in
++config.log
++config.status
++configure
++core
++libtool
++m4
++stamp-h1
+diff --git a/lib/libvmod_tbf/AUTHORS b/lib/libvmod_tbf/AUTHORS
+new file mode 100644
+index 0000000..9b0dd5c
+--- /dev/null
++++ b/lib/libvmod_tbf/AUTHORS
+@@ -0,0 +1 @@
++Sergey Poznyakoff <gray@gnu.org>, <gray@gnu.org.ua>
+diff --git a/lib/libvmod_tbf/COPYING b/lib/libvmod_tbf/COPYING
+new file mode 100644
+index 0000000..94a9ed0
+--- /dev/null
++++ b/lib/libvmod_tbf/COPYING
+@@ -0,0 +1,674 @@
++                    GNU GENERAL PUBLIC LICENSE
++                       Version 3, 29 June 2007
++
++ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
++ Everyone is permitted to copy and distribute verbatim copies
++ of this license document, but changing it is not allowed.
++
++                            Preamble
++
++  The GNU General Public License is a free, copyleft license for
++software and other kinds of works.
++
++  The licenses for most software and other practical works are designed
++to take away your freedom to share and change the works.  By contrast,
++the GNU General Public License is intended to guarantee your freedom to
++share and change all versions of a program--to make sure it remains free
++software for all its users.  We, the Free Software Foundation, use the
++GNU General Public License for most of our software; it applies also to
++any other work released this way by its authors.  You can apply it to
++your programs, too.
++
++  When we speak of free software, we are referring to freedom, not
++price.  Our General Public Licenses are designed to make sure that you
++have the freedom to distribute copies of free software (and charge for
++them if you wish), that you receive source code or can get it if you
++want it, that you can change the software or use pieces of it in new
++free programs, and that you know you can do these things.
++
++  To protect your rights, we need to prevent others from denying you
++these rights or asking you to surrender the rights.  Therefore, you have
++certain responsibilities if you distribute copies of the software, or if
++you modify it: responsibilities to respect the freedom of others.
++
++  For example, if you distribute copies of such a program, whether
++gratis or for a fee, you must pass on to the recipients the same
++freedoms that you received.  You must make sure that they, too, receive
++or can get the source code.  And you must show them these terms so they
++know their rights.
++
++  Developers that use the GNU GPL protect your rights with two steps:
++(1) assert copyright on the software, and (2) offer you this License
++giving you legal permission to copy, distribute and/or modify it.
++
++  For the developers' and authors' protection, the GPL clearly explains
++that there is no warranty for this free software.  For both users' and
++authors' sake, the GPL requires that modified versions be marked as
++changed, so that their problems will not be attributed erroneously to
++authors of previous versions.
++
++  Some devices are designed to deny users access to install or run
++modified versions of the software inside them, although the manufacturer
++can do so.  This is fundamentally incompatible with the aim of
++protecting users' freedom to change the software.  The systematic
++pattern of such abuse occurs in the area of products for individuals to
++use, which is precisely where it is most unacceptable.  Therefore, we
++have designed this version of the GPL to prohibit the practice for those
++products.  If such problems arise substantially in other domains, we
++stand ready to extend this provision to those domains in future versions
++of the GPL, as needed to protect the freedom of users.
++
++  Finally, every program is threatened constantly by software patents.
++States should not allow patents to restrict development and use of
++software on general-purpose computers, but in those that do, we wish to
++avoid the special danger that patents applied to a free program could
++make it effectively proprietary.  To prevent this, the GPL assures that
++patents cannot be used to render the program non-free.
++
++  The precise terms and conditions for copying, distribution and
++modification follow.
++
++                       TERMS AND CONDITIONS
++
++  0. Definitions.
++
++  "This License" refers to version 3 of the GNU General Public License.
++
++  "Copyright" also means copyright-like laws that apply to other kinds of
++works, such as semiconductor masks.
++
++  "The Program" refers to any copyrightable work licensed under this
++License.  Each licensee is addressed as "you".  "Licensees" and
++"recipients" may be individuals or organizations.
++
++  To "modify" a work means to copy from or adapt all or part of the work
++in a fashion requiring copyright permission, other than the making of an
++exact copy.  The resulting work is called a "modified version" of the
++earlier work or a work "based on" the earlier work.
++
++  A "covered work" means either the unmodified Program or a work based
++on the Program.
++
++  To "propagate" a work means to do anything with it that, without
++permission, would make you directly or secondarily liable for
++infringement under applicable copyright law, except executing it on a
++computer or modifying a private copy.  Propagation includes copying,
++distribution (with or without modification), making available to the
++public, and in some countries other activities as well.
++
++  To "convey" a work means any kind of propagation that enables other
++parties to make or receive copies.  Mere interaction with a user through
++a computer network, with no transfer of a copy, is not conveying.
++
++  An interactive user interface displays "Appropriate Legal Notices"
++to the extent that it includes a convenient and prominently visible
++feature that (1) displays an appropriate copyright notice, and (2)
++tells the user that there is no warranty for the work (except to the
++extent that warranties are provided), that licensees may convey the
++work under this License, and how to view a copy of this License.  If
++the interface presents a list of user commands or options, such as a
++menu, a prominent item in the list meets this criterion.
++
++  1. Source Code.
++
++  The "source code" for a work means the preferred form of the work
++for making modifications to it.  "Object code" means any non-source
++form of a work.
++
++  A "Standard Interface" means an interface that either is an official
++standard defined by a recognized standards body, or, in the case of
++interfaces specified for a particular programming language, one that
++is widely used among developers working in that language.
++
++  The "System Libraries" of an executable work include anything, other
++than the work as a whole, that (a) is included in the normal form of
++packaging a Major Component, but which is not part of that Major
++Component, and (b) serves only to enable use of the work with that
++Major Component, or to implement a Standard Interface for which an
++implementation is available to the public in source code form.  A
++"Major Component", in this context, means a major essential component
++(kernel, window system, and so on) of the specific operating system
++(if any) on which the executable work runs, or a compiler used to
++produce the work, or an object code interpreter used to run it.
++
++  The "Corresponding Source" for a work in object code form means all
++the source code needed to generate, install, and (for an executable
++work) run the object code and to modify the work, including scripts to
++control those activities.  However, it does not include the work's
++System Libraries, or general-purpose tools or generally available free
++programs which are used unmodified in performing those activities but
++which are not part of the work.  For example, Corresponding Source
++includes interface definition files associated with source files for
++the work, and the source code for shared libraries and dynamically
++linked subprograms that the work is specifically designed to require,
++such as by intimate data communication or control flow between those
++subprograms and other parts of the work.
++
++  The Corresponding Source need not include anything that users
++can regenerate automatically from other parts of the Corresponding
++Source.
++
++  The Corresponding Source for a work in source code form is that
++same work.
++
++  2. Basic Permissions.
++
++  All rights granted under this License are granted for the term of
++copyright on the Program, and are irrevocable provided the stated
++conditions are met.  This License explicitly affirms your unlimited
++permission to run the unmodified Program.  The output from running a
++covered work is covered by this License only if the output, given its
++content, constitutes a covered work.  This License acknowledges your
++rights of fair use or other equivalent, as provided by copyright law.
++
++  You may make, run and propagate covered works that you do not
++convey, without conditions so long as your license otherwise remains
++in force.  You may convey covered works to others for the sole purpose
++of having them make modifications exclusively for you, or provide you
++with facilities for running those works, provided that you comply with
++the terms of this License in conveying all material for which you do
++not control copyright.  Those thus making or running the covered works
++for you must do so exclusively on your behalf, under your direction
++and control, on terms that prohibit them from making any copies of
++your copyrighted material outside their relationship with you.
++
++  Conveying under any other circumstances is permitted solely under
++the conditions stated below.  Sublicensing is not allowed; section 10
++makes it unnecessary.
++
++  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
++
++  No covered work shall be deemed part of an effective technological
++measure under any applicable law fulfilling obligations under article
++11 of the WIPO copyright treaty adopted on 20 December 1996, or
++similar laws prohibiting or restricting circumvention of such
++measures.
++
++  When you convey a covered work, you waive any legal power to forbid
++circumvention of technological measures to the extent such circumvention
++is effected by exercising rights under this License with respect to
++the covered work, and you disclaim any intention to limit operation or
++modification of the work as a means of enforcing, against the work's
++users, your or third parties' legal rights to forbid circumvention of
++technological measures.
++
++  4. Conveying Verbatim Copies.
++
++  You may convey verbatim copies of the Program's source code as you
++receive it, in any medium, provided that you conspicuously and
++appropriately publish on each copy an appropriate copyright notice;
++keep intact all notices stating that this License and any
++non-permissive terms added in accord with section 7 apply to the code;
++keep intact all notices of the absence of any warranty; and give all
++recipients a copy of this License along with the Program.
++
++  You may charge any price or no price for each copy that you convey,
++and you may offer support or warranty protection for a fee.
++
++  5. Conveying Modified Source Versions.
++
++  You may convey a work based on the Program, or the modifications to
++produce it from the Program, in the form of source code under the
++terms of section 4, provided that you also meet all of these conditions:
++
++    a) The work must carry prominent notices stating that you modified
++    it, and giving a relevant date.
++
++    b) The work must carry prominent notices stating that it is
++    released under this License and any conditions added under section
++    7.  This requirement modifies the requirement in section 4 to
++    "keep intact all notices".
++
++    c) You must license the entire work, as a whole, under this
++    License to anyone who comes into possession of a copy.  This
++    License will therefore apply, along with any applicable section 7
++    additional terms, to the whole of the work, and all its parts,
++    regardless of how they are packaged.  This License gives no
++    permission to license the work in any other way, but it does not
++    invalidate such permission if you have separately received it.
++
++    d) If the work has interactive user interfaces, each must display
++    Appropriate Legal Notices; however, if the Program has interactive
++    interfaces that do not display Appropriate Legal Notices, your
++    work need not make them do so.
++
++  A compilation of a covered work with other separate and independent
++works, which are not by their nature extensions of the covered work,
++and which are not combined with it such as to form a larger program,
++in or on a volume of a storage or distribution medium, is called an
++"aggregate" if the compilation and its resulting copyright are not
++used to limit the access or legal rights of the compilation's users
++beyond what the individual works permit.  Inclusion of a covered work
++in an aggregate does not cause this License to apply to the other
++parts of the aggregate.
++
++  6. Conveying Non-Source Forms.
++
++  You may convey a covered work in object code form under the terms
++of sections 4 and 5, provided that you also convey the
++machine-readable Corresponding Source under the terms of this License,
++in one of these ways:
++
++    a) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by the
++    Corresponding Source fixed on a durable physical medium
++    customarily used for software interchange.
++
++    b) Convey the object code in, or embodied in, a physical product
++    (including a physical distribution medium), accompanied by a
++    written offer, valid for at least three years and valid for as
++    long as you offer spare parts or customer support for that product
++    model, to give anyone who possesses the object code either (1) a
++    copy of the Corresponding Source for all the software in the
++    product that is covered by this License, on a durable physical
++    medium customarily used for software interchange, for a price no
++    more than your reasonable cost of physically performing this
++    conveying of source, or (2) access to copy the
++    Corresponding Source from a network server at no charge.
++
++    c) Convey individual copies of the object code with a copy of the
++    written offer to provide the Corresponding Source.  This
++    alternative is allowed only occasionally and noncommercially, and
++    only if you received the object code with such an offer, in accord
++    with subsection 6b.
++
++    d) Convey the object code by offering access from a designated
++    place (gratis or for a charge), and offer equivalent access to the
++    Corresponding Source in the same way through the same place at no
++    further charge.  You need not require recipients to copy the
++    Corresponding Source along with the object code.  If the place to
++    copy the object code is a network server, the Corresponding Source
++    may be on a different server (operated by you or a third party)
++    that supports equivalent copying facilities, provided you maintain
++    clear directions next to the object code saying where to find the
++    Corresponding Source.  Regardless of what server hosts the
++    Corresponding Source, you remain obligated to ensure that it is
++    available for as long as needed to satisfy these requirements.
++
++    e) Convey the object code using peer-to-peer transmission, provided
++    you inform other peers where the object code and Corresponding
++    Source of the work are being offered to the general public at no
++    charge under subsection 6d.
++
++  A separable portion of the object code, whose source code is excluded
++from the Corresponding Source as a System Library, need not be
++included in conveying the object code work.
++
++  A "User Product" is either (1) a "consumer product", which means any
++tangible personal property which is normally used for personal, family,
++or household purposes, or (2) anything designed or sold for incorporation
++into a dwelling.  In determining whether a product is a consumer product,
++doubtful cases shall be resolved in favor of coverage.  For a particular
++product received by a particular user, "normally used" refers to a
++typical or common use of that class of product, regardless of the status
++of the particular user or of the way in which the particular user
++actually uses, or expects or is expected to use, the product.  A product
++is a consumer product regardless of whether the product has substantial
++commercial, industrial or non-consumer uses, unless such uses represent
++the only significant mode of use of the product.
++
++  "Installation Information" for a User Product means any methods,
++procedures, authorization keys, or other information required to install
++and execute modified versions of a covered work in that User Product from
++a modified version of its Corresponding Source.  The information must
++suffice to ensure that the continued functioning of the modified object
++code is in no case prevented or interfered with solely because
++modification has been made.
++
++  If you convey an object code work under this section in, or with, or
++specifically for use in, a User Product, and the conveying occurs as
++part of a transaction in which the right of possession and use of the
++User Product is transferred to the recipient in perpetuity or for a
++fixed term (regardless of how the transaction is characterized), the
++Corresponding Source conveyed under this section must be accompanied
++by the Installation Information.  But this requirement does not apply
++if neither you nor any third party retains the ability to install
++modified object code on the User Product (for example, the work has
++been installed in ROM).
++
++  The requirement to provide Installation Information does not include a
++requirement to continue to provide support service, warranty, or updates
++for a work that has been modified or installed by the recipient, or for
++the User Product in which it has been modified or installed.  Access to a
++network may be denied when the modification itself materially and
++adversely affects the operation of the network or violates the rules and
++protocols for communication across the network.
++
++  Corresponding Source conveyed, and Installation Information provided,
++in accord with this section must be in a format that is publicly
++documented (and with an implementation available to the public in
++source code form), and must require no special password or key for
++unpacking, reading or copying.
++
++  7. Additional Terms.
++
++  "Additional permissions" are terms that supplement the terms of this
++License by making exceptions from one or more of its conditions.
++Additional permissions that are applicable to the entire Program shall
++be treated as though they were included in this License, to the extent
++that they are valid under applicable law.  If additional permissions
++apply only to part of the Program, that part may be used separately
++under those permissions, but the entire Program remains governed by
++this License without regard to the additional permissions.
++
++  When you convey a copy of a covered work, you may at your option
++remove any additional permissions from that copy, or from any part of
++it.  (Additional permissions may be written to require their own
++removal in certain cases when you modify the work.)  You may place
++additional permissions on material, added by you to a covered work,
++for which you have or can give appropriate copyright permission.
++
++  Notwithstanding any other provision of this License, for material you
++add to a covered work, you may (if authorized by the copyright holders of
++that material) supplement the terms of this License with terms:
++
++    a) Disclaiming warranty or limiting liability differently from the
++    terms of sections 15 and 16 of this License; or
++
++    b) Requiring preservation of specified reasonable legal notices or
++    author attributions in that material or in the Appropriate Legal
++    Notices displayed by works containing it; or
++
++    c) Prohibiting misrepresentation of the origin of that material, or
++    requiring that modified versions of such material be marked in
++    reasonable ways as different from the original version; or
++
++    d) Limiting the use for publicity purposes of names of licensors or
++    authors of the material; or
++
++    e) Declining to grant rights under trademark law for use of some
++    trade names, trademarks, or service marks; or
++
++    f) Requiring indemnification of licensors and authors of that
++    material by anyone who conveys the material (or modified versions of
++    it) with contractual assumptions of liability to the recipient, for
++    any liability that these contractual assumptions directly impose on
++    those licensors and authors.
++
++  All other non-permissive additional terms are considered "further
++restrictions" within the meaning of section 10.  If the Program as you
++received it, or any part of it, contains a notice stating that it is
++governed by this License along with a term that is a further
++restriction, you may remove that term.  If a license document contains
++a further restriction but permits relicensing or conveying under this
++License, you may add to a covered work material governed by the terms
++of that license document, provided that the further restriction does
++not survive such relicensing or conveying.
++
++  If you add terms to a covered work in accord with this section, you
++must place, in the relevant source files, a statement of the
++additional terms that apply to those files, or a notice indicating
++where to find the applicable terms.
++
++  Additional terms, permissive or non-permissive, may be stated in the
++form of a separately written license, or stated as exceptions;
++the above requirements apply either way.
++
++  8. Termination.
++
++  You may not propagate or modify a covered work except as expressly
++provided under this License.  Any attempt otherwise to propagate or
++modify it is void, and will automatically terminate your rights under
++this License (including any patent licenses granted under the third
++paragraph of section 11).
++
++  However, if you cease all violation of this License, then your
++license from a particular copyright holder is reinstated (a)
++provisionally, unless and until the copyright holder explicitly and
++finally terminates your license, and (b) permanently, if the copyright
++holder fails to notify you of the violation by some reasonable means
++prior to 60 days after the cessation.
++
++  Moreover, your license from a particular copyright holder is
++reinstated permanently if the copyright holder notifies you of the
++violation by some reasonable means, this is the first time you have
++received notice of violation of this License (for any work) from that
++copyright holder, and you cure the violation prior to 30 days after
++your receipt of the notice.
++
++  Termination of your rights under this section does not terminate the
++licenses of parties who have received copies or rights from you under
++this License.  If your rights have been terminated and not permanently
++reinstated, you do not qualify to receive new licenses for the same
++material under section 10.
++
++  9. Acceptance Not Required for Having Copies.
++
++  You are not required to accept this License in order to receive or
++run a copy of the Program.  Ancillary propagation of a covered work
++occurring solely as a consequence of using peer-to-peer transmission
++to receive a copy likewise does not require acceptance.  However,
++nothing other than this License grants you permission to propagate or
++modify any covered work.  These actions infringe copyright if you do
++not accept this License.  Therefore, by modifying or propagating a
++covered work, you indicate your acceptance of this License to do so.
++
++  10. Automatic Licensing of Downstream Recipients.
++
++  Each time you convey a covered work, the recipient automatically
++receives a license from the original licensors, to run, modify and
++propagate that work, subject to this License.  You are not responsible
++for enforcing compliance by third parties with this License.
++
++  An "entity transaction" is a transaction transferring control of an
++organization, or substantially all assets of one, or subdividing an
++organization, or merging organizations.  If propagation of a covered
++work results from an entity transaction, each party to that
++transaction who receives a copy of the work also receives whatever
++licenses to the work the party's predecessor in interest had or could
++give under the previous paragraph, plus a right to possession of the
++Corresponding Source of the work from the predecessor in interest, if
++the predecessor has it or can get it with reasonable efforts.
++
++  You may not impose any further restrictions on the exercise of the
++rights granted or affirmed under this License.  For example, you may
++not impose a license fee, royalty, or other charge for exercise of
++rights granted under this License, and you may not initiate litigation
++(including a cross-claim or counterclaim in a lawsuit) alleging that
++any patent claim is infringed by making, using, selling, offering for
++sale, or importing the Program or any portion of it.
++
++  11. Patents.
++
++  A "contributor" is a copyright holder who authorizes use under this
++License of the Program or a work on which the Program is based.  The
++work thus licensed is called the contributor's "contributor version".
++
++  A contributor's "essential patent claims" are all patent claims
++owned or controlled by the contributor, whether already acquired or
++hereafter acquired, that would be infringed by some manner, permitted
++by this License, of making, using, or selling its contributor version,
++but do not include claims that would be infringed only as a
++consequence of further modification of the contributor version.  For
++purposes of this definition, "control" includes the right to grant
++patent sublicenses in a manner consistent with the requirements of
++this License.
++
++  Each contributor grants you a non-exclusive, worldwide, royalty-free
++patent license under the contributor's essential patent claims, to
++make, use, sell, offer for sale, import and otherwise run, modify and
++propagate the contents of its contributor version.
++
++  In the following three paragraphs, a "patent license" is any express
++agreement or commitment, however denominated, not to enforce a patent
++(such as an express permission to practice a patent or covenant not to
++sue for patent infringement).  To "grant" such a patent license to a
++party means to make such an agreement or commitment not to enforce a
++patent against the party.
++
++  If you convey a covered work, knowingly relying on a patent license,
++and the Corresponding Source of the work is not available for anyone
++to copy, free of charge and under the terms of this License, through a
++publicly available network server or other readily accessible means,
++then you must either (1) cause the Corresponding Source to be so
++available, or (2) arrange to deprive yourself of the benefit of the
++patent license for this particular work, or (3) arrange, in a manner
++consistent with the requirements of this License, to extend the patent
++license to downstream recipients.  "Knowingly relying" means you have
++actual knowledge that, but for the patent license, your conveying the
++covered work in a country, or your recipient's use of the covered work
++in a country, would infringe one or more identifiable patents in that
++country that you have reason to believe are valid.
++
++  If, pursuant to or in connection with a single transaction or
++arrangement, you convey, or propagate by procuring conveyance of, a
++covered work, and grant a patent license to some of the parties
++receiving the covered work authorizing them to use, propagate, modify
++or convey a specific copy of the covered work, then the patent license
++you grant is automatically extended to all recipients of the covered
++work and works based on it.
++
++  A patent license is "discriminatory" if it does not include within
++the scope of its coverage, prohibits the exercise of, or is
++conditioned on the non-exercise of one or more of the rights that are
++specifically granted under this License.  You may not convey a covered
++work if you are a party to an arrangement with a third party that is
++in the business of distributing software, under which you make payment
++to the third party based on the extent of your activity of conveying
++the work, and under which the third party grants, to any of the
++parties who would receive the covered work from you, a discriminatory
++patent license (a) in connection with copies of the covered work
++conveyed by you (or copies made from those copies), or (b) primarily
++for and in connection with specific products or compilations that
++contain the covered work, unless you entered into that arrangement,
++or that patent license was granted, prior to 28 March 2007.
++
++  Nothing in this License shall be construed as excluding or limiting
++any implied license or other defenses to infringement that may
++otherwise be available to you under applicable patent law.
++
++  12. No Surrender of Others' Freedom.
++
++  If conditions are imposed on you (whether by court order, agreement or
++otherwise) that contradict the conditions of this License, they do not
++excuse you from the conditions of this License.  If you cannot convey a
++covered work so as to satisfy simultaneously your obligations under this
++License and any other pertinent obligations, then as a consequence you may
++not convey it at all.  For example, if you agree to terms that obligate you
++to collect a royalty for further conveying from those to whom you convey
++the Program, the only way you could satisfy both those terms and this
++License would be to refrain entirely from conveying the Program.
++
++  13. Use with the GNU Affero General Public License.
++
++  Notwithstanding any other provision of this License, you have
++permission to link or combine any covered work with a work licensed
++under version 3 of the GNU Affero General Public License into a single
++combined work, and to convey the resulting work.  The terms of this
++License will continue to apply to the part which is the covered work,
++but the special requirements of the GNU Affero General Public License,
++section 13, concerning interaction through a network will apply to the
++combination as such.
++
++  14. Revised Versions of this License.
++
++  The Free Software Foundation may publish revised and/or new versions of
++the GNU General Public License from time to time.  Such new versions will
++be similar in spirit to the present version, but may differ in detail to
++address new problems or concerns.
++
++  Each version is given a distinguishing version number.  If the
++Program specifies that a certain numbered version of the GNU General
++Public License "or any later version" applies to it, you have the
++option of following the terms and conditions either of that numbered
++version or of any later version published by the Free Software
++Foundation.  If the Program does not specify a version number of the
++GNU General Public License, you may choose any version ever published
++by the Free Software Foundation.
++
++  If the Program specifies that a proxy can decide which future
++versions of the GNU General Public License can be used, that proxy's
++public statement of acceptance of a version permanently authorizes you
++to choose that version for the Program.
++
++  Later license versions may give you additional or different
++permissions.  However, no additional obligations are imposed on any
++author or copyright holder as a result of your choosing to follow a
++later version.
++
++  15. Disclaimer of Warranty.
++
++  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
++APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
++HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
++OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
++THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
++IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
++ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
++
++  16. Limitation of Liability.
++
++  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
++WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
++THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
++GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
++USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
++DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
++PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
++EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGES.
++
++  17. Interpretation of Sections 15 and 16.
++
++  If the disclaimer of warranty and limitation of liability provided
++above cannot be given local legal effect according to their terms,
++reviewing courts shall apply local law that most closely approximates
++an absolute waiver of all civil liability in connection with the
++Program, unless a warranty or assumption of liability accompanies a
++copy of the Program in return for a fee.
++
++                     END OF TERMS AND CONDITIONS
++
++            How to Apply These Terms to Your New Programs
++
++  If you develop a new program, and you want it to be of the greatest
++possible use to the public, the best way to achieve this is to make it
++free software which everyone can redistribute and change under these terms.
++
++  To do so, attach the following notices to the program.  It is safest
++to attach them to the start of each source file to most effectively
++state the exclusion of warranty; and each file should have at least
++the "copyright" line and a pointer to where the full notice is found.
++
++    <one line to give the program's name and a brief idea of what it does.>
++    Copyright (C) <year>  <name of author>
++
++    This program is free software: you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation, either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++Also add information on how to contact you by electronic and paper mail.
++
++  If the program does terminal interaction, make it output a short
++notice like this when it starts in an interactive mode:
++
++    <program>  Copyright (C) <year>  <name of author>
++    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
++    This is free software, and you are welcome to redistribute it
++    under certain conditions; type `show c' for details.
++
++The hypothetical commands `show w' and `show c' should show the appropriate
++parts of the General Public License.  Of course, your program's commands
++might be different; for a GUI interface, you would use an "about box".
++
++  You should also get your employer (if you work as a programmer) or school,
++if any, to sign a "copyright disclaimer" for the program, if necessary.
++For more information on this, and how to apply and follow the GNU GPL, see
++<http://www.gnu.org/licenses/>.
++
++  The GNU General Public License does not permit incorporating your program
++into proprietary programs.  If your program is a subroutine library, you
++may consider it more useful to permit linking proprietary applications with
++the library.  If this is what you want to do, use the GNU Lesser General
++Public License instead of this License.  But first, please read
++<http://www.gnu.org/philosophy/why-not-lgpl.html>.
+diff --git a/lib/libvmod_tbf/Makefile.am b/lib/libvmod_tbf/Makefile.am
+new file mode 100644
+index 0000000..5fd1bdc
+--- /dev/null
++++ b/lib/libvmod_tbf/Makefile.am
+@@ -0,0 +1,30 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++ACLOCAL_AMFLAGS = -I m4
++
++SUBDIRS = src tests
++
++AM_DISTCHECK_CONFIGURE_FLAGS=--without-vmoddir
++
++EXTRA_DIST=git2chg.awk
++
++.PHONY: ChangeLog
++ChangeLog:
++	$(AM_V_GEN)if test -d .git; then                                   \
++	  git log --pretty='format:%ct  %an  <%ae>%n%n%s%n%n%b%n' |        \
++            awk -f $(top_srcdir)/git2chg.awk > ChangeLog;  \
++        fi
++
+diff --git a/lib/libvmod_tbf/NEWS b/lib/libvmod_tbf/NEWS
+new file mode 100644
+index 0000000..b87dafa
+--- /dev/null
++++ b/lib/libvmod_tbf/NEWS
+@@ -0,0 +1,40 @@
++vmod-tbf -- history of user-visible changes. 2014-11-13
++Copyright (C) 2013-2014 Sergey Poznyakoff
++See the end of file for copying conditions.
++
++Please send vmod-tbf bug reports to <gray@gnu.org>
++
++
++Version 2.0, 2014-11-13
++
++Support for VCL 4.0
++
++
++Version 1.0, 2013-10-19
++
++Initial release
++
++=========================================================================
++Copyright information:
++
++Copyright (C) 2013-2014 Sergey Poznyakoff
++
++   Permission is granted to anyone to make or distribute verbatim copies
++   of this document as received, in any medium, provided that the
++   copyright notice and this permission notice are preserved,
++   thus giving the recipient permission to redistribute in turn.
++
++   Permission is granted to distribute modified versions
++   of this document, or of portions of it,
++   under the above conditions, provided also that they
++   carry prominent notices stating who last changed them.
++
++Local variables:
++mode: outline
++paragraph-separate: "[  ]*$"
++eval: (add-hook 'write-file-hooks 'time-stamp)
++time-stamp-start: "changes. "
++time-stamp-format: "%:y-%02m-%02d"
++time-stamp-end: "\n"
++end:
++
+diff --git a/lib/libvmod_tbf/README b/lib/libvmod_tbf/README
+new file mode 100644
+index 0000000..31eed94
+--- /dev/null
++++ b/lib/libvmod_tbf/README
+@@ -0,0 +1,94 @@
++Vmod-tbf README
++Copyright (C) 2013-2014 Sergey Poznyakoff
++See the end of file for copying conditions.
++
++* Introduction
++
++This file contains brief information about configuring, testing
++and using vmod-tbf. It is *not* intended as a replacement
++for the documentation, and is provided as a brief reference only.
++For accessing complete vmod-tbf documentation, see the section
++'Documentation' below.
++
++* Overview
++
++This module implements token bucket filtering for Varnish Cache.
++Token bucket filtering (TBF) allows for controlling the rate of
++data traffic.  The following example illustrates the use of
++this module in VCL script:
++
++    import tbf;
++    
++    sub vcl_recv {
++        if (!tbf.check(client.ip, "10 req/1s")) {
++            error 429 "Request rate exceeded."
++	}
++    }
++
++This will keep the incoming HTTP traffic at the rate of 10 requests
++per second.
++
++Additionally, this module provides several auxiliary functions for
++checking load average of the machine, getting system time, formatting
++UNIX timestamps in human-readable form, etc.
++
++* Installation
++
++In order to compile the package you need to have Varnish source tree
++configured and compiled, and the Berkeley DB library.  The minimum
++prerequisites are Varnish 3.0.1 and BDB 4.2.
++
++Supposing that the varnish source tree is available under
++/usr/src/varnish-3.0.1, run:
++
++  ./configure --with-varnish-source=/usr/src/varnish-3.0.1
++
++The `--with-varnish-source' option is mandatory: it tells configure
++where Varnish sources reside.
++
++Once configured, do
++  
++  make
++
++This will build the module.  After this step you can optionally run
++'make test' to test the package.
++
++Finally, run the following command as root:
++  
++  make install
++
++* Documentation
++
++The manual page vmod-tbf(3) will be available after successful install.
++To read it without actually installing the module, run
++`man src/vmod-tbf.3'.
++
++An online copy of the documentation is available from
++http://www.gnu.org.ua/software/vmod-tbf.
++
++* Bug reporting
++
++Send bug reports and suggestions to <gray@gnu.org>
++
++
++* Copyright information:
++
++Copyright (C) 2013 Sergey Poznyakoff
++
++   Permission is granted to anyone to make or distribute verbatim copies
++   of this document as received, in any medium, provided that the
++   copyright notice and this permission notice are preserved,
++   thus giving the recipient permission to redistribute in turn.
++
++   Permission is granted to distribute modified versions
++   of this document, or of portions of it,
++   under the above conditions, provided also that they
++   carry prominent notices stating who last changed them.
++
++
++Local Variables:
++mode: outline
++paragraph-separate: "[ 	]*$"
++version-control: never
++End:
++  
+diff --git a/lib/libvmod_tbf/THANKS b/lib/libvmod_tbf/THANKS
+new file mode 100644
+index 0000000..ac4b1c0
+--- /dev/null
++++ b/lib/libvmod_tbf/THANKS
+@@ -0,0 +1,4 @@
++Vmod-tbf THANKS file.
++
++Thanks to John McEleney and Ben McKeegan who provided TBF implementation
++for Mailfromd, which I used as an example when writing this module.
+diff --git a/lib/libvmod_tbf/bootstrap b/lib/libvmod_tbf/bootstrap
+new file mode 100755
+index 0000000..89ccf31
+--- /dev/null
++++ b/lib/libvmod_tbf/bootstrap
+@@ -0,0 +1,7 @@
++#!/bin/sh
++for dir in m4 build-aux
++do
++	test -d $dir || mkdir $dir
++done
++test -f ChangeLog || touch ChangeLog
++autoreconf -f -i -s
+diff --git a/lib/libvmod_tbf/configure.ac b/lib/libvmod_tbf/configure.ac
+new file mode 100644
+index 0000000..f8e19de
+--- /dev/null
++++ b/lib/libvmod_tbf/configure.ac
+@@ -0,0 +1,140 @@
++# This file is part of vmod-tbf -*- autoconf -*-
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++AC_PREREQ(2.69)
++AC_INIT([vmod-tbf], 2.0, [gray@gnu.org])
++AC_CONFIG_AUX_DIR([build-aux])
++AC_CONFIG_MACRO_DIR([m4])
++AC_CONFIG_SRCDIR(src/vmod_tbf.vcc)
++AM_CONFIG_HEADER(config.h)
++
++AC_CANONICAL_SYSTEM
++AC_LANG(C)
++
++AM_INIT_AUTOMAKE([1.14 gnu tar-ustar])
++
++AC_GNU_SOURCE
++AC_PROG_CC
++AC_PROG_CC_STDC
++if test "x$ac_cv_prog_cc_c99" = xno; then
++	AC_MSG_ERROR([could not find a C99 compatible compiler])
++fi
++AC_PROG_CPP
++
++AC_PROG_INSTALL
++AC_PROG_LIBTOOL
++AC_PROG_MAKE_SET
++
++# Check for pkg-config
++PKG_PROG_PKG_CONFIG
++
++# Checks for header files.
++AC_HEADER_STDC
++AC_CHECK_HEADERS(sys/sysinfo.h)
++
++# Check for functions
++AC_CHECK_FUNCS(sysinfo getloadavg)
++
++# Check for python
++AC_CHECK_PROGS(PYTHON, [python], [
++	AC_MSG_ERROR([python is not found.])])
++
++# Varnish source tree
++AC_ARG_VAR([VARNISHSRC], [path to Varnish source tree])
++AC_ARG_WITH([varnish-source],
++            AC_HELP_STRING([--with-varnish-source=DIR],
++	                   [Varnish sources are located in DIR]),
++	    [VARNISHSRC=$withval])
++
++if test -z "$VARNISHSRC"; then
++	AC_MSG_ERROR([no Varnish source tree specified])
++fi
++case "$VARNISHSRC" in
++/*) ;;
++*)  AC_MSG_ERROR([varnish source path must be absolute pathname])
++esac
++
++VARNISHSRC=`cd $VARNISHSRC && pwd`
++VARNISHVERSION=
++AC_CHECK_FILE([$VARNISHSRC/include/varnishapi.h],
++  [VARNISHVERSION=3],
++  [AC_CHECK_FILE([$VARNISHSRC/include/vapi/vsm.h],
++     [VARNISHVERSION=4],
++     [AC_MSG_FAILURE(["$VARNISHSRC" is not a Varnish source directory])]) ])
++AC_SUBST([VARNISHVERSION],$VARNISHVERSION)
++
++AC_DEFINE_UNQUOTED([VARNISHVERSION],$VARNISHVERSION,[Varnish major version number])
++AM_CONDITIONAL([VARNISH3],[test $VARNISHVERSION -eq 3])
++AM_CONDITIONAL([VARNISH4],[test $VARNISHVERSION -eq 4])
++
++# Check that varnishtest is built in the varnish source directory
++AC_CHECK_FILE([$VARNISHSRC/bin/varnishtest/varnishtest],
++  [],
++  [AC_MSG_FAILURE([cannot find "$VARNISHSRC/bin/varnishtest/varnishtest". Please build your varnish source directory])]
++)
++
++# vmod installation dir
++AC_ARG_VAR([VMODDIR],  [vmod installation directory])
++AC_ARG_WITH([vmoddir],
++  AC_HELP_STRING([--with-vmoddir=DIR],
++                 [install modules to DIR]),
++  [case "$withval" in
++   /*)   VMODDIR=$withval;;
++   no)   unset VMODDIR;;
++   *)    AC_MSG_ERROR([argument to --with-vmoddir must be absolute pathname])
++   esac],[VMODDIR=`pkg-config --variable=vmoddir varnishapi`
++   if test -z "$VMODDIR"; then
++	AC_MSG_FAILURE([cannot determine vmod installation directory])
++   fi])
++
++
++if test -z "$VMODDIR"; then
++       VMODDIR='$(libdir)/varnish/mods'
++fi
++
++###########
++# Check for db.h and libdb
++#
++AC_CHECK_HEADER([db.h],,[AC_MSG_ERROR([Required header file db.h not found])])
++
++AC_CHECK_LIB(db, db_create,
++  [LIBS="$LIBS -ldb"
++   AC_RUN_IFELSE(
++     [AC_LANG_PROGRAM([#include "db.h"],
++        [int v_major, v_minor, v_patch;
++         db_version(&v_major, &v_minor, &v_patch);
++         return !(v_major == DB_VERSION_MAJOR
++                  && v_minor == DB_VERSION_MINOR
++                  && v_patch == DB_VERSION_PATCH);
++        ])],
++     [],
++     [AC_MSG_ERROR([header file db.h is not the same version as libdb])])])
++
++AC_CONFIG_COMMANDS([status],[
++delim="-------------------------------------------------------------------"
++echo ""
++echo $delim
++echo "Building for Varnish version $VARNISHVERSION"
++echo $delim
++],
++[VARNISHVERSION=$VARNISHVERSION])
++
++AC_CONFIG_FILES([
++	Makefile
++	src/Makefile
++	tests/Makefile
++])
++AC_OUTPUT
++
+diff --git a/lib/libvmod_tbf/git2chg.awk b/lib/libvmod_tbf/git2chg.awk
+new file mode 100644
+index 0000000..6dad87e
+--- /dev/null
++++ b/lib/libvmod_tbf/git2chg.awk
+@@ -0,0 +1,75 @@
++# This file is part of grecs
++# Copyright (C) 2007-2014 Sergey Poznyakoff
++#
++# Grecs is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Grecs is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with Grecs.  If not, see <http://www.gnu.org/licenses/>.
++
++BEGIN {
++  if (since)
++    split(since,since_a,"-")
++}
++
++function timeok(t,   a) {
++	if (!since)
++		return 1
++	split(t,a,"-")
++	if (a[1] < since_a[1])
++		return 0
++	if (a[1] > since_a[1])
++		return 1
++	if (a[2] < since_a[2])
++		return 0
++	if (a[2] > since_a[2])
++		return 1
++	return a[3] > since_a[3]
++}
++      
++/^[0-9]+ .* +<[^>]+>/ {
++	s = strftime("%F", $1)
++	if (!timeok(s))
++	  exit
++	sub(/^[0-9]+ +/,"")
++	if (s == datestr && author == $0)
++		next
++	datestr = s
++	author = $0
++	if (runlen) { runlen = 0; print "" }
++	printf("%s  %s\n", datestr, author)
++	next
++}
++/^Signed-off-by:/ { next }
++/^<unknown>$/ { next }
++NF==0 {
++	runlen++
++	next
++}
++{ if (runlen) { runlen = 0; print "" }
++  print "\t" $0 }
++
++END {
++	if (append) {
++		print ""
++		while ((getline < append) > 0) {
++			if (match($0, /^Local *Variables:/))
++				break
++			print
++		}
++	}
++	print "\f"
++	# Make sure Emacs won't recognize this line:
++	print "Local", "Variables:"
++	print "mode: change-log"
++	print "version-control: never"
++	print "buffer-read-only: t"
++	print "End:"
++}
+diff --git a/lib/libvmod_tbf/src/.gitignore b/lib/libvmod_tbf/src/.gitignore
+new file mode 100644
+index 0000000..ce7aef0
+--- /dev/null
++++ b/lib/libvmod_tbf/src/.gitignore
+@@ -0,0 +1,3 @@
++vcc_if.c
++vcc_if.h
++*.rst
+diff --git a/lib/libvmod_tbf/src/Makefile.am b/lib/libvmod_tbf/src/Makefile.am
+new file mode 100644
+index 0000000..214af8f
+--- /dev/null
++++ b/lib/libvmod_tbf/src/Makefile.am
+@@ -0,0 +1,65 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++AM_CPPFLAGS=\
++ -I$(VARNISHSRC)/include\
++ -I$(VARNISHSRC)/bin/varnishd\
++ -I$(VARNISHSRC)\
++ -DLOCALSTATEDIR=\"$(localstatedir)\"
++
++dist_man_MANS=vmod-tbf.3 vmod_tbf.3
++
++vmoddir = $(VMODDIR)
++vmod_LTLIBRARIES = libvmod_tbf.la
++
++libvmod_tbf_la_LDFLAGS=-module -export-dynamic -avoid-version
++libvmod_tbf_la_LIBADD=
++
++libvmod_tbf_la_SOURCES = \
++	tbf.c\
++        tbf.h\
++        getla.c\
++        sleep.c\
++        time.c
++nodist_libvmod_tbf_la_SOURCES = \
++	vcc_if.c vcc_if.h
++
++tbf.lo: vcc_if.h
++
++CLEANFILES = vcc_if.c vcc_if.h *.rst
++
++if VARNISH4
++  vmodtool = $(VARNISHSRC)/lib/libvcc/vmodtool.py
++  vmodtoolargs = --strict
++  vccfile = $(top_srcdir)/src/vmod_tbf.vcc
++else
++  vmodtool = $(VARNISHSRC)/lib/libvmod_std/vmod.py
++  vmodtoolargs =
++  vccfile = vmod_tbf.vcc3
++
++vmod_tbf.vcc3: $(top_srcdir)/src/vmod_tbf.vcc
++  CLEANFILES += vmod_tbf.vcc3
++endif
++
++.vcc.vcc3:
++	sed -n '/^\$$/{s///;s/\(Module  *[^ ][^ ]*\).*/\1/;p}' $< > $@
++vcc_if.c vcc_if.h: $(vmodtool) $(vccfile)
++	@PYTHON@ $(vmodtool) $(vmodtoolargs) $(vccfile)
++
++EXTRA_DIST = \
++	vmod_tbf.vcc
++
++
+diff --git a/lib/libvmod_tbf/src/getla.c b/lib/libvmod_tbf/src/getla.c
+new file mode 100644
+index 0000000..f80b213
+--- /dev/null
++++ b/lib/libvmod_tbf/src/getla.c
+@@ -0,0 +1,65 @@
++/* This file is part of vmod-tbf
++   Copyright (C) 2013-2014 Sergey Poznyakoff
++  
++   Vmod-tbf is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++  
++   Vmod-tbf is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++  
++   You should have received a copy of the GNU General Public License
++   along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++*/
++#define _BSD_SOURCE
++#include "tbf.h"
++#if defined(HAVE_SYSINFO) && defined(HAVE_SYS_SYSINFO_H)
++# include <sys/sysinfo.h>
++#endif
++
++static double
++sys_getla(int what)
++{
++#if defined(HAVE_GETLOADAVG)
++	double loadavg[3];
++	
++	if (getloadavg(loadavg, 3) != 3) {
++		syslog(LOG_DAEMON|LOG_CRIT, "tbf.getla cannot get values");
++		return 0.0;
++	}
++	return loadavg[what];
++#elif defined(HAVE_SYSINFO) && defined(HAVE_SYS_SYSINFO_H)
++	struct sysinfo info;
++
++	if (sysinfo(&info)) {
++		syslog(LOG_DAEMON|LOG_CRIT, "tbf.getla cannot get values");
++		return 0.0;
++	}
++	return info.loads[what] / 65536.0; 
++#else
++	syslog(LOG_DAEMON|LOG_CRIT, "tbf.getla is not implemented");
++	return 0.0;
++#endif	
++}
++
++VCL_REAL
++vmod_getla(MOD_CTX ctx, VCL_INT what)
++{
++	switch (what) {
++	case 1:
++		what = 0;
++		break;
++	case 5:
++		what = 1;
++		break;
++	case 15:
++		what = 2;
++		break;
++	default:
++		what = 0;
++	}
++	return sys_getla(what);
++}
+diff --git a/lib/libvmod_tbf/src/sleep.c b/lib/libvmod_tbf/src/sleep.c
+new file mode 100644
+index 0000000..167e6aa2
+--- /dev/null
++++ b/lib/libvmod_tbf/src/sleep.c
+@@ -0,0 +1,31 @@
++/* This file is part of vmod-tbf
++   Copyright (C) 2013-2014 Sergey Poznyakoff
++  
++   Vmod-tbf is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++  
++   Vmod-tbf is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++  
++   You should have received a copy of the GNU General Public License
++   along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++*/
++#include "tbf.h"
++#include <errno.h>
++#include <time.h>
++
++VCL_VOID
++vmod_sleep(MOD_CTX ctx, VCL_REAL t)
++{
++	struct timespec ts, ret;
++
++	ts.tv_sec = t;
++	ts.tv_nsec = (t - ts.tv_sec) * 1e9;
++
++	while (nanosleep(&ts, &ret) && errno == EINTR)
++		ts = ret;
++}
+diff --git a/lib/libvmod_tbf/src/tbf.c b/lib/libvmod_tbf/src/tbf.c
+new file mode 100644
+index 0000000..dadb9cc
+--- /dev/null
++++ b/lib/libvmod_tbf/src/tbf.c
+@@ -0,0 +1,597 @@
++/* This file is part of vmod-tbf
++   Copyright (C) 2013-2014 Sergey Poznyakoff
++  
++   Vmod-tbf is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++  
++   Vmod-tbf is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++  
++   You should have received a copy of the GNU General Public License
++   along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++*/
++#include "tbf.h"
++#include <db.h>
++
++static int debug_level;
++
++static void
++debugprt(const char *fmt, ...)
++{
++	va_list ap;
++	va_start(ap, fmt);
++	vsyslog(LOG_DAEMON|LOG_DEBUG, fmt, ap);
++	va_end(ap);
++}
++#define debug(n,c) do { if (debug_level>=(n)) debugprt c; } while (0)
++
++#ifndef USEC_PER_SEC
++# define USEC_PER_SEC  1000000L
++#endif
++
++#define DEFDBNAME "tbf.bdb"
++#define DEFOPENPARAMS "truncate"
++#define DBFILEMODE 0640
++
++static char *dbdir;
++static char *dbname;
++static DB_ENV *dbenv;
++static DB *db;
++static uint64_t autosync_max;
++static uint64_t autosync_count;
++static int tbf_disabled;
++
++static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
++
++
++/* The keylock structure serializes accesses to each db record, ensuring
++   that no other thread could modify the data between calls to get and
++   put */
++   
++struct keylock {
++	char *key;                   /* Key string */
++	unsigned refcnt;             /* Reference count */
++	pthread_mutex_t mutex;        
++	VTAILQ_ENTRY(keylock) list;
++};
++
++/* Keylock_head keeps a list of active (i.e. used by at least one thread)
++   keylocks.  Keylock_avail keeps a list of available threads, to avoid
++   unnecessary memory allocations/frees. */
++static VTAILQ_HEAD(, keylock) keylock_head, keylock_avail;
++
++/* Find and return a keylock corresponding to the given key.  If not found,
++   create it, either by getting an unused entry from keylock_avail or by
++   allocating a new one. */
++static struct keylock *
++keylock_find(const char *key)
++{
++	struct keylock *kp;
++	
++	VTAILQ_FOREACH(kp, &keylock_head, list) {
++		if (strcmp(kp->key, key) == 0) {
++			kp->refcnt++;
++			return kp;
++		}
++	}
++
++	if (VTAILQ_FIRST(&keylock_avail)) {
++		kp = VTAILQ_FIRST(&keylock_avail);
++		VTAILQ_REMOVE(&keylock_avail, kp, list);
++	} else {
++		kp = malloc(sizeof(*kp));
++		AN(kp);
++		pthread_mutex_init(&kp->mutex, NULL);
++	}
++	kp->key = strdup(key);
++	AN(kp->key);
++	kp->refcnt = 1;
++	VTAILQ_INSERT_TAIL(&keylock_head, kp, list);
++	return kp;
++}
++
++/* Thread-safe version of the above. */
++static struct keylock *
++keylock_find_safe(const char *key)
++{
++	struct keylock *kp;
++	pthread_mutex_lock(&mutex);
++	kp = keylock_find(key);
++	pthread_mutex_unlock(&mutex);
++	return kp;
++}
++
++/* Remove keylock from keylock_head and attach it to keylock_avail for
++   eventual future use. */
++static void
++keylock_remove_safe(struct keylock *kp)
++{
++	pthread_mutex_lock(&mutex);
++	free(kp->key);
++	kp->key = NULL;
++	VTAILQ_REMOVE(&keylock_head, kp, list);
++	VTAILQ_INSERT_TAIL(&keylock_avail, kp, list);
++	pthread_mutex_unlock(&mutex);
++}
++
++static void
++tbf_set_db_dir(const char *dir)
++{
++	if (dbdir)
++		free(dbdir);
++	dbdir = strdup(dir);
++	AN(dbdir);
++}
++
++struct param_kw {
++	char *pkw_str;
++	int pkw_len;
++	int pkw_tok;
++};
++
++enum {
++	PKW_TRUNCATE,
++	PKW_MODE,
++	PKW_SYNC,
++	PKW_DEBUG,
++	PKW_DBNAME
++};
++
++static struct param_kw param_kw_tab[] = {
++#define S(s) #s, sizeof(#s)-1
++	{ S(truncate), PKW_TRUNCATE },
++	{ S(trunc), PKW_TRUNCATE },
++	{ S(mode=), PKW_MODE },
++	{ S(sync=), PKW_SYNC },
++	{ S(debug=), PKW_DEBUG },
++	{ S(dbname=), PKW_DBNAME },
++	{ NULL }
++#undef S
++};
++
++static void
++tbf_open(const char *params)
++{
++	int rc;
++	int filemode = DBFILEMODE;
++	uint64_t n;
++	char *p;
++	struct stat st;
++	int truncate = 0;
++	
++	if (!dbdir) {
++		dbdir = strdup(LOCALSTATEDIR "/vmod-tbf");
++		AN(dbdir);
++	}
++	if (!dbname) {
++		dbname = strdup(DEFDBNAME);
++		AN(dbname);
++	}
++	
++	while (*params) {
++		struct param_kw *pkw;
++		
++		for (pkw = param_kw_tab; pkw->pkw_str; pkw++) {
++			if (strncmp(params, pkw->pkw_str, pkw->pkw_len) == 0)
++				break;
++		}
++
++		if (!pkw->pkw_str) {
++			syslog(LOG_DAEMON|LOG_ERR, "invalid keyword %s", params);
++			break;
++		}
++
++		params += pkw->pkw_len;
++		
++		switch (pkw->pkw_tok) {
++		case PKW_TRUNCATE:
++			truncate = 1;
++			break;
++
++		case PKW_MODE:
++			errno = 0;
++			n = strtoul(params, &p, 8);
++			if (errno || (n & ~0777) || !(*p == 0 || *p == ';')) {
++				syslog(LOG_DAEMON|LOG_ERR,
++				       "invalid file mode near %s", p);
++				params += strlen(params);
++			} else {
++				filemode = n;
++				params = p;
++			}
++			break;
++
++		case PKW_SYNC:
++			errno = 0;
++			n = strtoul(params, &p, 10);
++			if (errno || !(*p == 0 || *p == ';')) {
++				syslog(LOG_DAEMON|LOG_ERR,
++				       "invalid count near %s", p);
++				params += strlen(params);
++			} else {
++				autosync_max = n;
++				autosync_count = 0;
++				params = p;
++			}
++			break;
++
++		case  PKW_DEBUG:
++			errno = 0;
++			n = strtoul(params, &p, 10);
++			if (errno || !(*p == 0 || *p == ';')) {
++				syslog(LOG_DAEMON|LOG_ERR,
++				       "invalid debug level near %s", p);
++				params += strlen(params);
++			} else {
++				debug_level = n;
++				params = p;
++			}
++			break;
++
++		case PKW_DBNAME:
++			if (dbname)
++				free(dbname);
++			n = strcspn(params, ";");
++			dbname = malloc(n + 1);
++			AN(dbname);
++			memcpy(dbname, params, n);
++			dbname[n] = 0;
++			params += n;
++			break;
++		}
++
++		if (*params == 0)
++			break;
++		else if (*params == ';')
++			params++;
++		else {
++			syslog(LOG_DAEMON|LOG_ERR,
++			       "expected ';' near %s", params);
++			break;
++		}
++	}
++	
++	debug(1, ("opening database %s/%s", dbdir, dbname));
++
++	if (rc = db_env_create(&dbenv, 0)) {
++		syslog(LOG_DAEMON|LOG_ERR, "cannot create db environment: %s",
++		       db_strerror(rc));
++		return;
++	}
++
++	if (stat(dbdir, &st)) {
++		if (errno == ENOENT) {
++			if (mkdir(dbdir,
++				  filemode | 0100 |
++				  ((filemode & 0060) ? 0010 : 0) |
++				  ((filemode & 0006) ? 0001 : 0))) {
++				syslog(LOG_DAEMON|LOG_ERR,
++				       "cannot create db environment directory %s: %m",
++				       dbdir);
++			}
++		} else {
++			syslog(LOG_DAEMON|LOG_ERR,
++			       "cannot stat db environment directory %s: %m",
++			       dbdir);
++			return;
++		}
++	} else if (!S_ISDIR(st.st_mode)) {
++		syslog(LOG_DAEMON|LOG_ERR, "%s is not a directory",
++		       dbdir);
++		return;
++	}
++	
++	rc = dbenv->open(dbenv, dbdir,
++			 DB_THREAD | DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB,
++			 0);
++	if (rc) {
++		syslog(LOG_DAEMON|LOG_ERR, "cannot open db environment %s: %s",
++		       dbdir, db_strerror(rc));
++		tbf_disabled = 1;
++		return;
++	}
++	
++	rc = db_create(&db, dbenv, 0);
++	if (rc) {
++		syslog(LOG_DAEMON|LOG_ERR, "cannot create db struct");
++		return;
++	}
++
++	rc = db->open(db, NULL, dbname, NULL, DB_HASH,
++		      DB_THREAD | DB_CREATE, filemode);
++	if (rc) {
++		syslog(LOG_DAEMON|LOG_ERR, "cannot open database %s: %s",
++		       dbname, db_strerror (rc));
++		db->close(db, 0);
++		db = NULL;
++		dbenv->close(dbenv, 0);
++		dbenv = NULL;
++		tbf_disabled = 1;
++	}
++
++	if (truncate) {
++		rc = db->truncate(db, NULL, NULL, 0);
++		if (rc)
++			syslog(LOG_DAEMON|LOG_WARNING,
++			       "failed to truncate database %s: %s",
++			       dbname, db_strerror(rc));
++	}	
++}
++
++static DB *
++tbf_open_safe(const char *params)
++{
++	if (tbf_disabled)
++		return NULL;
++	pthread_mutex_lock(&mutex);
++	if (!db)
++		tbf_open(params ? params : DEFOPENPARAMS);
++	pthread_mutex_unlock(&mutex);
++	return db;
++}
++
++int
++tbf_init(struct vmod_priv *priv, const struct VCL_conf *vclconf)
++{
++	VTAILQ_INIT(&keylock_head);
++	VTAILQ_INIT(&keylock_avail);
++}
++
++void
++vmod_open(MOD_CTX ctx, const char *dir, const char *params)
++{
++	if (db) {
++		syslog(LOG_DAEMON|LOG_ERR, "tbf.open called twice");
++		return;
++	}
++	tbf_set_db_dir(dir);
++	tbf_open_safe(params);
++}
++
++void
++vmod_close(MOD_CTX ctx)
++{
++	pthread_mutex_lock(&mutex);
++	if (db) {
++		debug(1, ("closing database %s", dbname));
++		db->close(db, 0);
++		db = NULL;
++		dbenv->close(dbenv, 0);
++		dbenv = NULL;
++		tbf_disabled = 0;
++	}
++	pthread_mutex_unlock(&mutex);
++}
++
++void
++vmod_sync(MOD_CTX ctx)
++{
++	if (db) {
++		debug(1, ("synchronizing database"));
++		db->sync(db, 0);
++	}
++}
++
++/* Algorithm:
++   
++   * A token is added to the bucket at a constant rate of 1 token per INTERVAL
++     microseconds.
++
++   * A bucket can hold at most BURST_SIZE tokens.  If a token arrives when the
++     bucket is full, that token is discarded.
++
++   * When COST items of data arrive, COST tokens are removed
++     from the bucket and the data are accepted.
++
++   * If fewer than COST tokens are available, no tokens are removed from
++     the bucket and the data are not accepted.
++
++   This keeps the data traffic at a constant rate INTERVAL with bursts of
++   up to BURST_SIZE data items.  Such bursts occur when no data was being
++   arrived for BURST_SIZE*INTERVAL or more microseconds.
++*/
++
++struct tbf_bucket {
++	uint64_t timestamp;  /* microseconds since epoch */
++	size_t tokens;       /* tokens available */
++};
++
++int
++tbf_proc(MOD_CTX ctx, DB *db, const char *key, int cost,
++	 unsigned long interval, int burst_size)
++{
++	DBT keydat, content;
++	struct timeval tv;
++	uint64_t now;
++	uint64_t elapsed;
++	uint64_t tokens;
++	struct tbf_bucket *bkt, init_bkt;
++	int rc, res;
++
++	memset(&keydat, 0, sizeof keydat);
++	keydat.data = (void*) key;
++	keydat.size = strlen(key);
++
++	gettimeofday(&tv, NULL);
++	now = (uint64_t) tv.tv_sec * USEC_PER_SEC + (uint64_t)tv.tv_usec;
++
++	memset(&content, 0, sizeof content);
++	content.flags = DB_DBT_MALLOC;
++	rc = db->get(db, NULL, &keydat, &content, 0);
++	switch (rc) {
++	case 0:
++		bkt = (struct tbf_bucket *) content.data;
++		/* calculate elapsed time and number of new tokens since
++		   last add */;
++		elapsed = now - bkt->timestamp;
++		tokens = elapsed / interval; /* partial tokens ignored */
++		/* timestamp set to time of most recent token */
++		bkt->timestamp += tokens * interval; 
++		
++		/* add existing tokens to 64bit counter to prevent overflow
++		   in range check */
++		tokens += bkt->tokens;
++		if (tokens >= burst_size)
++			bkt->tokens = burst_size;
++		else
++			bkt->tokens = (size_t)tokens;
++		
++		debug(2, ("found, elapsed time: %"PRIu64" us, "
++			  "new tokens: %"PRIu64", total: %lu ",
++			  elapsed, tokens, (unsigned long) bkt->tokens));
++		break;
++
++	case DB_NOTFOUND:
++		/* Initialize the structure */
++		init_bkt.timestamp = now;
++		init_bkt.tokens = burst_size;
++		bkt = &init_bkt;
++		break;
++
++	default:
++		syslog(LOG_DAEMON|LOG_ERR, "cannot fetch data %s: %s",
++		       key, db_strerror(rc));
++		return false;
++	}
++
++	if (cost <= bkt->tokens) {
++		res = 1;
++		bkt->tokens -= cost;
++		debug(2, ("tbf_rate matched %s, tokens left %lu", key,
++			  (unsigned long)bkt->tokens));
++	} else {
++		res = 0;
++		debug(1, ("tbf_rate overlimit on %s", key));
++	}
++
++	/* Update the db */
++	content.data = (void*) bkt;
++	content.size = sizeof(*bkt);
++
++	rc = db->put(db, NULL, &keydat, &content, 0);
++	if (rc) {
++		syslog(LOG_DAEMON|LOG_ERR, "error updating key %s: %s",
++		       key, db_strerror(rc));
++	}
++
++	if (bkt != &init_bkt)
++		free(bkt);
++
++	if (autosync_max && ++autosync_count >= autosync_max) {
++		debug(1, ("synchronizing database"));
++		db->sync(db, 0);
++		autosync_count = 0;
++	}
++	
++	return res;
++}
++
++VCL_BOOL
++vmod_rate(MOD_CTX ctx, VCL_STRING key, VCL_INT cost, VCL_REAL t,
++	  VCL_INT burst_size)
++{
++	unsigned long interval = t * USEC_PER_SEC;
++	int rc;
++	
++	debug(2, ("entering rate(%s,%d,%g,%d)", key, cost, t, burst_size));
++		
++	if (interval == 0 || burst_size == 0)
++		return false;
++
++	if (!cost) {
++		/* cost free, so don't waste time on database access */
++		return true;
++	}
++	if (cost > burst_size) {
++		/* impossibly expensive, so don't waste time on
++		   database access */
++		return false;
++	}
++
++	db = tbf_open_safe(NULL);
++	if (db) {
++		struct keylock *kp;
++
++		kp = keylock_find_safe(key);
++		debug(2, ("found key %s, ref %u", key, kp->refcnt));
++		AZ(pthread_mutex_lock(&kp->mutex));
++		rc = tbf_proc(ctx, db, key, cost, interval, burst_size);
++		if (--kp->refcnt == 0)
++			keylock_remove_safe(kp);
++		AZ(pthread_mutex_unlock(&kp->mutex));
++	} else
++		rc = false;
++       
++	return rc;
++}
++
++#define ISWS(c) ((c)==' '||(c)=='\t')
++
++VCL_BOOL
++vmod_check(MOD_CTX ctx, VCL_STRING key, VCL_STRING spec)
++{
++	double t, v, n;
++	char *p;
++#define SKIPWS(init) for (init; *spec && ISWS(*spec); spec++)
++	int burst;
++	
++	errno = 0;
++	v = strtod(spec, &p);
++	if (errno || v < 0) {
++		syslog(LOG_DAEMON|LOG_ERR, "bad rate: %s", spec);
++		return false;
++	}
++	SKIPWS(spec = p);
++	if (strncmp(spec, "req", 3)) {
++		syslog(LOG_DAEMON|LOG_ERR,
++		       "bad rate: expected \"req\", but found \"%s\"", spec);
++		return false;
++	}
++	SKIPWS(spec += 3);
++	if (*spec != '/') {
++		syslog(LOG_DAEMON|LOG_ERR,
++		       "bad rate: expected \"/\", but found \"%c\"", *spec);
++		return false;
++	}
++	SKIPWS(++spec);
++	if (*spec >= '0' && *spec <= '9') {
++		errno = 0;
++		n = strtod(spec, &p);
++		if (errno || n < 0) {
++			syslog(LOG_DAEMON|LOG_ERR, "bad interval: %s", spec);
++			return false;
++		}
++		spec = p;
++	} else
++		n = 1;
++	SKIPWS();
++
++	switch (*spec) {
++	case 0:
++	case 's':
++		break;
++	case 'd':
++		n *= 24;
++	case 'h':
++		n *= 60;
++	case 'm':
++		n *= 60;
++		break;
++	default:
++		syslog(LOG_DAEMON|LOG_ERR, "invalid interval specifier: %s",
++		       spec);
++		return false;
++	}
++
++	SKIPWS(++spec);
++
++	if (*spec)
++		syslog(LOG_DAEMON|LOG_WARNING, "garbage after rate spec: %s",
++		       spec);
++
++	return vmod_rate(ctx, key, 1, n/v, v/n+1);
++}
+diff --git a/lib/libvmod_tbf/src/tbf.h b/lib/libvmod_tbf/src/tbf.h
+new file mode 100644
+index 0000000..69e1262
+--- /dev/null
++++ b/lib/libvmod_tbf/src/tbf.h
+@@ -0,0 +1,41 @@
++/* This file is part of vmod-tbf
++   Copyright (C) 2013-2014 Sergey Poznyakoff
++  
++   Vmod-tbf is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++  
++   Vmod-tbf is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++  
++   You should have received a copy of the GNU General Public License
++   along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++*/
++#include <config.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <stdbool.h>
++#include <syslog.h>
++#include <inttypes.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include "vrt.h"
++#include "vcc_if.h"
++#include "pthread.h"
++#if VARNISHVERSION == 3
++# include "bin/varnishd/cache.h"
++# define VCL_VOID void
++# define VCL_INT int
++# define VCL_REAL double
++# define VCL_BOOL unsigned
++# define VCL_STRING const char *
++# define MOD_CTX struct sess *
++# define WSPTR(s) ((s)->wrk->ws)
++#else
++# include "bin/varnishd/cache/cache.h"
++# define MOD_CTX const struct vrt_ctx *
++# define WSPTR(s) ((s)->ws)
++#endif
+diff --git a/lib/libvmod_tbf/src/time.c b/lib/libvmod_tbf/src/time.c
+new file mode 100644
+index 0000000..32427af
+--- /dev/null
++++ b/lib/libvmod_tbf/src/time.c
+@@ -0,0 +1,44 @@
++/* This file is part of vmod-tbf
++   Copyright (C) 2013-2014 Sergey Poznyakoff
++  
++   Vmod-tbf is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3, or (at your option)
++   any later version.
++  
++   Vmod-tbf is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++  
++   You should have received a copy of the GNU General Public License
++   along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++*/
++#include "tbf.h"
++#include <time.h>
++
++VCL_INT
++vmod_systime(MOD_CTX ctx)
++{
++	return time(NULL);
++}
++
++VCL_STRING
++vmod_strftime(MOD_CTX ctx, VCL_STRING format, VCL_INT timestamp)
++{
++	time_t ts = (time_t) timestamp;
++	size_t u, n;
++	char *p;
++	
++	u = WS_Reserve(WSPTR(ctx), 0);
++        p = WSPTR(ctx)->f;
++        n = strftime(p, u, format, gmtime(&ts));
++	if (n == 0) {
++		WS_Release(WSPTR(ctx), 0);
++		return NULL;
++	}
++
++	WS_Release(WSPTR(ctx), n + 1);
++
++	return p;
++}
+diff --git a/lib/libvmod_tbf/src/vmod-tbf.3 b/lib/libvmod_tbf/src/vmod-tbf.3
+new file mode 100644
+index 0000000..03d7daf
+--- /dev/null
++++ b/lib/libvmod_tbf/src/vmod-tbf.3
+@@ -0,0 +1,234 @@
++.\" This file is part of Vmod-tbf -*- nroff -*-
++.\" Copyright (C) 2013-2014 Sergey Poznyakoff
++.\"
++.\" Vmod-tbf is free software; you can redistribute it and/or modify
++.\" it under the terms of the GNU General Public License as published by
++.\" the Free Software Foundation; either version 3, or (at your option)
++.\" any later version.
++.\"
++.\" Vmod-tbf is distributed in the hope that it will be useful,
++.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
++.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++.\" GNU General Public License for more details.
++.\"
++.\" You should have received a copy of the GNU General Public License
++.\" along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++.TH VMOD-TBF 1 "November 13, 2014" "VMOD-TBF" "User Reference"
++.SH NAME
++vmod-tbf \- token bucket filtering for Varnish
++.SH SYNOPSIS
++.B import tbf;
++
++.BI "VOID tbf.open(STRING " dbdir ", STRING " params ");"
++
++.B VOID tbf.close();
++
++.BI "BOOL tbf.rate(STRING " key ", INT " COST ", DURATION " interval ", INT " burst_size ");"
++
++.BI "BOOL tbf.check(STRING " key ", STRING " rate ");"
++
++.BI "REAL tbf.getla(INT " sample ");"
++
++.BI "INT tbf.systime();"
++
++.BI "STRING tbf.strftime(STRING " format ", INT " timestamp ");"
++
++.BI "VOID tbf.sleep(DURATION " time ");"
++
++.SH DESCRIPTION
++The
++.B vmod-tbf
++module implements \fBtoken bucket filtering\fR for
++.BR "Varnish Cache" .
++It also implements several unrelated functions.
++.SS Rate control functions
++.PP
++In this implementation of the token bucket algorithm, each bucket is
++associated with a \fBkey\fR (a string value uniquely identifying this
++bucket).  The algorithm works as follows:
++.TP
++.B \(bu
++A token is added to the bucket at a constant rate of 1 token
++per \fIinterval\fR microseconds.
++.TP
++.B \(bu
++A bucket can hold at most
++\fIburst_size\fR tokens.  Any tokens arriving when the bucket is full
++are discarded.
++.TP
++.B \(bu
++When \fIcost\fR items of data arrive, \fIcost\fR tokens are removed
++from the bucket and the data are accepted.
++.TP
++.B \(bu
++If fewer than \fIcost\fR tokens are available, no tokens are removed from
++the bucket and the data are not accepted.
++.PP
++This keeps the data traffic at a constant rate or \fIcost\fR items
++per \fIinterval\fR microseconds with bursts of up to \fIburst_size\fR
++items.  Such bursts occur when no data was being arrived for
++\fIburst_size*interval\fR or more microseconds.
++.PP
++The function \fBtbf.rate\fR provides a low-level interface to this
++algorithm.  Its arguments correspond exactly to the values used in
++the above description.  The \fBkey\fR argument identifies the bucket.
++The function returns \fBTRUE\fR if the data are accepted and
++\fBFALSE\fR otherwise.  The sample usage is:
++.PP
++.EX
++sub vcl_recv {
++    if (!tbf.rate("ip:" + client.ip, 1, 0.1s, 20)) {
++        error(429, "Request rate exceeded");
++    }
++}
++.EE 
++.PP
++This example will keep the incoming requests at the rate of 10 requests
++per second, allowing for bursts of up to 20 requests after each 2
++second (or longer) period of inactivity.
++.PP
++For VCL 4.0, replace
++.EX
++        error(429, "Request rate exceeded");
++.EE
++with
++.EX
++        return(synth(429, "Request rate exceeded"));
++.EE
++.PP
++The \fBtbf.check\fR function provides a higher-level interface.  Its
++first argument identifies the bucket.  The \fIrate\fR argument is a
++textual rate specification in the form:
++.PP
++.BI "" N req/ K "" U
++.PP
++where \fIN\fR and \fIK\fR are floating-point numbers, and \fIU\fR is
++an optional unit specifier: \fBs\fR, \fBm\fR, \fBh\fR or \fBd\fR for
++seconds, minutes, hours or days, correspondingly.  The parts of the
++rate specification can be separated by any amount of whitespace.
++.PP
++For example, the following statement will limit the request rate to
++ten and a half requests per second:
++.PP
++.EX
++sub vcl_recv {
++    if (!tbf.check(client.ip, "10.5 req/1s")) {
++        error(429, "Request rate exceeded");
++    }
++}
++.EE
++.SS Storage
++.PP
++Buckets are kept in a Berkeley database file.  The \fBtbf.open\fR function
++controls its location and permissions.  The \fBdbdir\fR argument
++supplies the full pathname to the directory where the database is
++located.  The \fBparams\fR argument is a semicolon separated list of
++the following parameters:
++.TP
++.BI dbname= NAME
++Sets the name of the database file.  Default is \fBtbf.bdb\fR.
++.TP
++.BR truncate " or " trunc
++Truncate the database if it already exists.
++.TP
++.BI mode= OCT
++Set the file mode.  \fIOCT\fR is an octal number.  The default file
++mode is \fB640\fR.  Note that this parameter takes effect only when
++creating the file.  If the database file already exists by the time
++\fBtbf.open\fR is called, its mode will not be altered.
++.TP
++.BI sync= N
++Synchronize the database with the disk after each \fBN\fR writes.
++.TP
++.BI debug= N
++Set debugging level.
++.PP
++Normally, this function should be called only once, from the
++\fBvcl_init\fR subroutine:
++.PP
++.EX
++sub vcl_init {
++    tbf.open("/var/run/varnish/tbf.db", "mode=600");
++}
++.EE
++.PP
++Note that the directory where the database file is located must be
++writable for the user \fBVarnish\fR runs as.
++.PP
++Unless the \fBtbf.open\fR function was called, both \fBtbf.rate\fR and
++\fBtbf.check\fR will attempt to use the database located in
++\fIlocalstatedir\fB/vmod-tbf\fR, where \fIlocalstatedir\fR is the
++directory for modifiable single-machine data, which is set when
++configuring the package (e.g. \fB/var/run\fR or the like).
++.PP
++If the database directory does not exist, \fBtbf.open\fR will attempt
++to create it, deducing its mode from the database file mode (see the
++\fBmode=\fR parameter above) by setting executable 
++bit in each triplet that has read or write bit set (e.g. \fB640\fR
++will become \fB750\fR).
++.PP
++The \fBtbf.close\fR function flushes the data and closes the database.
++It is normally called from the \fBvcl_fini\fR subroutine:
++.PP
++.EX
++sub vcl_fini {
++    tbf.close();
++}
++.EE
++.SS Other functions
++.PP
++Several functions are provided that do not exactly belong to the
++TBF algorithm, but which may come useful when implementing rate
++control.
++.PP
++The \fBtbf.getla\fR function returns the system load average.  Its
++argument identifies the interval for which to compute it: 1, 5 or
++15 minutes.
++.PP
++The \fBtbf.systime\fR function returns the current time of day as the
++number of seconds since the Epoch (1970-01-01 00:00:00 UTC).
++.PP
++The \fBtbf.strftime\fR function formats the \fBtimestamp\fR according
++to the specification in \fBformat\fR.  See
++.BR strftime (3),
++for a description of available formats.  For example, the following
++statements assigns the current year to the \f(CWX\-Year\fR header:
++.PP
++.EX
++set req.http.X-Year = tbf.strftime("%Y", systime());
++.EE
++.PP
++The \fBtbf.sleep\fR function suspends execution for a specified amount
++of time.
++.\"
++.\" The MANCGI variable is set by man.cgi script on Ulysses.
++.\" The download.inc file contains the default DOWNLOAD section
++.\" for man-based doc pages.
++.if "\V[MANCGI]"WEBDOC" \{\
++.	ds package vmod-tbf
++.	ds version 1.0
++.	so download.inc
++\}
++.SH "SEE ALSO"
++.BR vcl (7),
++.BR varnishd (1).
++.SH AUTHORS
++Sergey Poznyakoff
++.SH "BUG REPORTS"
++Report bugs to <gray@gnu.org>.
++.SH COPYRIGHT
++Copyright \(co 2013-2014 Sergey Poznyakoff
++.br
++.na
++License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
++.br
++.ad
++This is free software: you are free to change and redistribute it.
++There is NO WARRANTY, to the extent permitted by law.
++.\" Local variables:
++.\" eval: (add-hook 'write-file-hooks 'time-stamp)
++.\" time-stamp-start: ".TH [A-Z_][A-Z0-9_.-]* [0-9] \""
++.\" time-stamp-format: "%:B %:d, %:y"
++.\" time-stamp-end: "\""
++.\" time-stamp-line-limit: 20
++.\" end:
+diff --git a/lib/libvmod_tbf/src/vmod_tbf.3 b/lib/libvmod_tbf/src/vmod_tbf.3
+new file mode 100644
+index 0000000..0358ebf
+--- /dev/null
++++ b/lib/libvmod_tbf/src/vmod_tbf.3
+@@ -0,0 +1 @@
++.so man3/vmod-tbf.3
+diff --git a/lib/libvmod_tbf/src/vmod_tbf.vcc b/lib/libvmod_tbf/src/vmod_tbf.vcc
+new file mode 100644
+index 0000000..bb03d44
+--- /dev/null
++++ b/lib/libvmod_tbf/src/vmod_tbf.vcc
+@@ -0,0 +1,36 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++$Module tbf 3 Token Bucket Filtering for Varnish
++
++COLOPHON
++========
++This document provides a short description of the **vmod-tbf** module.
++For a detailed documentation, please see vmod-tbf(3) manual page.
++
++DESCRIPTION
++===========
++
++$Init tbf_init
++$Function VOID open(STRING, STRING)
++$Function VOID close()
++$Function VOID sync()
++$Function BOOL rate(STRING, INT, DURATION, INT)
++$Function BOOL check(STRING, STRING)
++$Function REAL getla(INT)
++$Function INT systime()
++$Function STRING strftime(STRING, INT)
++$Function VOID sleep(DURATION)
+diff --git a/lib/libvmod_tbf/tests/.gitignore b/lib/libvmod_tbf/tests/.gitignore
+new file mode 100644
+index 0000000..6f6760a
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/.gitignore
+@@ -0,0 +1,2 @@
++test00.vtc
++test02.vtc
+diff --git a/lib/libvmod_tbf/tests/Makefile.am b/lib/libvmod_tbf/tests/Makefile.am
+new file mode 100644
+index 0000000..c252b02
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/Makefile.am
+@@ -0,0 +1,56 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++VMOD_VTC = \
++ test01.vtc\
++ test03.vtc\
++ time00.vtc
++
++VMOD_VTI = \
++ test00.vti\
++ test02.vti
++
++BUILT_TESTS = $(VMOD_VTI:.vti=.vtc)
++
++VMOD_TESTS = \
++ test00.vti\
++ test01.vtc\
++ test02.vti\
++ test03.vtc\
++ time00.vtc
++
++.vti.vtc:
++	sed 's/^#VARNISH$(VARNISHVERSION)#//' $< > $@
++
++EXTRA_DIST=$(VMOD_VTC) $(VMOD_VTI)
++CLEANFILES=$(BUILT_TESTS)
++
++distclean-local:
++	rm -fr tbf
++
++check: $(BUILT_TESTS)
++	for t in $(VMOD_TESTS); do \
++	    n=$${t%%.vti}; \
++	    if [ $$n != $$t ]; then \
++		t=$(abs_builddir)/$${n}.vtc;\
++	    else \
++		t=$(abs_srcdir)/$$t;\
++	    fi; \
++	    $(VARNISHSRC)/bin/varnishtest/varnishtest \
++                    -Dvarnishd=$(VARNISHSRC)/bin/varnishd/varnishd \
++	            -Dvmod_topsrc=$(abs_top_srcdir) \
++                    -Dvmod_topbuild=$(abs_top_builddir) $$t; \
++        done
+diff --git a/lib/libvmod_tbf/tests/test00.vti b/lib/libvmod_tbf/tests/test00.vti
+new file mode 100644
+index 0000000..53b9049
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/test00.vti
+@@ -0,0 +1,65 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++varnishtest "Test tbf overlimit"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_init {
++		tbf.open("${vmod_topbuild}/tests/tbf", "truncate");
++	}
++	sub vcl_fini {
++		tbf.close();
++	}
++	sub vcl_recv {
++		if (!tbf.rate("url:"+req.url, 1, 20 s, 5)) {
++#VARNISH3#		error 420 "Overlimit";
++#VARNISH4#		return (synth(420, "Overlimit"));
++		}
++#VARNISH3#	return (lookup);
++#VARNISH4#	return (hash);
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 420
++}
++
++client c1 -run
++
++
+diff --git a/lib/libvmod_tbf/tests/test01.vtc b/lib/libvmod_tbf/tests/test01.vtc
+new file mode 100644
+index 0000000..da11d2b
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/test01.vtc
+@@ -0,0 +1,75 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++varnishtest "Test tbf flow"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_init {
++		tbf.open("${vmod_topbuild}/tests/tbf", "trunc");
++	}
++	sub vcl_fini {
++		tbf.close();
++	}
++	sub vcl_deliver {
++		set resp.http.result = tbf.rate("url:"+req.url, 1, 1s, 5);
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == false
++
++	delay 1.0
++	
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == false
++}
++
++client c1 -run
++
++
+diff --git a/lib/libvmod_tbf/tests/test02.vti b/lib/libvmod_tbf/tests/test02.vti
+new file mode 100644
+index 0000000..ef58fb8
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/test02.vti
+@@ -0,0 +1,65 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++varnishtest "Test tbf overlimit"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_init {
++		tbf.open("${vmod_topbuild}/tests/tbf", "truncate");
++	}
++	sub vcl_fini {
++		tbf.close();
++	}
++	sub vcl_recv {
++		if (!tbf.check("url:"+req.url, "4 req/s")) {
++#VARNISH3#		error 420 "Overlimit";
++#VARNISH4#		return (synth(420, "Overlimit"));
++		}
++#VARNISH3#	return (lookup);
++#VARNISH4#	return (hash);
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 200
++	txreq -url "/"
++	rxresp
++	expect resp.status == 420
++}
++
++client c1 -run
++
++
+diff --git a/lib/libvmod_tbf/tests/test03.vtc b/lib/libvmod_tbf/tests/test03.vtc
+new file mode 100644
+index 0000000..6da4839
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/test03.vtc
+@@ -0,0 +1,87 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++varnishtest "Test tbf flow"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_init {
++		tbf.open("${vmod_topbuild}/tests/tbf", "trunc");
++	}
++	sub vcl_fini {
++		tbf.close();
++	}
++	sub vcl_deliver {
++		set resp.http.result = tbf.check("url:"+req.url, "4req/s");
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == false
++
++	delay 1.0
++	
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == true
++
++	txreq -url "/"
++	rxresp
++	expect resp.http.result == false
++}
++
++client c1 -run
++
++
+diff --git a/lib/libvmod_tbf/tests/time00.vtc b/lib/libvmod_tbf/tests/time00.vtc
+new file mode 100644
+index 0000000..0cd85b5
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/time00.vtc
+@@ -0,0 +1,39 @@
++# This file is part of vmod-tbf
++# Copyright (C) 2013-2014 Sergey Poznyakoff
++#
++# Vmod-tbf is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# Vmod-tbf is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++
++varnishtest "Test strftime"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_deliver {
++		set resp.http.result = tbf.strftime("%Y-%m-%d", 26697600);
++	}
++} -start
++
++client c1 {
++	txreq
++	rxresp
++	expect resp.http.result == 1970-11-06
++}
++
++client c1 -run
++
++
+diff --git a/lib/libvmod_tbf/tests/time01.vtc b/lib/libvmod_tbf/tests/time01.vtc
+new file mode 100644
+index 0000000..2325f4c
+--- /dev/null
++++ b/lib/libvmod_tbf/tests/time01.vtc
+@@ -0,0 +1,23 @@
++varnishtest "Test strftime"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import tbf from "${vmod_topbuild}/src/.libs/libvmod_tbf.so";
++	sub vcl_deliver {
++		set resp.http.result = tbf.strftime("%Y-%m-%d", tbf.systime());
++	}
++} -start
++
++client c1 {
++	txreq
++	rxresp
++	expect resp.http.result == 2013
++}
++
++client c1 -run
++
++

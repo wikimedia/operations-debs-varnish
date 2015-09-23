@@ -15,3 +15,5 @@
 0100-libvmod-header-src.patch
 0101-libvmod-header-ac.patch
 0102-libvmod-header-fixup.patch
+0103-libvmod-tbf-src.patch
+0104-libvmod-tbf-build.patch

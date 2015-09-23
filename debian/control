@@ -25,6 +25,7 @@ Build-Depends:
  xsltproc,
  libjansson-dev,
  liburcu-dev,
+ libdb-dev,
 Vcs-Browser: http://git.debian.org/?p=pkg-varnish/pkg-varnish.git;a=summary
 Vcs-Git: git://git.debian.org/pkg-varnish/pkg-varnish.git
 Homepage: http://varnish-cache.org/

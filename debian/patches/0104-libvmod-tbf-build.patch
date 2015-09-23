@@ -1,0 +1,88 @@
+commit 603a5c85109ed114df9e4fedf4e3c34670619fb9
+Author: Brandon Black <bblack@wikimedia.org>
+Date:   Wed Sep 23 17:39:02 2015 +0000
+
+    XXX TBF build fixups
+
+diff --git a/configure.ac b/configure.ac
+index e621544..929a8de 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -265,6 +266,13 @@ if test "$ac_cv_have_viz" = no; then
+ fi 
+ CFLAGS="${save_CFLAGS}" 
+ 
++# VARNISHVERSION conditional stuff for libvmod-tbf
++VARNISHVERSION=3
++AC_SUBST([VARNISHVERSION],$VARNISHVERSION)
++AC_DEFINE_UNQUOTED([VARNISHVERSION],$VARNISHVERSION,[Varnish major version number])
++AM_CONDITIONAL([VARNISH3],[test $VARNISHVERSION -eq 3])
++AM_CONDITIONAL([VARNISH4],[test $VARNISHVERSION -eq 4])
++
+ # Use jemalloc on Linux
+ JEMALLOC_SUBDIR=
+ JEMALLOC_LDADD=
+@@ -596,6 +603,9 @@ AC_CONFIG_FILES([
+     lib/libvmod_netmapper/src/Makefile
+     lib/libvmod_header/Makefile
+     lib/libvmod_header/src/Makefile
++    lib/libvmod_tbf/Makefile
++    lib/libvmod_tbf/src/Makefile
++    lib/libvmod_tbf/tests/Makefile
+     lib/libjemalloc/Makefile
+     man/Makefile
+     redhat/Makefile
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index da2b24c..6874113 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -9,6 +9,7 @@ SUBDIRS = \
+ 	libvmod_std \
+ 	libvmod_netmapper \
+ 	libvmod_header \
++	libvmod_tbf \
+ 	@JEMALLOC_SUBDIR@
+ 
+ DIST_SUBDIRS = 	\
+@@ -20,4 +21,5 @@ DIST_SUBDIRS = 	\
+ 	libvmod_std \
+ 	libvmod_netmapper \
+ 	libvmod_header \
++	libvmod_tbf \
+ 	libjemalloc
+diff --git a/lib/libvmod_tbf/src/Makefile.am b/lib/libvmod_tbf/src/Makefile.am
+index 214af8f..9cfee64 100644
+--- a/lib/libvmod_tbf/src/Makefile.am
++++ b/lib/libvmod_tbf/src/Makefile.am
+@@ -13,6 +13,7 @@
+ #
+ # You should have received a copy of the GNU General Public License
+ # along with vmod-tbf.  If not, see <http://www.gnu.org/licenses/>.
++VARNISHSRC ?= $(top_srcdir)
+ 
+ AM_CPPFLAGS=\
+  -I$(VARNISHSRC)/include\
+@@ -22,11 +23,11 @@ AM_CPPFLAGS=\
+ 
+ dist_man_MANS=vmod-tbf.3 vmod_tbf.3
+ 
+-vmoddir = $(VMODDIR)
++vmoddir = $(libdir)/varnish/vmods
+ vmod_LTLIBRARIES = libvmod_tbf.la
+ 
+-libvmod_tbf_la_LDFLAGS=-module -export-dynamic -avoid-version
+-libvmod_tbf_la_LIBADD=
++libvmod_tbf_la_LDFLAGS=-module -export-dynamic -avoid-version -shared
++libvmod_tbf_la_LIBADD=-ldb
+ 
+ libvmod_tbf_la_SOURCES = \
+ 	tbf.c\
+@@ -50,7 +51,7 @@ else
+   vmodtoolargs =
+   vccfile = vmod_tbf.vcc3
+ 
+-vmod_tbf.vcc3: $(top_srcdir)/src/vmod_tbf.vcc
++vmod_tbf.vcc3: $(srcdir)/vmod_tbf.vcc
+   CLEANFILES += vmod_tbf.vcc3
+ endif
+ 
