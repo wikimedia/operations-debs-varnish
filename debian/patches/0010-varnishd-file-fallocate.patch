@@ -2,7 +2,15 @@ diff --git a/bin/varnishd/storage_file.c b/bin/varnishd/storage_file.c
 index 21de929..3ef19e6 100644
 --- a/bin/varnishd/storage_file.c
 +++ b/bin/varnishd/storage_file.c
-@@ -110,7 +110,21 @@ smf_initfile(struct smf_sc *sc, const char *size)
+@@ -42,6 +42,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <fcntl.h>
+
+ #include "cache.h"
+ #include "stevedore.h"
+@@ -110,7 +111,21 @@ smf_initfile(struct smf_sc *sc, const char *size)
  
  	AZ(ftruncate(sc->fd, (off_t)sc->filesize));
  
