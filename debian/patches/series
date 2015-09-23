@@ -17,3 +17,5 @@
 0102-libvmod-header-fixup.patch
 0103-libvmod-tbf-src.patch
 0104-libvmod-tbf-build.patch
+0105-libvmod-ipcast-src.patch
+0106-libvmod-ipcast-build.patch

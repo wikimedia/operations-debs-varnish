@@ -1,0 +1,76 @@
+commit 4e0c553b49a42400596ad46c72c05d93238ab97b
+Author: Brandon Black <bblack@wikimedia.org>
+Date:   Wed Sep 23 23:34:31 2015 +0000
+
+    XXX ipcast build stuff
+
+diff --git a/configure.ac b/configure.ac
+index f07c784..18625ea 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -603,6 +603,8 @@ AC_CONFIG_FILES([
+     lib/libvmod_netmapper/src/Makefile
+     lib/libvmod_header/Makefile
+     lib/libvmod_header/src/Makefile
++    lib/libvmod_ipcast/Makefile
++    lib/libvmod_ipcast/src/Makefile
+     lib/libvmod_tbf/Makefile
+     lib/libvmod_tbf/src/Makefile
+     lib/libvmod_tbf/tests/Makefile
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 6874113..296cbbd 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -9,6 +9,7 @@ SUBDIRS = \
+ 	libvmod_std \
+ 	libvmod_netmapper \
+ 	libvmod_header \
++	libvmod_ipcast \
+ 	libvmod_tbf \
+ 	@JEMALLOC_SUBDIR@
+ 
+@@ -21,5 +22,6 @@ DIST_SUBDIRS = 	\
+ 	libvmod_std \
+ 	libvmod_netmapper \
+ 	libvmod_header \
++	libvmod_ipcast \
+ 	libvmod_tbf \
+ 	libjemalloc
+diff --git a/lib/libvmod_ipcast/Makefile.am b/lib/libvmod_ipcast/Makefile.am
+index 1c728f2..3e37015 100644
+--- a/lib/libvmod_ipcast/Makefile.am
++++ b/lib/libvmod_ipcast/Makefile.am
+@@ -4,7 +4,7 @@ SUBDIRS = src
+ 
+ EXTRA_DIST = README.rst LICENSE vmod-ipcast.spec debian
+ 
+-doc_DATA = README.rst LICENSE
++# doc_DATA = README.rst LICENSE
+ 
+ dist_man_MANS = vmod_ipcast.3
+ MAINTAINERCLEANFILES = $(dist_man_MANS)
+diff --git a/lib/libvmod_ipcast/src/Makefile.am b/lib/libvmod_ipcast/src/Makefile.am
+index 5411c60..35782fc 100644
+--- a/lib/libvmod_ipcast/src/Makefile.am
++++ b/lib/libvmod_ipcast/src/Makefile.am
+@@ -1,6 +1,8 @@
++VARNISHSRC ?= $(top_srcdir)
++
+ INCLUDES = -I$(VARNISHSRC)/include -I$(VARNISHSRC)
+ 
+-vmoddir = $(VMODDIR)
++vmoddir = $(libdir)/varnish/vmods
+ vmod_LTLIBRARIES = libvmod_ipcast.la
+ 
+ libvmod_ipcast_la_LDFLAGS = -module -export-dynamic -avoid-version -shared
+@@ -10,8 +12,8 @@ libvmod_ipcast_la_SOURCES = \
+ 	vcc_if.h \
+ 	vmod_ipcast.c
+ 
+-vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_ipcast.vcc
+-	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_ipcast.vcc
++vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_ipcast.vcc
++	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(srcdir)/vmod_ipcast.vcc
+ 
+ VMOD_TESTS = tests/*.vtc
+ .PHONY: $(VMOD_TESTS)

@@ -1,0 +1,886 @@
+commit 6b2d84a425191d2d4afef13a31e169afe59e8df8
+Author: Brandon Black <bblack@wikimedia.org>
+Date:   Wed Sep 23 23:28:25 2015 +0000
+
+    XXX add libvmod_ipcast raw source
+
+diff --git a/lib/libvmod_ipcast/.gitignore b/lib/libvmod_ipcast/.gitignore
+new file mode 100644
+index 0000000..ef77f6f
+--- /dev/null
++++ b/lib/libvmod_ipcast/.gitignore
+@@ -0,0 +1,30 @@
++Makefile
++Makefile.in
++.deps/
++.libs/
++*.o
++*.lo
++*.la
++*~
++*.[1-9]
++
++/aclocal.m4
++/autom4te.cache/
++/compile
++/config.guess
++/config.h
++/config.h.in
++/config.log
++/config.status
++/config.sub
++/configure
++/depcomp
++/install-sh
++/libtool
++/ltmain.sh
++/missing
++/stamp-h1
++/m4/
++
++/src/vcc_if.c
++/src/vcc_if.h
+diff --git a/lib/libvmod_ipcast/COPYING b/lib/libvmod_ipcast/COPYING
+new file mode 100644
+index 0000000..f792696
+--- /dev/null
++++ b/lib/libvmod_ipcast/COPYING
+@@ -0,0 +1,7 @@
++Copyright (c) 2011 Varnish Software AS
++...
++See LICENSE for details.
++
++You're free to use and distribute this under terms in the
++LICENSE. Please add your relevant copyright statements.
++
+diff --git a/lib/libvmod_ipcast/LICENSE b/lib/libvmod_ipcast/LICENSE
+new file mode 100644
+index 0000000..264d421
+--- /dev/null
++++ b/lib/libvmod_ipcast/LICENSE
+@@ -0,0 +1,20 @@
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice, this list of conditions and the following disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGE.
+diff --git a/lib/libvmod_ipcast/Makefile.am b/lib/libvmod_ipcast/Makefile.am
+new file mode 100644
+index 0000000..1c728f2
+--- /dev/null
++++ b/lib/libvmod_ipcast/Makefile.am
+@@ -0,0 +1,23 @@
++ACLOCAL_AMFLAGS = -I m4
++
++SUBDIRS = src
++
++EXTRA_DIST = README.rst LICENSE vmod-ipcast.spec debian
++
++doc_DATA = README.rst LICENSE
++
++dist_man_MANS = vmod_ipcast.3
++MAINTAINERCLEANFILES = $(dist_man_MANS)
++
++vmod_ipcast.3: README.rst
++
++%.1 %.2 %.3 %.4 %.5 %.6 %.7 %.8 %.9:
++if HAVE_RST2MAN
++	${RST2MAN} $< $@
++else
++	@echo "========================================"
++	@echo "You need rst2man installed to make dist"
++	@echo "========================================"
++	@false
++endif
++
+diff --git a/lib/libvmod_ipcast/README.rst b/lib/libvmod_ipcast/README.rst
+new file mode 100644
+index 0000000..f2484dd
+--- /dev/null
++++ b/lib/libvmod_ipcast/README.rst
+@@ -0,0 +1,120 @@
++============
++vmod_ipcast
++============
++
++----------------------
++Varnish ipcast Module
++----------------------
++
++:Author: Lasse Karstensen
++:Date: 2014-08-29
++:Version: 1.2
++:Manual section: 3
++
++SYNOPSIS
++========
++
++import ipcast;
++
++DESCRIPTION
++===========
++
++This is a Varnish 3.0 VMOD for converting a string into an IP type
++in VCL.
++
++Note that previously this VMOD overwrote the ``client.ip`` internal
++variable. This was an inherently flawed method and has since been abandoned.
++
++For Varnish 4.0 use the built-in ``std.ip()`` function.
++
++This VMOD is tested on Varnish 3.0.5.
++
++FUNCTIONS
++=========
++
++ip
++--
++
++Prototype
++        ::
++
++                ip(STRING S, STRING fallback)
++Return value
++	IP
++
++Description
++	Parse the IPv4/IPv6 address in S and return that. If not successful, parse
++	the string in fallback and return that.
++
++	When parsing fails the getaddrinfo() error output will be logged to
++	varnishlog.
++
++	Caveat: If the fallback address is unparseable Varnish will crash.
++
++
++        ::
++
++                set req.http.xff = regsub(req.http.X-Forwarded-For, "^(^[^,]+),?.*$", "\1");
++                if (ipcast.ip(req.http.xff, "198.51.100.255") == "198.51.100.255") { error 400 "Bad request"; }
++
++                set resp.http.x-parsed-ip = ipcast.ip("2001:db8::1", "198.51.100.255");
++
++
++
++INSTALLATION
++============
++
++The source tree is based on autotools to configure the building, and
++does also have the necessary bits in place to do functional unit tests
++using the varnishtest tool.
++
++Usage::
++
++ # only if you are building from a git clone.
++ ./autogen.sh
++ ./configure VARNISHSRC=DIR [VMODDIR=DIR]
++
++`VARNISHSRC` is the directory of the Varnish source tree for which to
++compile your vmod. Both the `VARNISHSRC` and `VARNISHSRC/include`
++will be added to the include search paths for your module.
++
++Optionally you can also set the vmod install directory by adding
++`VMODDIR=DIR` (defaults to the pkg-config discovered directory from your
++Varnish installation).
++
++Make targets:
++
++* make - builds the vmod
++* make install - installs your vmod in `VMODDIR`
++* make check - runs the unit tests in ``src/tests/*.vtc``
++
++In your VCL you could then use this vmod along the following lines::
++
++        import ipcast;
++        acl friendly_network {
++            "192.0.2.0"/24;
++        }
++        sub vcl_recv {
++            set req.http.xff = regsub(req.http.X-Forwarded-For, "^(^[^,]+),?.*$", "\1");
++            if (ipcast.ip(req.http.xff, "198.51.100.255") == "198.51.100.255") {
++                error 400 "Bad request";
++            }
++
++            if (ipcast.ip(req.http.xff, "198.51.100.255") !~ friendly_network) {
++                    error 403 "Forbidden";
++            }
++        }
++
++HISTORY
++=======
++
++This manual page is released as part of the libvmod-ipcast package. It
++is based on the example document in the libvmod-example package.
++
++COPYRIGHT
++=========
++
++This document is licensed under the same license as the
++libvmod-ipcast project. See LICENSE for details.
++
++* Copyright (c) 2011-2014 Varnish Software
+diff --git a/lib/libvmod_ipcast/autogen.sh b/lib/libvmod_ipcast/autogen.sh
+new file mode 100755
+index 0000000..9a12ef5
+--- /dev/null
++++ b/lib/libvmod_ipcast/autogen.sh
+@@ -0,0 +1,44 @@
++#!/bin/sh
++
++warn() {
++	echo "WARNING: $@" 1>&2
++}
++
++case `uname -s` in
++Darwin)
++	LIBTOOLIZE=glibtoolize
++	;;
++FreeBSD)
++	LIBTOOLIZE=libtoolize
++	;;
++Linux)
++	LIBTOOLIZE=libtoolize
++	;;
++SunOS)
++	LIBTOOLIZE=libtoolize
++	;;
++*)
++	warn "unrecognized platform:" `uname -s`
++	LIBTOOLIZE=libtoolize
++esac
++
++automake_version=`automake --version | tr ' ' '\n' | egrep '^[0-9]\.[0-9a-z.-]+'`
++if [ -z "$automake_version" ] ; then
++	warn "unable to determine automake version"
++else
++	case $automake_version in
++		0.*|1.[0-8]|1.[0-8][.-]*)
++			warn "automake ($automake_version) detected; 1.9 or newer recommended"
++			;;
++		*)
++			;;
++	esac
++fi
++
++set -ex
++
++aclocal -I m4
++$LIBTOOLIZE --copy --force
++autoheader
++automake --add-missing --copy --foreign
++autoconf
+diff --git a/lib/libvmod_ipcast/configure.ac b/lib/libvmod_ipcast/configure.ac
+new file mode 100644
+index 0000000..4a1e83f
+--- /dev/null
++++ b/lib/libvmod_ipcast/configure.ac
+@@ -0,0 +1,72 @@
++AC_PREREQ(2.59)
++AC_COPYRIGHT([Copyright (c) 2011 Varnish Software AS])
++AC_INIT([libvmod-ipcast], [1.2])
++AC_CONFIG_MACRO_DIR([m4])
++AC_CONFIG_SRCDIR(src/vmod_ipcast.vcc)
++AM_CONFIG_HEADER(config.h)
++
++AC_CANONICAL_SYSTEM
++AC_LANG(C)
++
++AM_INIT_AUTOMAKE([foreign])
++
++AC_GNU_SOURCE
++AC_PROG_CC
++AC_PROG_CC_STDC
++if test "x$ac_cv_prog_cc_c99" = xno; then
++	AC_MSG_ERROR([Could not find a C99 compatible compiler])
++fi
++AC_PROG_CPP
++
++AC_PROG_INSTALL
++AC_PROG_LIBTOOL
++AC_PROG_MAKE_SET
++
++# Check for rst utilities
++AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], "no")
++if test "x$RST2MAN" = "xno"; then
++	AC_MSG_WARN([rst2man not found - not building man pages])
++fi
++AM_CONDITIONAL(HAVE_RST2MAN, [test "x$RST2MAN" != "xno"])
++
++# Check for pkg-config
++PKG_PROG_PKG_CONFIG
++
++# Checks for header files.
++AC_HEADER_STDC
++AC_CHECK_HEADERS([sys/stdlib.h])
++
++# Check for python
++AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], [AC_MSG_ERROR([Python is needed to build this vmod, please install python.])])
++
++# Varnish source tree
++AC_ARG_VAR([VARNISHSRC], [path to Varnish source tree (mandatory)])
++if test "x$VARNISHSRC" = x; then
++	AC_MSG_ERROR([No Varnish source tree specified])
++fi
++VARNISHSRC=`cd $VARNISHSRC && pwd`
++AC_CHECK_FILE([$VARNISHSRC/include/varnishapi.h],
++	[],
++	[AC_MSG_FAILURE(["$VARNISHSRC" is not a Varnish source directory])]
++)
++
++# Check that varnishtest is built in the varnish source directory
++AC_CHECK_FILE([$VARNISHSRC/bin/varnishtest/varnishtest],
++	[],
++	[AC_MSG_FAILURE([Can't find "$VARNISHSRC/bin/varnishtest/varnishtest". Please build your varnish source directory])]
++)
++
++# vmod installation dir
++AC_ARG_VAR([VMODDIR], [vmod installation directory @<:@LIBDIR/varnish/vmods@:>@])
++if test "x$VMODDIR" = x; then
++	VMODDIR=`pkg-config --variable=vmoddir varnishapi`
++	if test "x$VMODDIR" = x; then
++		AC_MSG_FAILURE([Can't determine vmod installation directory])
++	fi
++fi
++
++AC_CONFIG_FILES([
++	Makefile
++	src/Makefile
++])
++AC_OUTPUT
+diff --git a/lib/libvmod_ipcast/debian/changelog b/lib/libvmod_ipcast/debian/changelog
+new file mode 100644
+index 0000000..3682af4
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/changelog
+@@ -0,0 +1,17 @@
++libvmod-ipcast (1.2) unstable; urgency=medium
++
++  * Prepare 1.2 due to packaging. No code changes.
++
++ -- Lasse Karstensen <lkarsten@varnish-software.com>  Mon, 15 Sep 2014 16:48:35 +0200
++
++libvmod-ipcast (1.1) unstable; urgency=medium
++
++  * Bump version number.
++
++ -- Lasse Karstensen <lkarsten@varnish-software.com>  Fri, 04 Apr 2014 13:26:17 +0200
++
++libvmod-ipcast (0.1) unstable; urgency=low
++
++  * First version
++
++ -- Lasse Karstensen <lasse@varnish-software.com>  Wed, 19 Sep 2012 15:03:00 +0200
+diff --git a/lib/libvmod_ipcast/debian/compat b/lib/libvmod_ipcast/debian/compat
+new file mode 100644
+index 0000000..7f8f011
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/compat
+@@ -0,0 +1 @@
++7
+diff --git a/lib/libvmod_ipcast/debian/control b/lib/libvmod_ipcast/debian/control
+new file mode 100644
+index 0000000..e5a2c06
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/control
+@@ -0,0 +1,12 @@
++Source: libvmod-ipcast
++Section: web
++Priority: extra
++Maintainer: Lasse Karstensen <lkarsten@varnish-software.com>
++Build-Depends: debhelper (>= 7), build-essential, python-docutils
++Standards-Version: 3.8.1
++Vcs-Git: git://github.com/lkarsten/libvmod-ipcast.git
++
++Package: libvmod-ipcast
++Architecture: all
++Depends: varnish, ${Varnish:ABI}, ${misc:Depends}
++Description: Vmod for Varnish
+diff --git a/lib/libvmod_ipcast/debian/copyright b/lib/libvmod_ipcast/debian/copyright
+new file mode 100644
+index 0000000..265b447
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/copyright
+@@ -0,0 +1,29 @@
++Copyright:
++
++    Copyright 2009-2011 Varnish Software AS
++
++License:
++
++Copyright (c) 2010-2011 Varnish Software AS
++All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions
++are met:
++1. Redistributions of source code must retain the above copyright
++   notice, this list of conditions and the following disclaimer.
++2. Redistributions in binary form must reproduce the above copyright
++   notice, this list of conditions and the following disclaimer in the
++   documentation and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
++FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++SUCH DAMAGE.
+diff --git a/lib/libvmod_ipcast/debian/dirs b/lib/libvmod_ipcast/debian/dirs
+new file mode 100644
+index 0000000..17e6fe7
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/dirs
+@@ -0,0 +1 @@
++usr/share/doc/libvmod-example
+diff --git a/lib/libvmod_ipcast/debian/docs b/lib/libvmod_ipcast/debian/docs
+new file mode 100644
+index 0000000..e4f6e81
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/docs
+@@ -0,0 +1,3 @@
++README.rst
++LICENSE
++COPYING
+diff --git a/lib/libvmod_ipcast/debian/rules b/lib/libvmod_ipcast/debian/rules
+new file mode 100755
+index 0000000..1f75863
+--- /dev/null
++++ b/lib/libvmod_ipcast/debian/rules
+@@ -0,0 +1,21 @@
++#!/usr/bin/make -f
++export DH_VERBOSE=1
++
++VARNISHSRC = $(DEBIAN_VARNISH_SRC)
++VMODDIR = $(shell PKG_CONFIG_PATH="$(VARNISHSRC)" pkg-config --variable=vmoddir varnishapi)
++VMOD_ABI = $(shell printf '\#include "vmod_abi.h"\nVMOD_ABI_Version' | cpp - -I$(DEBIAN_VARNISH_SRC)/include | sed '/^\#/D;s/"//g;s/\([A-Z]\)/\L\1/g;s/[^a-z0-9.]/-/g;s/varnish/varnishabi/')
++
++override_dh_auto_configure:
++	dh_auto_configure -- VMODDIR="$(VMODDIR)" VARNISHSRC="$(VARNISHSRC)"
++
++override_dh_gencontrol:
++	echo "Varnish:ABI=$(VMOD_ABI)" >> debian/substvars
++
++	if [ -n "$$DEBIAN_OVERRIDE_BINARY_VERSION" ]; then \
++		dh_gencontrol -- -Tdebian/substvars -v$$DEBIAN_OVERRIDE_BINARY_VERSION; \
++	else \
++		dh_gencontrol -- -Tdebian/substvars; \
++	fi
++
++%:
++	dh $@
+diff --git a/lib/libvmod_ipcast/src/Makefile.am b/lib/libvmod_ipcast/src/Makefile.am
+new file mode 100644
+index 0000000..5411c60
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/Makefile.am
+@@ -0,0 +1,28 @@
++INCLUDES = -I$(VARNISHSRC)/include -I$(VARNISHSRC)
++
++vmoddir = $(VMODDIR)
++vmod_LTLIBRARIES = libvmod_ipcast.la
++
++libvmod_ipcast_la_LDFLAGS = -module -export-dynamic -avoid-version -shared
++
++libvmod_ipcast_la_SOURCES = \
++	vcc_if.c \
++	vcc_if.h \
++	vmod_ipcast.c
++
++vcc_if.c vcc_if.h: $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_ipcast.vcc
++	@PYTHON@ $(VARNISHSRC)/lib/libvmod_std/vmod.py $(top_srcdir)/src/vmod_ipcast.vcc
++
++VMOD_TESTS = tests/*.vtc
++.PHONY: $(VMOD_TESTS)
++
++tests/*.vtc:
++	$(VARNISHSRC)/bin/varnishtest/varnishtest -Dvarnishd=$(VARNISHSRC)/bin/varnishd/varnishd -Dvmod_topbuild=$(abs_top_builddir) $@
++
++check: $(VMOD_TESTS)
++
++EXTRA_DIST = \
++	vmod_ipcast.vcc \
++	$(VMOD_TESTS)
++
++CLEANFILES = $(builddir)/vcc_if.c $(builddir)/vcc_if.h
+diff --git a/lib/libvmod_ipcast/src/tests/10-clientip-basic.vtc b/lib/libvmod_ipcast/src/tests/10-clientip-basic.vtc
+new file mode 100644
+index 0000000..6e49325
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/tests/10-clientip-basic.vtc
+@@ -0,0 +1,44 @@
++varnishtest "Test ipcast vmod"
++
++server s1 {
++       rxreq
++       txresp
++
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import ipcast from "${vmod_topbuild}/src/.libs/libvmod_ipcast.so";
++	acl foo {
++		"192.0.2.1";
++		"2001:db8::2";
++	}
++	sub vcl_deliver {
++		set resp.http.xff = regsub(req.http.X-Forwarded-For, "^(^[^,]+),?.*$", "\1");
++		set resp.http.x-parsed-ip = ipcast.ip(resp.http.xff, "198.51.100.255");
++
++		if (ipcast.ip(resp.http.xff, "198.51.100.254") ~ foo) {
++			set resp.http.x-aclmatch = "true";
++		}
++	}
++} -start
++
++client c1 {
++	txreq -url "/" -hdr "X-Forwarded-For: 192.0.2.1"
++	rxresp
++	expect resp.http.x-parsed-ip == "192.0.2.1"
++	expect resp.http.x-aclmatch == "true"
++
++	txreq -url "/" -hdr "X-Forwarded-For: 2001:db8::2"
++	rxresp
++	expect resp.http.x-parsed-ip == "2001:db8::2"
++	expect resp.http.x-aclmatch == "true"
++
++	txreq -url "/" -hdr "X-Forwarded-For: 192.0.2.1"
++	rxresp
++	expect resp.http.x-parsed-ip == "192.0.2.1"
++	expect resp.http.x-aclmatch == "true"
++}
++
++client c1 -run
+diff --git a/lib/libvmod_ipcast/src/tests/15-v6xff-on-v4socket.vtc b/lib/libvmod_ipcast/src/tests/15-v6xff-on-v4socket.vtc
+new file mode 100644
+index 0000000..11f6b53
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/tests/15-v6xff-on-v4socket.vtc
+@@ -0,0 +1,39 @@
++varnishtest "ipcast and connection keepalive"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import ipcast from "${vmod_topbuild}/src/.libs/libvmod_ipcast.so";
++
++	sub vcl_recv {
++		set req.http.x-orig = "orig-" + client.ip;
++		set req.http.xff = regsub(req.http.X-Forwarded-For, "^(^[^,]+),?.*$", "\1");
++		if (ipcast.ip(req.http.xff, "198.51.100.255") == "198.51.100.255") { error 400 "Bad request"; }
++	}
++	sub vcl_deliver {
++		set resp.http.x-orig = req.http.x-orig;
++		set resp.http.x-ip = ipcast.ip(req.http.xff, "198.51.100.255");
++	}
++} -start
++
++client c1 {
++	txreq -url "/" -hdr "X-Forwarded-For: 127.0.0.2"
++	rxresp
++	expect resp.http.x-orig == "orig-127.0.0.1"
++	expect resp.http.x-ip == "127.0.0.2"
++
++	txreq -url "/" -hdr "X-Forwarded-For: 2001:db8::2"
++	rxresp
++	expect resp.http.x-orig == "orig-127.0.0.1"
++	expect resp.http.x-ip == "2001:db8::2"
++
++	txreq -url "/" -hdr "X-Forwarded-For: 127.0.0.2, 2001:db8::2, 127.0.0.10"
++	rxresp
++	expect resp.http.x-orig == "orig-127.0.0.1"
++	expect resp.http.x-ip == "127.0.0.2"
++}
++
++client c1 -run
+diff --git a/lib/libvmod_ipcast/src/tests/20-clientip-realworld.vtc b/lib/libvmod_ipcast/src/tests/20-clientip-realworld.vtc
+new file mode 100644
+index 0000000..0306ae0
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/tests/20-clientip-realworld.vtc
+@@ -0,0 +1,33 @@
++varnishtest "Test ipcast vmod"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import ipcast from "${vmod_topbuild}/src/.libs/libvmod_ipcast.so";
++	sub vcl_recv {
++                set req.http.x-client = regsub(req.http.X-Forwarded-For, "^(^[^,]+),?.*$", "\1");
++                if (ipcast.ip(req.http.x-client, "198.51.100.255") == "198.51.100.255") { error 400 "Bad request"; }
++	}
++	sub vcl_deliver {
++		set resp.http.x-ip = ipcast.ip(req.http.x-client, "198.51.100.255");
++	}
++} -start
++
++client c1 {
++	txreq -url "/" -hdr "X-Forwarded-For: 192.168.101.227, 172.16.231.30"
++	rxresp
++	expect resp.http.x-ip == "192.168.101.227"
++
++	txreq -url "/" \
++		-hdr "X-Forwarded-For: 2a00:1028:83a2:4542:8d6f:1a29:8f2d:df84"
++	rxresp
++	expect resp.http.x-ip == "2a00:1028:83a2:4542:8d6f:1a29:8f2d:df84"
++
++	# reduced size form.
++	txreq -url "/" -hdr "X-Forwarded-For: 2001:67c:2804:1001::c21f:27a4"
++	rxresp
++	expect resp.http.x-ip == "2001:67c:2804:1001::c21f:27a4"
++} -run
+diff --git a/lib/libvmod_ipcast/src/tests/30-invalid.vtc b/lib/libvmod_ipcast/src/tests/30-invalid.vtc
+new file mode 100644
+index 0000000..d93d172
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/tests/30-invalid.vtc
+@@ -0,0 +1,37 @@
++varnishtest "Test invalid input to ipcast vmod"
++
++server s1 {
++       rxreq
++       txresp
++
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import ipcast from "${vmod_topbuild}/src/.libs/libvmod_ipcast.so";
++	sub vcl_recv {
++		unset req.http.does-not-exist;
++                if (ipcast.ip(req.http.does-not-exist, "198.51.100.255") == "198.51.100.255") {
++			error 400 "Bad request";
++		}
++	}
++} -start
++
++client c1 {
++	txreq -url "/" -hdr "X-Forwarded-For: unknown"
++	rxresp
++	expect resp.status == 400
++} -run
++
++client c2 {
++	txreq -url "/" -hdr "X-Forwarded-For: ,,,"
++	rxresp
++	expect resp.status == 400
++} -run
++
++client c3 {
++	txreq -url "/" -hdr "X-Forwarded-For: "
++	rxresp
++	expect resp.status == 400
++} -run
+diff --git a/lib/libvmod_ipcast/src/tests/40-restarts.vtc b/lib/libvmod_ipcast/src/tests/40-restarts.vtc
+new file mode 100644
+index 0000000..41c2c44
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/tests/40-restarts.vtc
+@@ -0,0 +1,29 @@
++varnishtest "ipcast vmod with restarts"
++
++server s1 {
++       rxreq
++       txresp
++} -start
++
++varnish v1 -vcl+backend {
++	import ipcast from "${vmod_topbuild}/src/.libs/libvmod_ipcast.so";
++	sub vcl_recv {
++		unset req.http.ip;
++		if (req.restarts == 0) {
++			set req.http.ip = ipcast.ip("1.2.3.4", "198.51.100.255");
++		} else {
++			set req.http.ip = ipcast.ip("2.3.4.5", "198.51.100.255");
++		}
++	}
++	sub vcl_deliver {
++		if (req.restarts == 0) { return(restart); }
++		set resp.http.x-ip = req.http.ip;
++	}
++} -start
++
++client c1 {
++	txreq -url "/"
++	rxresp
++	expect resp.http.x-ip == "2.3.4.5"
++
++} -run
+diff --git a/lib/libvmod_ipcast/src/vmod_ipcast.c b/lib/libvmod_ipcast/src/vmod_ipcast.c
+new file mode 100644
+index 0000000..9abd8fd
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/vmod_ipcast.c
+@@ -0,0 +1,84 @@
++#include <stdlib.h>
++
++#include "vrt.h"
++#include "bin/varnishd/cache.h"
++
++#include "vcc_if.h"
++
++#include <sys/socket.h>
++#include <netdb.h>
++
++int
++init_function(struct vmod_priv *priv, const struct VCL_conf *conf) {
++	return (0);
++}
++
++
++
++static struct sockaddr_storage *
++parse_ip(struct sess *sp, const char *ipstring) {
++	struct addrinfo hints;
++	struct addrinfo *rp;
++	int s;
++	void *res;
++
++	AN(sp);
++	AN(ipstring);
++
++	res = WS_Alloc(sp->ws, sizeof (struct sockaddr_storage));
++	AN(res);
++
++	memset(&hints, 0, sizeof(struct addrinfo));
++	hints.ai_family = AF_UNSPEC;
++
++	// Don't attempt DNS resolution.
++	hints.ai_flags = AI_NUMERICHOST;
++
++	s = getaddrinfo(ipstring, NULL, &hints, &rp);
++	if (s != 0) {
++		VSL(SLT_VCL_Log, 0, "ipcast: Unable to decode IP address '%s'",
++				ipstring);
++		VSL(SLT_VCL_Log, 0, "ipcast: getaddrinfo(): %s", gai_strerror(s));
++		return(NULL);
++	}
++	AN(rp);
++
++	assert(rp->ai_addrlen == 16 || rp->ai_addrlen == 28);
++	memcpy(res, rp->ai_addr, rp->ai_addrlen);
++	freeaddrinfo(rp);
++	return (res);
++}
++
++
++static pthread_mutex_t priv_mtx = PTHREAD_MUTEX_INITIALIZER;
++
++struct sockaddr_storage *
++vmod_ip(struct sess *sp, struct vmod_priv *priv, const char *ipstring,
++    const char *d)
++{
++	void *res;
++	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
++	if (priv->priv == NULL) {
++		AZ(pthread_mutex_lock(&priv_mtx));
++		if (priv->priv == NULL) {
++			struct sockaddr_storage *p = parse_ip(sp, d);
++			/* XXX: if we can't parse the fallback, we crash. */
++			AN(p);
++			priv->priv = malloc(sizeof *p);
++			AN(priv->priv);
++			memcpy(priv->priv, p, sizeof *p);
++			priv->free = free;
++		}
++		AZ(pthread_mutex_unlock(&priv_mtx));
++	}
++
++	if (!ipstring) {
++		VSL(SLT_VCL_Log, 0, "ipcast: NULL is not an IP address");
++		return (priv->priv);
++	}
++
++	res = parse_ip(sp, ipstring);
++	if (res)
++		return (res);
++	return (priv->priv);
++}
+diff --git a/lib/libvmod_ipcast/src/vmod_ipcast.vcc b/lib/libvmod_ipcast/src/vmod_ipcast.vcc
+new file mode 100644
+index 0000000..644a185
+--- /dev/null
++++ b/lib/libvmod_ipcast/src/vmod_ipcast.vcc
+@@ -0,0 +1,3 @@
++Module ipcast
++Init init_function
++Function IP ip(PRIV_CALL, STRING, STRING)
+diff --git a/lib/libvmod_ipcast/vmod-ipcast.spec b/lib/libvmod_ipcast/vmod-ipcast.spec
+new file mode 100644
+index 0000000..27499bb
+--- /dev/null
++++ b/lib/libvmod_ipcast/vmod-ipcast.spec
+@@ -0,0 +1,45 @@
++Summary: ipcast VMOD for Varnish %{VARNISHVER}
++Name: vmod-ipcast
++Version: 1.2
++Release: 1%{?dist}
++License: BSD
++Group: System Environment/Daemons
++Source0: libvmod-ipcast.tar.gz
++BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
++Requires: varnish > 3.0
++BuildRequires: make, python-docutils
++
++%description
++ipcast VMOD for Varnish %{VARNISHVER}. Allows assigning to client.ip from VCL.
++
++%prep
++%setup -n libvmod-ipcast
++
++%build
++# this assumes that VARNISHSRC is defined on the rpmbuild command line, like this:
++# rpmbuild -bb --define 'VARNISHSRC /home/user/rpmbuild/BUILD/varnish-3.0.3' redhat/*spec
++./configure VARNISHSRC=%{VARNISHSRC} VMODDIR="$(PKG_CONFIG_PATH=%{VARNISHSRC} pkg-config --variable=vmoddir varnishapi)" --prefix=/usr/ --docdir='${datarootdir}/doc/%{name}'
++make
++make check
++
++%install
++make install DESTDIR=%{buildroot}
++mkdir -p %{buildroot}/usr/share/doc/%{name}/
++cp README.rst %{buildroot}/usr/share/doc/%{name}/
++cp LICENSE %{buildroot}/usr/share/doc/%{name}/
++
++%clean
++rm -rf %{buildroot}
++
++%files
++%defattr(-,root,root,-)
++%{_libdir}/varnis*/vmods/
++%doc /usr/share/doc/%{name}/*
++%{_mandir}/man?/*
++
++%changelog
++* Wed Mar  5 2014 Lasse Karstensen <lkarsten@varnish-software.com> - 0.1-0.20140305
++- Updated description to work better with Redhat Satellite.
++
++* Tue Nov 14 2012 Lasse Karstensen <lasse@varnish-software.com> - 0.1-0.20121114
++- Initial version.
