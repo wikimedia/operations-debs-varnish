@@ -1,0 +1,109 @@
+From 3a99613fffc118e4295184d28c0cc509c2e249b1 Mon Sep 17 00:00:00 2001
+From: Martin Blix Grydeland <martin@varnish-software.com>
+Date: Tue, 17 Mar 2015 14:39:42 +0100
+Subject: [PATCH] Be more consistent about per-hop/end-to-end headers.
+
+Conflicts:
+	bin/varnishd/cache/cache_http.c
+	bin/varnishd/http1/cache_http1_fsm.c
+
+Conflicts:
+	bin/varnishd/cache/cache.h
+	bin/varnishd/cache/cache_http.c
+	bin/varnishd/cache/cache_http1_fsm.c
+	include/tbl/sess_close.h
+---
+ bin/varnishd/cache.h             |  2 +-
+ bin/varnishd/cache_center.c      |  9 ++++++++-
+ bin/varnishd/cache_http.c        | 18 +++++++++++++++++-
+ bin/varnishtest/tests/c00016.vtc |  6 ++++++
+ 4 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/bin/varnishd/cache.h b/bin/varnishd/cache.h
+index be319df..f580c5a 100644
+--- a/bin/varnishd/cache.h
++++ b/bin/varnishd/cache.h
+@@ -773,7 +773,7 @@ int http_IsHdr(const txt *hh, const char *hdr);
+ uint16_t http_DissectRequest(struct sess *sp);
+ uint16_t http_DissectResponse(struct worker *w, const struct http_conn *htc,
+     struct http *sp);
+-const char *http_DoConnection(const struct http *hp);
++const char *http_DoConnection(struct http *hp, uint16_t *pstatus);
+ void http_CopyHome(struct worker *w, int fd, const struct http *hp);
+ void http_Unset(struct http *hp, const char *hdr);
+ void http_CollectHdr(struct http *hp, const char *hdr);
+diff --git a/bin/varnishd/cache_center.c b/bin/varnishd/cache_center.c
+index 22edb9b..969bf50 100644
+--- a/bin/varnishd/cache_center.c
++++ b/bin/varnishd/cache_center.c
+@@ -1517,7 +1517,14 @@ cnt_start(struct sess *sp)
+ 	/* Catch original request, before modification */
+ 	HTTP_Copy(sp->http0, sp->http);
+ 
+-	sp->doclose = http_DoConnection(sp->http);
++	sp->doclose = http_DoConnection(sp->http, &err_code);
++	if (err_code == 400)
++		(void)write(sp->fd, r_400, strlen(r_400));
++	if (err_code != 0) {
++		sp->step = STP_DONE;
++		vca_close_session(sp, sp->doclose);
++		return (0);
++	}
+ 
+ 	/* XXX: Handle TRACE & OPTIONS of Max-Forwards = 0 */
+ 
+diff --git a/bin/varnishd/cache_http.c b/bin/varnishd/cache_http.c
+index 3680422..d180e79 100644
+--- a/bin/varnishd/cache_http.c
++++ b/bin/varnishd/cache_http.c
+@@ -413,12 +413,15 @@ http_GetHdrField(const struct http *hp, const char *hdr,
+  */
+ 
+ const char *
+-http_DoConnection(const struct http *hp)
++http_DoConnection(struct http *hp, uint16_t *p_err_code)
+ {
+ 	char *p, *q;
+ 	const char *ret;
+ 	unsigned u;
+ 
++	AN(p_err_code);
++
++	http_CollectHdr(hp, H_Connection);
+ 	if (!http_GetHdr(hp, H_Connection, &p)) {
+ 		if (hp->protover < 11)
+ 			return ("not HTTP/1.1");
+@@ -437,6 +440,19 @@ http_DoConnection(const struct http *hp)
+ 		u = pdiff(p, q);
+ 		if (u == 5 && !strncasecmp(p, "close", u))
+ 			ret = "Connection: close";
++
++		/* Refuse removal of well-known-headers if they would pass. */
++/*lint -save -e506 */
++#define HTTPH(a,b,c,d,e,f,g)			\
++		if (!((e) & HTTPH_R_PASS) &&	\
++		    strlen(a) == u && !strncasecmp(a, p, u)) {	\
++			*p_err_code = 400;			\
++			return ("Bad request");			\
++		}
++#include "http_headers.h"
++#undef HTTPH
++/*lint -restore */
++
+ 		u = http_findhdr(hp, u, p);
+ 		if (u != 0)
+ 			hp->hdf[u] |= HDF_FILTER;
+diff --git a/bin/varnishtest/tests/c00016.vtc b/bin/varnishtest/tests/c00016.vtc
+index 99e9c53..85f1b38 100644
+--- a/bin/varnishtest/tests/c00016.vtc
++++ b/bin/varnishtest/tests/c00016.vtc
+@@ -23,3 +23,9 @@ client c1 {
+ 	rxresp
+ 	expect req.http.Bar == <undef>
+ } -run
++
++client c1 {
++	txreq -hdr "foo: 1" -hdr "Age: 200" -hdr "Connection: Age"
++	rxresp
++	expect resp.status == 400
++} -run

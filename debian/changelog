@@ -1,3 +1,11 @@
+varnish (3.0.6plus-wm9) jessie-wikimedia; urgency=medium
+
+  * Cherrypick most of the patches from 3.0.7 (with the exception of a
+    few documentation patches and 72981734a141a0a52172b85bae55f8877f69ff42
+    Also fixes CVE-2015-8852
+
+ -- Moritz Muehlenhoff <moritz@wikimedia.org>  Wed, 27 Apr 2016 15:06:24 +0200
+
 varnish (3.0.6plus-wm8) jessie-wikimedia; urgency=low
 
   * Added libvmod-tbf

@@ -1,0 +1,22 @@
+From 6b3a02f274fa9ac413c06cd2e516117096e2ef1f Mon Sep 17 00:00:00 2001
+From: Lasse Karstensen <lkarsten@varnish-software.com>
+Date: Tue, 17 Mar 2015 11:05:33 +0100
+Subject: [PATCH] Avoid memory leak when adding bans.
+
+This is a backport of a88dbf913c7c264bb994f1fd5810e8a6ab27c3cc.
+---
+ bin/varnishd/cache_ban.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/bin/varnishd/cache_ban.c b/bin/varnishd/cache_ban.c
+index 4e4de57..ab7c0d9 100644
+--- a/bin/varnishd/cache_ban.c
++++ b/bin/varnishd/cache_ban.c
+@@ -294,6 +294,7 @@ ban_parse_regexp(struct cli *cli, const struct ban *b, const char *a3)
+ 	rc = pcre_fullinfo(re, NULL, PCRE_INFO_SIZE, &sz);
+ 	AZ(rc);
+ 	ban_add_lump(b, re, sz);
++	pcre_free(re);
+ 	return (0);
+ }
+ 

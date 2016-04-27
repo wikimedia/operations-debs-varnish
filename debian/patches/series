@@ -19,3 +19,8 @@
 0104-libvmod-tbf-build.patch
 0105-libvmod-ipcast-src.patch
 0106-libvmod-ipcast-build.patch
+0107-use-better-criteria-for-determining-if-child-CLI-connection-is-hosed.patch
+0108-do-not-consider-a-CR-by-itself-as-a-valid-line-terminator.patch
+0109-check-for-duplicate-content-length-headers-in-requests.patch
+0110-avoid-memory-leak-when-adding-bans.patch
+0111-be-more-consistent-about-per-hop-end-to-end-headers.patch
